@@ -1,13 +1,5 @@
 
-
-//`include "defs.vh"
-//
-
-
-`define XLEN	64
-`define NUM_REG	32
-`define NUM_CSR	4096
-
+`include "defs.vh"
 
 module RISCV64G_ISS (
 	input			CLK,
@@ -43,87 +35,9 @@ module RISCV64G_ISS (
 	wire [`XLEN-1:0]	rs1_d;
 	wire [`XLEN-1:0]	rs2_d;
 
-	logic [`XLEN-1:0]	rd_w;
-
-	always_ff @(posedge CLK or negedge RSTn)
-	begin
-		if(!RSTn) begin
-			pc <= 64'h0000_0000_8000_0000;
-		end else begin
-			pc <= pc_nxt;
-		end
-	end
-
-	// next pc
-	always_comb begin
-		case (opcode)
-		7'b1101111:	pc_nxt = pc + imm_jw;	// JAL
-		7'b1100011: begin			// blanch
-			case (funct3)
-			3'b000:	pc_nxt = rs1_d == rs2_d ? pc + imm_bw : pc + 'h4;
-			3'b001:	pc_nxt = rs1_d != rs2_d ? pc + imm_bw : pc + 'h4;
-			default:pc_nxt = pc + 'h4;
-			endcase
-		end
-		default:	pc_nxt = pc + 'h4;
-		endcase
-	end
-
-
-	// register files
+	// registers
 	reg [`XLEN-1:0]		reg_file[0:`NUM_REG-1];
-	always_ff @(posedge CLK or negedge RSTn)
-	begin
-		if(!RSTn) begin
-			integer i;
-			for(i = 0; i < `NUM_REG; i = i + 1) begin
-				reg_file[i] = {`XLEN{1'b0}};
-			end
-		end else begin
-			case (opcode)
-			7'b0010111: begin
-				reg_file[rd0] <= rd_w;
-			end
-			7'b0010011: begin
-				reg_file[rd0] <= rd_w;
-			end
-			7'b1110011: begin
-				if(funct3 == 3'b010 || funct3 == 3'b001) begin
-					if(rd0 != 5'h00) reg_file[rd0] <= csr_reg[csr];
-				end
-			end
-			default: ;
-			endcase
-		end
-	end
-
-	// csr registers
 	reg [`XLEN-1:0]		csr_reg[0:`NUM_CSR-1];
-	always_ff @(posedge CLK or negedge RSTn)
-	begin
-		if(!RSTn) begin
-			integer i;
-			for(i = 0; i < `NUM_CSR; i = i + 1) begin
-				csr_reg[i] = {`XLEN{1'b0}};
-			end
-		end else begin
-			case (opcode)
-			7'b1110011: begin
-				case (funct3)
-				3'b001: begin // CSRRW
-					csr_reg[csr] <= rs1_d;
-				end
-				3'b010: begin // CSRRS
-					csr_reg[csr] <= csr_reg[csr] | rs1_d;
-				end
-				default: ;
-				endcase
-			end
-			default: ;
-			endcase
-		end
-	end
-
 
 	// 1. instruction fetch
 	assign inst   = mem[pc[22-1:2]];
@@ -153,14 +67,70 @@ module RISCV64G_ISS (
 	assign	rs1_d = reg_file[rs1];
 	assign	rs2_d = reg_file[rs2];
 
-	// 3. execute
-	always_comb begin
-		casez ({opcode, funct3, funct7})
-		17'b0010011_000_???????: rd_w = rs1_d + imm_iw;
-		17'b0010111_???_???????: rd_w = pc + imm_uw;
-		endcase
+	// main loop
+	always_ff @(posedge CLK or negedge RSTn)
+	begin
+		if(!RSTn) begin
+			integer i;
+			// pc
+			pc <= 64'h0000_0000_8000_0000;
+
+			// register file
+			for(i = 0; i < `NUM_REG; i = i + 1) begin
+				reg_file[i] = {`XLEN{1'b0}};
+			end
+
+			// csr
+			for(i = 0; i < `NUM_CSR; i = i + 1) begin
+				csr_reg[i] = {`XLEN{1'b0}};
+			end
+		end else begin
+			// execute and write back
+			case (opcode)
+			7'b0010111: begin	// AUIPC
+					if(rd0 != 5'h00) reg_file[rd0] <= pc + imm_uw;
+			end
+			7'b0010011: begin	// OP-IMM
+				case (funct3)
+				3'h000: begin
+					if(rd0 != 5'h00) reg_file[rd0] <= rs1_d + imm_iw;
+				end
+				default: ;
+				endcase
+			end
+			7'b1110011: begin	// SYSTEM
+				case (funct3)
+				3'b001: begin		// CSRRW
+					csr_reg[csr] <= rs1_d;
+					if(rd0 != 5'h00) reg_file[rd0] <= csr_reg[csr];
+				end
+				3'b010: begin		// CSRRS
+					csr_reg[csr] <= csr_reg[csr] | rs1_d;
+					if(rd0 != 5'h00) reg_file[rd0] <= csr_reg[csr];
+				end
+				default: ;
+				endcase
+			end
+			default: ;
+			endcase
+
+			// pc update
+			case (opcode)
+			7'b1101111: begin	// JAL
+					pc <= pc + imm_jw;
+			end
+			7'b1100011: begin	// BRANCH
+				case (funct3)
+				3'b000:	pc <= rs1_d == rs2_d ? pc + imm_bw : pc + 'h4;	// BEQ
+				3'b001:	pc <= rs1_d != rs2_d ? pc + imm_bw : pc + 'h4;	// BNE
+				default:pc <= pc + 'h4;
+				endcase
+			end
+			default:	pc <= pc + 'h4;
+			endcase
+		end
 	end
-	
+
 	// trace output
 	always @(posedge CLK)
 	begin
