@@ -10,7 +10,9 @@ module RISCV64G_ISS_CSR
 	input [`XLEN-1:0]		WD,
 
 	output [`XLEN-1:0]		mtvec,
-	output [`XLEN-1:0]		mepc
+	output [`XLEN-1:0]		mepc,
+
+	input				trap
 );
 
 	reg [`XLEN-1:0]		csr_reg[0:`NUM_CSR-1];
@@ -33,6 +35,8 @@ module RISCV64G_ISS_CSR
 		end else begin
 			if(WE) begin
 				csr_reg[A] <= WD;
+			end else if (trap) begin	// TRAP
+				csr_reg[12'h342] <= 64'h0000_0000_0000_000b;	// mcause
 			end
 		end
 	end

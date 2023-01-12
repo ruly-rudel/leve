@@ -87,6 +87,7 @@ module RISCV64G_ISS (
 
 	wire [`XLEN-1:0]	mtvec;
 	wire [`XLEN-1:0]	mepc;
+	logic			trap;
 	RISCV64G_ISS_CSR	RISCV64G_ISS_CSR
 	(
 		.CLK		(CLK),
@@ -97,7 +98,9 @@ module RISCV64G_ISS (
 		.WD		(csr_wd),
 
 		.mtvec		(mtvec),
-		.mepc		(mepc)
+		.mepc		(mepc),
+
+		.trap		(trap)
 	);
 
 	// main loop
@@ -109,10 +112,12 @@ module RISCV64G_ISS (
 			pc <= 64'h0000_0000_8000_0000;
 
 			csr_we = 1'b0;
+			trap = 1'b0;
 			tohost_we = 1'b0;
 		end else begin
 			// reset csr_we
 			csr_we = 1'b0;
+			trap = 1'b0;
 			tohost_we = 1'b0;
 
 			// execute and write back
@@ -324,6 +329,7 @@ module RISCV64G_ISS (
 				3'b000: begin
 					case ({funct7, rs2})
 					12'b0000000_00000: begin	// ECALL
+						trap = 1'b1;
 						pc <= mtvec;
 					end
 					12'b0000000_00001: begin	// EBREAK
