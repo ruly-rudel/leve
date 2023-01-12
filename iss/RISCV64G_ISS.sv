@@ -128,6 +128,9 @@ module RISCV64G_ISS (
 			7'b0010111: begin	// AUIPC
 						if(rd0 != 5'h00) reg_file[rd0] <= pc + imm_uw;
 			end
+			7'b1101111: begin	// JAL
+						if(rd0 != 5'h00) reg_file[rd0] <= pc + 'h4;
+			end
 			7'b0010011: begin	// OP-IMM
 				case (funct3)
 				3'b000: 	if(rd0 != 5'h00) reg_file[rd0] <= rs1_d + imm_iw;	// ADDI
@@ -200,10 +203,10 @@ module RISCV64G_ISS (
 				3'b000: begin
 					case (funct7)
 					7'b0000000: begin	// ADD
-					 	if(rd0 != 5'h00) reg_file[rd0] <= rs1_d + rs2_d;
+						if(rd0 != 5'h00) reg_file[rd0] <= rs1_d + rs2_d;
 					end
 					7'b0100000: begin	// SUB
-					 	if(rd0 != 5'h00) reg_file[rd0] <= rs2_d - rs1_d;
+						if(rd0 != 5'h00) reg_file[rd0] <= rs1_d - rs2_d;
 					end
 					default: ;
 					endcase
@@ -263,6 +266,46 @@ module RISCV64G_ISS (
 					case (funct7)
 					7'b000000: begin	// AND
 					 	if(rd0 != 5'h00) reg_file[rd0] <= rs1_d & rs2_d;
+					end
+					default: ;
+					endcase
+				end
+				default: ;
+				endcase
+			end
+			7'b0111011: begin	// OP-32
+				case (funct3)
+				3'b000: begin
+					case (funct7)
+					7'b0000000: begin	// ADDW
+						tmp32 = rs1_d[31:0] + rs2_d[31:0];
+						if(rd0 != 5'h00) reg_file[rd0] <= {{32{tmp32[31]}}, tmp32};
+					end
+					7'b0100000: begin	// SUBW
+						tmp32 = rs1_d[31:0] - rs2_d[31:0];
+						if(rd0 != 5'h00) reg_file[rd0] <= {{32{tmp32[31]}}, tmp32};
+					end
+					default: ;
+					endcase
+				end
+				3'b001: begin
+					case (funct7)
+					7'b000000: begin	// SLLW
+						tmp32 = rs1_d[31:0] << rs2_d[4:0];
+						if(rd0 != 5'h00) reg_file[rd0] <= {{32{tmp32[31]}}, tmp32};
+					end
+					default: ;
+					endcase
+				end
+				3'b101: begin
+					case (funct7)
+					7'b000000: begin	// SRLW
+						tmp32 = rs1_d[31:0] >> rs2_d[4:0];
+						if(rd0 != 5'h00) reg_file[rd0] <= {{32{tmp32[31]}}, tmp32};
+					end
+					7'b010000: begin	// SRAW
+						tmp32 = rs1_d[31:0] >>> rs2_d[4:0];
+						if(rd0 != 5'h00) reg_file[rd0] <= {{32{tmp32[31]}}, tmp32};
 					end
 					default: ;
 					endcase
@@ -394,6 +437,26 @@ module RISCV64G_ISS (
 				end
 				3'b110: $display("pc=%016H: %08H, opcode = %07B, funct3 = %03B, funct7 = %07B, OR,   rd0 = x%d, rs1 = x%d, rs2 = x%d", pc, inst, opcode, funct3, funct7, rd0, rs1, rs2 );
 				3'b111: $display("pc=%016H: %08H, opcode = %07B, funct3 = %03B, funct7 = %07B, AND,  rd0 = x%d, rs1 = x%d, rs2 = x%d", pc, inst, opcode, funct3, funct7, rd0, rs1, rs2 );
+				default: $display("pc=%016H: %08H, opcode = %07B, funct3 = %03B, funct7 = %07B, ???,  rd0 = x%d, rs1 = x%d, rs2 = x%d", pc, inst, opcode, funct3, funct7, rd0, rs1, rs2 );
+				endcase
+			end
+			7'b0111011: begin	// OP-32: R type
+				case (funct3)
+				3'b000: begin
+					case (funct7)
+					7'b0000000: $display("pc=%016H: %08H, opcode = %07B, funct3 = %03B, funct7 = %07B, ADDW, rd0 = x%d, rs1 = x%d, rs2 = x%d", pc, inst, opcode, funct3, funct7, rd0, rs1, rs2 );
+					7'b0100000: $display("pc=%016H: %08H, opcode = %07B, funct3 = %03B, funct7 = %07B, SUBW, rd0 = x%d, rs1 = x%d, rs2 = x%d", pc, inst, opcode, funct3, funct7, rd0, rs1, rs2 );
+					default: $display("pc=%016H: %08H, opcode = %07B, funct3 = %03B, funct7 = %07B, ???,  rd0 = x%d, rs1 = x%d, rs2 = x%d", pc, inst, opcode, funct3, funct7, rd0, rs1, rs2 );
+					endcase
+				end
+				3'b001: $display("pc=%016H: %08H, opcode = %07B, funct3 = %03B, funct7 = %07B, SLLW, rd0 = x%d, rs1 = x%d, rs2 = x%d", pc, inst, opcode, funct3, funct7, rd0, rs1, rs2 );
+				3'b101: begin
+					case (funct7)
+					7'b0000000: $display("pc=%016H: %08H, opcode = %07B, funct3 = %03B, funct7 = %07B, SRLW, rd0 = x%d, rs1 = x%d, rs2 = x%d", pc, inst, opcode, funct3, funct7, rd0, rs1, rs2 );
+					7'b0100000: $display("pc=%016H: %08H, opcode = %07B, funct3 = %03B, funct7 = %07B, SRAW, rd0 = x%d, rs1 = x%d, rs2 = x%d", pc, inst, opcode, funct3, funct7, rd0, rs1, rs2 );
+					default: $display("pc=%016H: %08H, opcode = %07B, funct3 = %03B, funct7 = %07B, ???,  rd0 = x%d, rs1 = x%d, rs2 = x%d", pc, inst, opcode, funct3, funct7, rd0, rs1, rs2 );
+					endcase
+				end
 				default: $display("pc=%016H: %08H, opcode = %07B, funct3 = %03B, funct7 = %07B, ???,  rd0 = x%d, rs1 = x%d, rs2 = x%d", pc, inst, opcode, funct3, funct7, rd0, rs1, rs2 );
 				endcase
 			end
