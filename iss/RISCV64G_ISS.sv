@@ -3,10 +3,14 @@
 
 module RISCV64G_ISS (
 	input			CLK,
-	input			RSTn
+	input			RSTn,
+
+	output reg		tohost_we,
+	output [`XLEN-1:0]	tohost
 );
 	//reg [31:0]	mem[0:1024*1024*16-1];
 	reg  [32-1:0]	mem[0:1024*1024-1];
+	assign tohost = {mem[20'h0_0401], mem[20'h0_0400]};
 
 	// PC
 	reg  [`XLEN-1:0]	pc;
@@ -105,9 +109,11 @@ module RISCV64G_ISS (
 			pc <= 64'h0000_0000_8000_0000;
 
 			csr_we = 1'b0;
+			tohost_we = 1'b0;
 		end else begin
 			// reset csr_we
 			csr_we = 1'b0;
+			tohost_we = 1'b0;
 
 			// execute and write back
 			case (opcode)
@@ -177,6 +183,12 @@ module RISCV64G_ISS (
 				end
 				default: ;
 				endcase
+			end
+			7'b0100011: begin	// STORE(SD)
+						tmp = rs1_d + imm_sw;
+						mem[tmp[22-1:2]]       = rs2_d[31:0];
+						mem[tmp[22-1:2] + 'b1] = rs2_d[63:32];
+						tohost_we = tmp == 64'h0000_0000_8000_1000 ? 1'b1 : 1'b0;
 			end
 			7'b0110011: begin	// OP
 				case (funct3)
