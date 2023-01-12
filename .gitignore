@@ -33,3 +33,5 @@
 
 # others
 *.swp
+*.log
+*.vcd
