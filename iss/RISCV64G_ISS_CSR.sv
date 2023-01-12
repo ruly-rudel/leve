@@ -7,7 +7,10 @@ module RISCV64G_ISS_CSR
 	input				WE,
 	input [12-1:0]			A,
 	output logic [`XLEN-1:0]	RD,
-	input [`XLEN-1:0]		WD
+	input [`XLEN-1:0]		WD,
+
+	output [`XLEN-1:0]		mtvec,
+	output [`XLEN-1:0]		mepc
 );
 
 	reg [`XLEN-1:0]		csr_reg[0:`NUM_CSR-1];
@@ -33,5 +36,8 @@ module RISCV64G_ISS_CSR
 			end
 		end
 	end
+
+	assign	mtvec = csr_reg[12'h305];
+	assign	mepc  = csr_reg[12'h341];
 
 endmodule
