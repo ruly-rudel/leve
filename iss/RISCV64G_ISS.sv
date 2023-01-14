@@ -128,6 +128,14 @@ module RISCV64G_ISS (
 			7'b0010111: begin	// AUIPC
 						if(rd0 != 5'h00) reg_file[rd0] <= pc + imm_uw;
 			end
+			7'b1100111: begin	// JALR
+				case (funct3)
+				3'b000: begin
+						if(rd0 != 5'h00) reg_file[rd0] <= pc + 'h4;
+				end
+				default: ;
+				endcase
+			end
 			7'b1101111: begin	// JAL
 						if(rd0 != 5'h00) reg_file[rd0] <= pc + 'h4;
 			end
@@ -355,6 +363,14 @@ module RISCV64G_ISS (
 			case (opcode)
 			7'b1101111: begin	// JAL
 					pc <= pc + imm_jw;
+			end
+			7'b1100111: begin	// JALR
+				case (funct3)
+				3'b000: begin
+					pc <= rs1_d + imm_iw;
+				end
+				default:pc <= pc + 'h4;
+				endcase
 			end
 			7'b1100011: begin	// BRANCH
 				case (funct3)
