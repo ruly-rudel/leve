@@ -6,11 +6,10 @@ module RISCV64G_ISS (
 	input			RSTn,
 
 	output reg		tohost_we,
-	output [`XLEN-1:0]	tohost
+	output [32-1:0]		tohost
 );
 	//reg [31:0]	mem[0:1024*1024*16-1];
 	reg  [32-1:0]	mem[0:1024*1024-1];
-	assign tohost = {mem[20'h0_0401], mem[20'h0_0400]};
 
 	// PC
 	reg  [`XLEN-1:0]	pc;
@@ -45,6 +44,8 @@ module RISCV64G_ISS (
 
 	logic [`XLEN-1:0]	tmp;
 	logic [32-1:0]		tmp32;
+
+	assign tohost  = mem[tmp[22-1:2]];
 
 	// registers
 	reg [`XLEN-1:0]		reg_file[0:`NUM_REG-1];
@@ -124,7 +125,7 @@ module RISCV64G_ISS (
 			case (opcode)
 			7'b0000011: begin	// LOAD: I type
 				case (funct3)
-				3'b000: begin			// LBU
+				3'b000: begin			// LB
 						tmp = rs1_d + imm_iw;
 						tmp32 = mem[tmp[22-1:2]];
 						case (tmp[1:0])
@@ -134,7 +135,7 @@ module RISCV64G_ISS (
 						2'h3 : if(rd0 != 5'h00) reg_file[rd0] <= {{56{tmp32[31]}}, tmp32[31:24]};
 						endcase
 				end
-				3'b001: begin			// LHU
+				3'b001: begin			// LH
 						tmp = rs1_d + imm_iw;
 						tmp32 = mem[tmp[22-1:2]];
 						case (tmp[1])
@@ -214,7 +215,7 @@ module RISCV64G_ISS (
 					 	if(rd0 != 5'h00) reg_file[rd0] <= rs1_d >> shamt;
 					end
 					6'b010000: begin						// SRAI
-					 	if(rd0 != 5'h00) reg_file[rd0] <= rs1_d >>> shamt;
+					 	if(rd0 != 5'h00) reg_file[rd0] <= $signed(rs1_d) >>> shamt;
 					end
 					default: ;
 					endcase
@@ -246,7 +247,7 @@ module RISCV64G_ISS (
 						if(rd0 != 5'h00) reg_file[rd0] <= {{32{tmp32[31]}}, tmp32};
 					end
 					7'b0100000: begin	// SRAIW
-						tmp32 = rs1_d[31:0] >>> shamt[4:0];
+						tmp32 = $signed(rs1_d[31:0]) >>> shamt[4:0];
 						if(rd0 != 5'h00) reg_file[rd0] <= {{32{tmp32[31]}}, tmp32};
 					end
 					default: ;
@@ -278,8 +279,7 @@ module RISCV64G_ISS (
 				3'b010: begin			// SW
 						tmp = rs1_d + imm_sw;
 						mem[tmp[22-1:2]]	= rs2_d[31:0];
-						tohost_we = tmp == 64'h0000_0000_8000_1000 ? 1'b1 :
-							    tmp == 64'h0000_0000_8000_2000 ? 1'b1 : 1'b0;	// for testbench
+						tohost_we  = pc == 64'h0000_0000_8000_0040 ? 1'b1 : 1'b0;	// for testbench hack
 				end
 				3'b011: begin			// SD
 						tmp = rs1_d + imm_sw;
@@ -304,7 +304,7 @@ module RISCV64G_ISS (
 				end
 				3'b001: begin
 					case (funct7)
-					7'b000000: begin	// SLL
+					7'b0000000: begin	// SLL
 						if(rd0 != 5'h00) reg_file[rd0] <= rs1_d << rs2_d[5:0];
 					end
 					default: ;
@@ -312,7 +312,7 @@ module RISCV64G_ISS (
 				end
 				3'b010: begin
 					case (funct7)
-					7'b000000: begin	// SLT
+					7'b0000000: begin	// SLT
 						if(rd0 != 5'h00) reg_file[rd0] <= $signed(rs1_d) < $signed(rs2_d) ? 64'h0000_0000_0000_0001 : {64{1'b0}};
 					end
 					default: ;
@@ -320,7 +320,7 @@ module RISCV64G_ISS (
 				end
 				3'b011: begin
 					case (funct7)
-					7'b000000: begin	// SLTU
+					7'b0000000: begin	// SLTU
 					 	if(rd0 != 5'h00) reg_file[rd0] <= rs1_d < rs2_d ? 64'h0000_0000_0000_0001 : {64{1'b0}};
 					end
 					default: ;
@@ -328,7 +328,7 @@ module RISCV64G_ISS (
 				end
 				3'b100: begin
 					case (funct7)
-					7'b000000: begin	// XOR
+					7'b0000000: begin	// XOR
 					 	if(rd0 != 5'h00) reg_file[rd0] <= rs1_d ^ rs2_d;
 					end
 					default: ;
@@ -336,18 +336,18 @@ module RISCV64G_ISS (
 				end
 				3'b101: begin
 					case (funct7)
-					7'b000000: begin	// SRL
+					7'b0000000: begin	// SRL
 						if(rd0 != 5'h00) reg_file[rd0] <= rs1_d >> rs2_d[5:0];
 					end
-					7'b010000: begin	// SRA
-						if(rd0 != 5'h00) reg_file[rd0] <= rs1_d >>> rs2_d[5:0];
+					7'b0100000: begin	// SRA
+						if(rd0 != 5'h00) reg_file[rd0] <= $signed(rs1_d) >>> rs2_d[5:0];
 					end
 					default: ;
 					endcase
 				end
 				3'b110: begin
 					case (funct7)
-					7'b000000: begin	// OR
+					7'b0000000: begin	// OR
 					 	if(rd0 != 5'h00) reg_file[rd0] <= rs1_d | rs2_d;
 					end
 					default: ;
@@ -355,7 +355,7 @@ module RISCV64G_ISS (
 				end
 				3'b111: begin
 					case (funct7)
-					7'b000000: begin	// AND
+					7'b0000000: begin	// AND
 					 	if(rd0 != 5'h00) reg_file[rd0] <= rs1_d & rs2_d;
 					end
 					default: ;
@@ -381,7 +381,7 @@ module RISCV64G_ISS (
 				end
 				3'b001: begin
 					case (funct7)
-					7'b000000: begin	// SLLW
+					7'b0000000: begin	// SLLW
 						tmp32 = rs1_d[31:0] << rs2_d[4:0];
 						if(rd0 != 5'h00) reg_file[rd0] <= {{32{tmp32[31]}}, tmp32};
 					end
@@ -390,12 +390,12 @@ module RISCV64G_ISS (
 				end
 				3'b101: begin
 					case (funct7)
-					7'b000000: begin	// SRLW
+					7'b0000000: begin	// SRLW
 						tmp32 = rs1_d[31:0] >> rs2_d[4:0];
 						if(rd0 != 5'h00) reg_file[rd0] <= {{32{tmp32[31]}}, tmp32};
 					end
-					7'b010000: begin	// SRAW
-						tmp32 = rs1_d[31:0] >>> rs2_d[4:0];
+					7'b0100000: begin	// SRAW
+						tmp32 = $signed(rs1_d[31:0]) >>> rs2_d[4:0];
 						if(rd0 != 5'h00) reg_file[rd0] <= {{32{tmp32[31]}}, tmp32};
 					end
 					default: ;
@@ -528,13 +528,31 @@ module RISCV64G_ISS (
 				default: $display("pc=%016H: %08H, opcode = %07B, funct3 = %03B, ???,    rd0 = x%d, rs1 = x%d, imm = %08H", pc, inst, opcode, funct3, rd0, rs1, imm_i );
 				endcase
 			end
-			7'b0010011: begin	// I type or R type
+			7'b0010011: begin	// OP-IMM: I type or R type
 				case (funct3)
 				3'b000: $display("pc=%016H: %08H, opcode = %07B, funct3 = %03B, ADDI,   rd0 = x%d, rs1 = x%d, imm = %08H", pc, inst, opcode, funct3, rd0, rs1, imm_i );
-				3'b001: $display("pc=%016H: %08H, opcode = %07B, funct3 = %03B, funct7 = %07B, SLLI,  rd0 = x%d, rs1 = x%d, shamt = %02H", pc, inst, opcode, funct3, funct7, rd0, rs1, shamt );
+				3'b001: begin
+					case (funct7[6:1])
+					6'b000000: begin						// SLLI
+						$display("pc=%016H: %08H, opcode = %07B, funct3 = %03B, funct7[6:1] = %06B, SLLI,  rd0 = x%d, rs1 = x%d, shamt = %02H", pc, inst, opcode, funct3, funct7[6:1], rd0, rs1, shamt );
+					end
+					default: $display("pc=%016H: %08H, opcode = %07B, funct3 = %03B, funct7[6:1] = %06B, ???,   rd0 = x%d, rs1 = x%d, shamt = %02H", pc, inst, opcode, funct3, funct7[6:1], rd0, rs1, shamt );
+					endcase
+				end
 				3'b010: $display("pc=%016H: %08H, opcode = %07B, funct3 = %03B, SLTI,   rd0 = x%d, rs1 = x%d, imm = %08H", pc, inst, opcode, funct3, rd0, rs1, imm_i );
 				3'b011: $display("pc=%016H: %08H, opcode = %07B, funct3 = %03B, SLTIU,  rd0 = x%d, rs1 = x%d, imm = %08H", pc, inst, opcode, funct3, rd0, rs1, imm_i );
 				3'b100: $display("pc=%016H: %08H, opcode = %07B, funct3 = %03B, XORI,   rd0 = x%d, rs1 = x%d, imm = %08H", pc, inst, opcode, funct3, rd0, rs1, imm_i );
+				3'b101: begin
+					case (funct7[6:1])
+					6'b000000: begin						// SRLI
+						$display("pc=%016H: %08H, opcode = %07B, funct3 = %03B, funct7[6:1] = %06B, SRLI,  rd0 = x%d, rs1 = x%d, shamt = %02H", pc, inst, opcode, funct3, funct7[6:1], rd0, rs1, shamt );
+					end
+					6'b010000: begin						// SRAI
+						$display("pc=%016H: %08H, opcode = %07B, funct3 = %03B, funct7[6:1] = %06B, SRAI,  rd0 = x%d, rs1 = x%d, shamt = %02H", pc, inst, opcode, funct3, funct7[6:1], rd0, rs1, shamt );
+					end
+					default: $display("pc=%016H: %08H, opcode = %07B, funct3 = %03B, funct7[6:1] = %06B, ???,   rd0 = x%d, rs1 = x%d, shamt = %02H", pc, inst, opcode, funct3, funct7[6:1], rd0, rs1, shamt );
+					endcase
+				end
 				3'b110: $display("pc=%016H: %08H, opcode = %07B, funct3 = %03B, ORI,    rd0 = x%d, rs1 = x%d, imm = %08H", pc, inst, opcode, funct3, rd0, rs1, imm_i );
 				3'b111: $display("pc=%016H: %08H, opcode = %07B, funct3 = %03B, ANDI,   rd0 = x%d, rs1 = x%d, imm = %08H", pc, inst, opcode, funct3, rd0, rs1, imm_i );
 				default: $display("pc=%016H: %08H, opcode = %07B, funct3 = %03B, ???,    rd0 = x%d, rs1 = x%d, imm = %08H", pc, inst, opcode, funct3, rd0, rs1, imm_i );

@@ -7,8 +7,8 @@ module tb_iss
 	input		RSTn
 );
 
-	wire			tohost_we;
-	wire [`XLEN-1:0]	tohost;
+	wire		tohost_we;
+	wire [32-1:0]	tohost;
 
 	RISCV64G_ISS	RISCV64G_ISS_0
 	(

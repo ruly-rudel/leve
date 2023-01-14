@@ -14,4 +14,4 @@ cc:
 
 
 clean:
-	rm -rf obj_dir *.vcd *.log
+	rm -rf obj_dir *.vcd *.log rv64ui-p.dump rv64ui-p.hex
