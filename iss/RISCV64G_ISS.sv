@@ -142,7 +142,7 @@ module RISCV64G_ISS (
 					default: ;
 					endcase
 				end
-				3'b010: 	if(rd0 != 5'h00) reg_file[rd0] <= rs1_d < imm_iw ? 64'h0000_0000_0000_0001 : {64{1'b0}};	// SLTI ************* FIX IT
+				3'b010: 	if(rd0 != 5'h00) reg_file[rd0] <= $signed(rs1_d) < $signed(imm_iw) ? 64'h0000_0000_0000_0001 : {64{1'b0}};	// SLTI
 				3'b011: 	if(rd0 != 5'h00) reg_file[rd0] <= rs1_d < imm_iw ? 64'h0000_0000_0000_0001 : {64{1'b0}};	// SLTIU
 				3'b100: 	if(rd0 != 5'h00) reg_file[rd0] <= rs1_d ^ imm_iw;	// XORI
 				3'b101: begin
@@ -222,7 +222,7 @@ module RISCV64G_ISS (
 				3'b010: begin
 					case (funct7)
 					7'b000000: begin	// SLT
-					 	if(rd0 != 5'h00) reg_file[rd0] <= rs1_d < rs2_d ? 64'h0000_0000_0000_0001 : {64{1'b0}};	// ************* FIX IT
+						if(rd0 != 5'h00) reg_file[rd0] <= $signed(rs1_d) < $signed(rs2_d) ? 64'h0000_0000_0000_0001 : {64{1'b0}};
 					end
 					default: ;
 					endcase
@@ -360,10 +360,10 @@ module RISCV64G_ISS (
 				case (funct3)
 				3'b000:	pc <= rs1_d == rs2_d ? pc + imm_bw : pc + 'h4;	// BEQ
 				3'b001:	pc <= rs1_d != rs2_d ? pc + imm_bw : pc + 'h4;	// BNE
-				3'b100:	pc <= rs1_d <  rs2_d ? pc + imm_bw : pc + 'h4;	// BLT	FIX IT**************
-				3'b101:	pc <= rs1_d >  rs2_d ? pc + imm_bw : pc + 'h4;	// BGE	FIX IT**************
+				3'b100:	pc <= $signed(rs1_d) <  $signed(rs2_d) ? pc + imm_bw : pc + 'h4;	// BLT
+				3'b101:	pc <= $signed(rs1_d) >= $signed(rs2_d) ? pc + imm_bw : pc + 'h4;	// BGE
 				3'b110:	pc <= rs1_d <  rs2_d ? pc + imm_bw : pc + 'h4;	// BLTU
-				3'b111:	pc <= rs1_d >  rs2_d ? pc + imm_bw : pc + 'h4;	// BGEU
+				3'b111:	pc <= rs1_d >= rs2_d ? pc + imm_bw : pc + 'h4;	// BGEU
 				default:pc <= pc + 'h4;
 				endcase
 			end
