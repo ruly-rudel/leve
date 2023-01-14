@@ -122,6 +122,61 @@ module RISCV64G_ISS (
 
 			// execute and write back
 			case (opcode)
+			7'b0000011: begin	// LOAD: I type
+				case (funct3)
+				3'b000: begin			// LBU
+						tmp = rs1_d + imm_iw;
+						tmp32 = mem[tmp[22-1:2]];
+						case (tmp[1:0])
+						2'h0 : if(rd0 != 5'h00) reg_file[rd0] <= {{56{tmp32[7]}}, tmp32[7:0]};
+						2'h1 : if(rd0 != 5'h00) reg_file[rd0] <= {{56{tmp32[15]}}, tmp32[15:8]};
+						2'h2 : if(rd0 != 5'h00) reg_file[rd0] <= {{56{tmp32[23]}}, tmp32[23:16]};
+						2'h3 : if(rd0 != 5'h00) reg_file[rd0] <= {{56{tmp32[31]}}, tmp32[31:24]};
+						endcase
+				end
+				3'b001: begin			// LHU
+						tmp = rs1_d + imm_iw;
+						tmp32 = mem[tmp[22-1:2]];
+						case (tmp[1])
+						1'b0 : if(rd0 != 5'h00) reg_file[rd0] <= {{48{tmp32[15]}}, tmp32[15:0]};
+						1'b1 : if(rd0 != 5'h00) reg_file[rd0] <= {{48{tmp32[31]}}, tmp32[31:16]};
+						endcase
+				end
+				3'b010: begin			// LW
+						tmp = rs1_d + imm_iw;
+						tmp32 = mem[tmp[22-1:2]];
+						if(rd0 != 5'h00) reg_file[rd0] <= {{32{tmp32[31]}}, tmp32};
+				end
+				3'b011: begin			// LD
+						tmp = rs1_d + imm_iw;
+						if(rd0 != 5'h00) reg_file[rd0] <= {mem[tmp[22-1:2] + 'b1], mem[tmp[22-1:2]]};
+				end
+				3'b100: begin			// LBU
+						tmp = rs1_d + imm_iw;
+						tmp32 = mem[tmp[22-1:2]];
+						case (tmp[1:0])
+						2'h0 : if(rd0 != 5'h00) reg_file[rd0] <= {{56{1'b0}}, tmp32[7:0]};
+						2'h1 : if(rd0 != 5'h00) reg_file[rd0] <= {{56{1'b0}}, tmp32[15:8]};
+						2'h2 : if(rd0 != 5'h00) reg_file[rd0] <= {{56{1'b0}}, tmp32[23:16]};
+						2'h3 : if(rd0 != 5'h00) reg_file[rd0] <= {{56{1'b0}}, tmp32[31:24]};
+						endcase
+				end
+				3'b101: begin			// LHU
+						tmp = rs1_d + imm_iw;
+						tmp32 = mem[tmp[22-1:2]];
+						case (tmp[1])
+						1'b0 : if(rd0 != 5'h00) reg_file[rd0] <= {{48{1'b0}}, tmp32[15:0]};
+						1'b1 : if(rd0 != 5'h00) reg_file[rd0] <= {{48{1'b0}}, tmp32[31:16]};
+						endcase
+				end
+				3'b110: begin			// LWU
+						tmp = rs1_d + imm_iw;
+						tmp32 = mem[tmp[22-1:2]];
+						if(rd0 != 5'h00) reg_file[rd0] <= {{32{1'b0}}, tmp32};
+				end
+				default: ;
+				endcase
+			end
 			7'b0110111: begin	// LUI
 						if(rd0 != 5'h00) reg_file[rd0] <= imm_uw;
 			end
@@ -200,11 +255,39 @@ module RISCV64G_ISS (
 				default: ;
 				endcase
 			end
-			7'b0100011: begin	// STORE(SD)
+			7'b0100011: begin	// STORE: S type
+				case (funct3)
+				3'b000: begin			// SB
 						tmp = rs1_d + imm_sw;
-						mem[tmp[22-1:2]]       = rs2_d[31:0];
-						mem[tmp[22-1:2] + 'b1] = rs2_d[63:32];
-						tohost_we = tmp == 64'h0000_0000_8000_1000 ? 1'b1 : 1'b0;
+						tmp32 = mem[tmp[22-1:2]];
+						case (tmp[1:0])
+						2'h0 : mem[tmp[22-1:2]]	= {tmp32[31:8], rs2_d[7:0]};
+						2'h1 : mem[tmp[22-1:2]]	= {tmp32[31:16], rs2_d[7:0], tmp32[7:0]};
+						2'h2 : mem[tmp[22-1:2]]	= {tmp32[31:24], rs2_d[7:0], tmp32[15:0]};
+						2'h3 : mem[tmp[22-1:2]]	= {rs2_d[7:0], tmp32[23:0]};
+						endcase
+				end
+				3'b001: begin			// SH
+						tmp = rs1_d + imm_sw;
+						tmp32 = mem[tmp[22-1:2]];
+						case (tmp[1])
+						1'b0 : mem[tmp[22-1:2]]	= {tmp32[31:16], rs2_d[15:0]};
+						1'b1 : mem[tmp[22-1:2]]	= {rs2_d[15:0], tmp32[15:0]};
+						endcase
+				end
+				3'b010: begin			// SW
+						tmp = rs1_d + imm_sw;
+						mem[tmp[22-1:2]]	= rs2_d[31:0];
+						tohost_we = tmp == 64'h0000_0000_8000_1000 ? 1'b1 :
+							    tmp == 64'h0000_0000_8000_2000 ? 1'b1 : 1'b0;	// for testbench
+				end
+				3'b011: begin			// SD
+						tmp = rs1_d + imm_sw;
+						mem[tmp[22-1:2]]	= rs2_d[31:0];
+						mem[tmp[22-1:2] + 'b1]	= rs2_d[63:32];
+				end
+				default: ;
+				endcase
 			end
 			7'b0110011: begin	// OP
 				case (funct3)
@@ -415,10 +498,36 @@ module RISCV64G_ISS (
 	begin
 		if(RSTn) begin
 			case (opcode)
-			7'b0110111: $display("pc=%016H: %08H, opcode = %07B, LUI,   rd0 = x%d, imm = %08H", pc, inst, opcode, rd0, imm_u ); // U type
+			7'b0000011: begin	// LOAD: I type
+				case (funct3)
+				3'b000: $display("pc=%016H: %08H, opcode = %07B, funct3 = %03B, LB,     rd0 = x%d, rs1 = x%d, imm = %08H", pc, inst, opcode, funct3, rd0, rs1, imm_i );
+				3'b001: $display("pc=%016H: %08H, opcode = %07B, funct3 = %03B, LH,     rd0 = x%d, rs1 = x%d, imm = %08H", pc, inst, opcode, funct3, rd0, rs1, imm_i );
+				3'b010: $display("pc=%016H: %08H, opcode = %07B, funct3 = %03B, LW,     rd0 = x%d, rs1 = x%d, imm = %08H", pc, inst, opcode, funct3, rd0, rs1, imm_i );
+				3'b011: $display("pc=%016H: %08H, opcode = %07B, funct3 = %03B, LD,     rd0 = x%d, rs1 = x%d, imm = %08H", pc, inst, opcode, funct3, rd0, rs1, imm_i );
+				3'b100: $display("pc=%016H: %08H, opcode = %07B, funct3 = %03B, LBU,    rd0 = x%d, rs1 = x%d, imm = %08H", pc, inst, opcode, funct3, rd0, rs1, imm_i );
+				3'b101: $display("pc=%016H: %08H, opcode = %07B, funct3 = %03B, LHU,    rd0 = x%d, rs1 = x%d, imm = %08H", pc, inst, opcode, funct3, rd0, rs1, imm_i );
+				3'b110: $display("pc=%016H: %08H, opcode = %07B, funct3 = %03B, LWU,    rd0 = x%d, rs1 = x%d, imm = %08H", pc, inst, opcode, funct3, rd0, rs1, imm_i );
+				default: $display("pc=%016H: %08H, opcode = %07B, funct3 = %03B, ???,    rd0 = x%d, rs1 = x%d, imm = %08H", pc, inst, opcode, funct3, rd0, rs1, imm_i );
+				endcase
+			end
 			7'b0010111: $display("pc=%016H: %08H, opcode = %07B, AUIPC, rd0 = x%d, imm = %08H", pc, inst, opcode, rd0, imm_u ); // U type
+			7'b0100011: begin	// STORE: S type
+				case (funct3)
+				3'b000: $display("pc=%016H: %08H, opcode = %07B, funct3 = %03B, SB,     rs1 = x%d, rs2 = x%d, imm = %08H", pc, inst, opcode, funct3, rs1, rs2, imm_s );
+				3'b001: $display("pc=%016H: %08H, opcode = %07B, funct3 = %03B, SH,     rs1 = x%d, rs2 = x%d, imm = %08H", pc, inst, opcode, funct3, rs1, rs2, imm_s );
+				3'b010: $display("pc=%016H: %08H, opcode = %07B, funct3 = %03B, SW,     rs1 = x%d, rs2 = x%d, imm = %08H", pc, inst, opcode, funct3, rs1, rs2, imm_s );
+				3'b011: $display("pc=%016H: %08H, opcode = %07B, funct3 = %03B, SD,     rs1 = x%d, rs2 = x%d, imm = %08H", pc, inst, opcode, funct3, rs1, rs2, imm_s );
+				default: $display("pc=%016H: %08H, opcode = %07B, funct3 = %03B, ???,    rs1 = x%d, rs2 = x%d, imm = %08H", pc, inst, opcode, funct3, rs1, rs2, imm_s );
+				endcase
+			end
+			7'b0110111: $display("pc=%016H: %08H, opcode = %07B, LUI,   rd0 = x%d, imm = %08H", pc, inst, opcode, rd0, imm_u ); // U type
 			7'b1101111: $display("pc=%016H: %08H, opcode = %07B, JAL,   rd0 = x%d, imm = %08H", pc, inst, opcode, rd0, imm_j ); // J type
-			7'b1100111: $display("pc=%016H: %08H, opcode = %07B, funct3 = %03B, JALR,   rd0 = x%d, rs1 = x%d, imm = %08H", pc, inst, opcode, funct3, rd0, rs1, imm_i ); // I type
+			7'b1100111: begin
+				case (funct3)
+				3'b000: $display("pc=%016H: %08H, opcode = %07B, funct3 = %03B, JALR,   rd0 = x%d, rs1 = x%d, imm = %08H", pc, inst, opcode, funct3, rd0, rs1, imm_i ); // I type
+				default: $display("pc=%016H: %08H, opcode = %07B, funct3 = %03B, ???,    rd0 = x%d, rs1 = x%d, imm = %08H", pc, inst, opcode, funct3, rd0, rs1, imm_i );
+				endcase
+			end
 			7'b0010011: begin	// I type or R type
 				case (funct3)
 				3'b000: $display("pc=%016H: %08H, opcode = %07B, funct3 = %03B, ADDI,   rd0 = x%d, rs1 = x%d, imm = %08H", pc, inst, opcode, funct3, rd0, rs1, imm_i );
@@ -508,7 +617,6 @@ module RISCV64G_ISS (
 				endcase
 			end
 			7'b0001111: $display("pc=%016H: %08H, opcode = %07B, funct3 = %03B, FENCE,  rd0 = x%d, rs1 = x%d, imm = %08H", pc, inst, opcode, funct3, rd0, rs1, imm_i );
-			7'b0100011: $display("pc=%016H: %08H, opcode = %07B, funct3 = %03B, SD,     rs1 = x%d, rs2 = x%d, imm = %08H", pc, inst, opcode, funct3, rs1, rs2, imm_s );// S type
 			7'b0011011: begin	// 
 				case (funct3)
 				3'b000: $display("pc=%016H: %08H, opcode = %07B, funct3 = %03B, ADDIW,  rd0 = x%d, rs1 = x%d, imm = %08H", pc, inst, opcode, funct3, rd0, rs1, imm_i );
