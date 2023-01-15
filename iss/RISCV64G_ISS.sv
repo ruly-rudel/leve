@@ -110,7 +110,7 @@ module RISCV64G_ISS (
 		if(!RSTn) begin
 			integer i;
 			// pc
-			pc <= 64'h0000_0000_8000_1000;
+			pc <= 64'h0000_0000_8000_0000;
 
 			csr_we = 1'b0;
 			trap = 1'b0;
@@ -202,7 +202,7 @@ module RISCV64G_ISS (
 				3'b010: begin			// SW
 						tmp = rs1_d + imm_sw;
 						mem[tmp[22-1:2]]	= rs2_d[31:0];
-						tohost_we  = pc == 64'h0000_0000_8000_1040 ? 1'b1 : 1'b0;	// for testbench hack
+						tohost_we  = pc == 64'h0000_0000_8000_0040 ? 1'b1 : 1'b0;	// for testbench hack
 				end
 				3'b011: begin			// SD
 						tmp = rs1_d + imm_sw;
