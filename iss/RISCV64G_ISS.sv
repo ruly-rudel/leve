@@ -1,12 +1,56 @@
 
 `include "defs.vh"
 
+function [`XLEN-1:0]	twoscompXLEN(input sign, input [`XLEN-1:0] i);
+begin
+	if(sign) begin
+		twoscompXLEN = ~i + 'b1;
+	end else begin
+		twoscompXLEN = i;
+	end
+end
+endfunction
+
+function [`XLEN/2-1:0]	twoscompXLENh(input sign, input [`XLEN/2-1:0] i);
+begin
+	if(sign) begin
+		twoscompXLENh = ~i + 'b1;
+	end else begin
+		twoscompXLENh = i;
+	end
+end
+endfunction
+
+function [`XLEN*2-1:0]	twoscompXLENx2(input sign, input [`XLEN*2-1:0] i);
+begin
+	if(sign) begin
+		twoscompXLENx2 = ~i + 'b1;
+	end else begin
+		twoscompXLENx2 = i;
+	end
+end
+
+endfunction
+
+function [`XLEN-1:0]	absXLEN(input [`XLEN-1:0] i);
+begin
+	absXLEN = twoscompXLEN(i[`XLEN-1], i);
+end
+endfunction
+
+function [`XLEN/2-1:0]	absXLENh(input [`XLEN/2-1:0] i);
+begin
+	absXLENh = twoscompXLENh(i[`XLEN/2-1], i);
+end
+endfunction
+
+
 module RISCV64G_ISS (
 	input			CLK,
 	input			RSTn,
 
 	output reg		tohost_we,
-	output [32-1:0]		tohost
+	output reg [32-1:0]	tohost
 );
 	//reg [31:0]	mem[0:1024*1024*16-1];
 	reg  [32-1:0]	mem[0:1024*1024-1];
@@ -41,11 +85,6 @@ module RISCV64G_ISS (
 
 	wire [`XLEN-1:0]	rs1_d;
 	wire [`XLEN-1:0]	rs2_d;
-
-	logic [`XLEN-1:0]	tmp;
-	logic [32-1:0]		tmp32;
-
-	assign tohost  = mem[tmp[22-1:2]];
 
 	// registers
 	reg [`XLEN-1:0]		reg_file[0:`NUM_REG-1];
@@ -107,6 +146,10 @@ module RISCV64G_ISS (
 	// main loop
 	always_ff @(posedge CLK or negedge RSTn)
 	begin
+		logic [`XLEN-1:0]	tmp;
+		logic [32-1:0]		tmp32;
+		logic [`XLEN*2-1:0]	tmp128;
+
 		if(!RSTn) begin
 			integer i;
 			// pc
@@ -203,6 +246,7 @@ module RISCV64G_ISS (
 						tmp = rs1_d + imm_sw;
 						mem[tmp[22-1:2]]	= rs2_d[31:0];
 						tohost_we  = pc == 64'h0000_0000_8000_0040 ? 1'b1 : 1'b0;	// for testbench hack
+						tohost     = rs2_d[31:0];
 				end
 				3'b011: begin			// SD
 						tmp = rs1_d + imm_sw;
@@ -289,6 +333,10 @@ module RISCV64G_ISS (
 					7'b0000000: begin	// ADD
 						if(rd0 != 5'h00) reg_file[rd0] <= rs1_d + rs2_d;
 					end
+					7'b0000001: begin	// MUL
+						tmp128 = rs1_d * rs2_d;
+						if(rd0 != 5'h00) reg_file[rd0] <= tmp128[`XLEN-1:0];
+					end
 					7'b0100000: begin	// SUB
 						if(rd0 != 5'h00) reg_file[rd0] <= rs1_d - rs2_d;
 					end
@@ -300,6 +348,10 @@ module RISCV64G_ISS (
 					7'b0000000: begin	// SLL
 						if(rd0 != 5'h00) reg_file[rd0] <= rs1_d << rs2_d[5:0];
 					end
+					7'b0000001: begin	// MULH
+						tmp128 = $signed(rs1_d) * $signed(rs2_d);
+						if(rd0 != 5'h00) reg_file[rd0] <= tmp128[`XLEN*2-1:`XLEN];
+					end
 					default: ;
 					endcase
 				end
@@ -307,6 +359,11 @@ module RISCV64G_ISS (
 					case (funct7)
 					7'b0000000: begin	// SLT
 						if(rd0 != 5'h00) reg_file[rd0] <= $signed(rs1_d) < $signed(rs2_d) ? 64'h0000_0000_0000_0001 : {64{1'b0}};
+					end
+					7'b0000001: begin	// MULHSU
+						tmp128 = absXLEN(rs1_d) * rs2_d;
+						tmp128 = twoscompXLENx2(rs1_d[`XLEN-1], tmp128);
+						if(rd0 != 5'h00) reg_file[rd0] = tmp128[`XLEN*2-1:`XLEN];
 					end
 					default: ;
 					endcase
@@ -316,6 +373,10 @@ module RISCV64G_ISS (
 					7'b0000000: begin	// SLTU
 					 	if(rd0 != 5'h00) reg_file[rd0] <= rs1_d < rs2_d ? 64'h0000_0000_0000_0001 : {64{1'b0}};
 					end
+					7'b0000001: begin	// MULHU
+						tmp128 = rs1_d * rs2_d;
+						if(rd0 != 5'h00) reg_file[rd0] <= tmp128[`XLEN*2-1:`XLEN];
+					end
 					default: ;
 					endcase
 				end
@@ -324,6 +385,11 @@ module RISCV64G_ISS (
 					7'b0000000: begin	// XOR
 					 	if(rd0 != 5'h00) reg_file[rd0] <= rs1_d ^ rs2_d;
 					end
+					7'b0000001: begin	// DIV
+						tmp = absXLEN(rs1_d) / absXLEN(rs2_d);
+						tmp = twoscompXLEN(rs1_d[`XLEN-1] ^ rs2_d[`XLEN-1], tmp);
+						if(rd0 != 5'h00) reg_file[rd0] = rs2_d == {`XLEN{1'b0}} ? {`XLEN{1'b1}} : tmp;
+					end
 					default: ;
 					endcase
 				end
@@ -331,6 +397,9 @@ module RISCV64G_ISS (
 					case (funct7)
 					7'b0000000: begin	// SRL
 						if(rd0 != 5'h00) reg_file[rd0] <= rs1_d >> rs2_d[5:0];
+					end
+					7'b0000001: begin	// DIVU
+						if(rd0 != 5'h00) reg_file[rd0] <= rs2_d == {`XLEN{1'b0}} ? {`XLEN{1'b1}} : rs1_d / rs2_d;
 					end
 					7'b0100000: begin	// SRA
 						if(rd0 != 5'h00) reg_file[rd0] <= $signed(rs1_d) >>> rs2_d[5:0];
@@ -343,6 +412,11 @@ module RISCV64G_ISS (
 					7'b0000000: begin	// OR
 					 	if(rd0 != 5'h00) reg_file[rd0] <= rs1_d | rs2_d;
 					end
+					7'b0000001: begin	// REM
+						tmp = absXLEN(rs1_d) % absXLEN(rs2_d);
+						tmp = twoscompXLEN(rs1_d[`XLEN/2-1], tmp);
+						if(rd0 != 5'h00) reg_file[rd0] = rs2_d == {`XLEN{1'b0}} ? rs1_d : tmp;
+					end
 					default: ;
 					endcase
 				end
@@ -350,6 +424,9 @@ module RISCV64G_ISS (
 					case (funct7)
 					7'b0000000: begin	// AND
 					 	if(rd0 != 5'h00) reg_file[rd0] <= rs1_d & rs2_d;
+					end
+					7'b0000001: begin	// REMU
+						if(rd0 != 5'h00) reg_file[rd0] <= rs2_d == {`XLEN{1'b0}} ? rs1_d : rs1_d % rs2_d;
 					end
 					default: ;
 					endcase
@@ -445,6 +522,10 @@ module RISCV64G_ISS (
 						tmp32 = rs1_d[31:0] + rs2_d[31:0];
 						if(rd0 != 5'h00) reg_file[rd0] <= {{32{tmp32[31]}}, tmp32};
 					end
+					7'b0000001: begin	// MULW
+						tmp32 = rs1_d[31:0] * rs2_d[31:0];
+						if(rd0 != 5'h00) reg_file[rd0] <= {{32{tmp32[31]}}, tmp32};
+					end
 					7'b0100000: begin	// SUBW
 						tmp32 = rs1_d[31:0] - rs2_d[31:0];
 						if(rd0 != 5'h00) reg_file[rd0] <= {{32{tmp32[31]}}, tmp32};
@@ -461,14 +542,47 @@ module RISCV64G_ISS (
 					default: ;
 					endcase
 				end
+				3'b100: begin
+					case (funct7)
+					7'b0000001: begin	// DIVW
+						tmp32 = absXLENh(rs1_d[`XLEN/2-1:0]) / absXLENh(rs2_d[`XLEN/2-1:0]);
+						tmp32 = twoscompXLENh(rs1_d[`XLEN/2-1] ^ rs2_d[`XLEN/2-1], tmp32);
+						if(rd0 != 5'h00) reg_file[rd0] = rs2_d == {`XLEN{1'b0}} ? {`XLEN{1'b1}} : {{32{tmp32[31]}}, tmp32};
+					end
+					default: ;
+					endcase
+				end
 				3'b101: begin
 					case (funct7)
 					7'b0000000: begin	// SRLW
 						tmp32 = rs1_d[31:0] >> rs2_d[4:0];
 						if(rd0 != 5'h00) reg_file[rd0] <= {{32{tmp32[31]}}, tmp32};
 					end
+					7'b0000001: begin	// DIVUW
+						tmp32 = rs1_d[31:0] / rs2_d[31:0];
+						if(rd0 != 5'h00) reg_file[rd0] <= rs2_d == {`XLEN{1'b0}} ? {`XLEN{1'b1}} : {{32{tmp32[31]}}, tmp32};
+					end
 					7'b0100000: begin	// SRAW
 						tmp32 = $signed(rs1_d[31:0]) >>> rs2_d[4:0];
+						if(rd0 != 5'h00) reg_file[rd0] <= {{32{tmp32[31]}}, tmp32};
+					end
+					default: ;
+					endcase
+				end
+				3'b110: begin
+					case (funct7)
+					7'b0000001: begin	// REMW
+						tmp32 = absXLENh(rs1_d[`XLEN/2-1:0]) % absXLENh(rs2_d[`XLEN/2-1:0]);
+						tmp32 = twoscompXLENh(rs1_d[`XLEN/2-1], tmp32);
+						if(rd0 != 5'h00) reg_file[rd0] = rs2_d == {`XLEN{1'b0}} ? rs1_d : {{32{tmp32[31]}}, tmp32};
+					end
+					default: ;
+					endcase
+				end
+				3'b111: begin
+					case (funct7)
+					7'b0000001: begin	// REMUW
+						tmp32 = rs2_d == {`XLEN{1'b0}} ? rs1_d[`XLEN/2-1:0] : rs1_d[31:0] % rs2_d[31:0];
 						if(rd0 != 5'h00) reg_file[rd0] <= {{32{tmp32[31]}}, tmp32};
 					end
 					default: ;
