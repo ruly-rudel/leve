@@ -66,6 +66,9 @@ module RISCV64G_ISS (
 	wire [4:0]		rs1;
 	wire [4:0]		rs2;
 	wire [6:0]		funct7;
+	wire [4:0]		funct5;
+	wire			aq;
+	wire			rl;
 	wire [32-1:0]		imm_i;
 	wire [32-1:0]		imm_s;
 	wire [32-1:0]		imm_b;
@@ -89,6 +92,10 @@ module RISCV64G_ISS (
 	// registers
 	reg [`XLEN-1:0]		reg_file[0:`NUM_REG-1];
 
+	// LR/WC register
+	reg 			lrsc_valid;
+	reg [`XLEN-1:0]		lrsc_addr;
+
 	// 1. instruction fetch
 	assign inst   = mem[pc[22-1:2]];
 	
@@ -98,6 +105,9 @@ module RISCV64G_ISS (
 	assign rs1    = inst[19:15];
 	assign rs2    = inst[24:20];
 	assign funct7 = inst[31:25];
+	assign funct5 = inst[31:27];
+	assign aq     = inst[26];
+	assign rl     = inst[25];
 	
 	assign imm_i  = {{20{inst[31]}}, inst[31:20]};
 	assign imm_s  = {{20{inst[31]}}, inst[31:25], inst[11:7]};
@@ -154,6 +164,8 @@ module RISCV64G_ISS (
 			integer i;
 			// pc
 			pc <= 64'h0000_0000_8000_0000;
+
+			lrsc_valid <= 1'b0;
 
 			csr_we = 1'b0;
 			trap = 1'b0;
@@ -286,6 +298,153 @@ module RISCV64G_ISS (
 			// 7'b00_011_11:	// MISC-MEM
 
 			7'b01_011_11: begin	// AMO
+				case (funct3)
+				3'b010: begin
+					case (funct5)
+					5'b00010: begin		// LR.W
+						lrsc_valid <= 1'b1;
+						lrsc_addr  <= rs1_d;
+						tmp32 = mem[rs1_d[22-1:2]];
+						if(rd0 != 5'h00) reg_file[rd0] = {{32{tmp32[31]}}, tmp32};
+					end
+					5'b00011: begin		// SC.W
+						if(lrsc_valid && lrsc_addr == rs1_d) begin
+							lrsc_valid <= 1'b0;
+							tmp32 = mem[rs1_d[22-1:2]];
+							if(rd0 != 5'h00) reg_file[rd0] = {{32{tmp32[31]}}, tmp32};
+							mem[rs1_d[22-1:2]] = rs2_d[31:0];
+						end
+					end
+					5'b00001: begin		// AMOSWAP.W
+						tmp32 = mem[rs1_d[22-1:2]];
+						if(rd0 != 5'h00) reg_file[rd0] = {{32{tmp32[31]}}, tmp32};
+						mem[rs1_d[22-1:2]] = rs2_d[31:0];
+					end
+					5'b00000: begin		// AMOADD.W
+						tmp32 = mem[rs1_d[22-1:2]];
+						if(rd0 != 5'h00) reg_file[rd0] = {{32{tmp32[31]}}, tmp32};
+						mem[rs1_d[22-1:2]] = rs2_d[31:0] + tmp32;
+					end
+					5'b00100: begin		// AMOXOR.W
+						tmp32 = mem[rs1_d[22-1:2]];
+						if(rd0 != 5'h00) reg_file[rd0] = {{32{tmp32[31]}}, tmp32};
+						mem[rs1_d[22-1:2]] = rs2_d[31:0] ^ tmp32;
+					end
+					5'b01100: begin		// AMOAND.W
+						tmp32 = mem[rs1_d[22-1:2]];
+						if(rd0 != 5'h00) reg_file[rd0] = {{32{tmp32[31]}}, tmp32};
+						mem[rs1_d[22-1:2]] = rs2_d[31:0] & tmp32;
+					end
+					5'b01000: begin		// AMOOR.W
+						tmp32 = mem[rs1_d[22-1:2]];
+						if(rd0 != 5'h00) reg_file[rd0] = {{32{tmp32[31]}}, tmp32};
+						mem[rs1_d[22-1:2]] = rs2_d[31:0] | tmp32;
+					end
+					5'b10000: begin		// AMOMIN.W
+						tmp32 = mem[rs1_d[22-1:2]];
+						if(rd0 != 5'h00) reg_file[rd0] = {{32{tmp32[31]}}, tmp32};
+						mem[rs1_d[22-1:2]] = $signed(rs2_d[31:0]) < $signed(tmp32) ? rs2_d[31:0] : tmp32;
+					end
+					5'b10100: begin		// AMOMAX.W
+						tmp32 = mem[rs1_d[22-1:2]];
+						if(rd0 != 5'h00) reg_file[rd0] = {{32{tmp32[31]}}, tmp32};
+						mem[rs1_d[22-1:2]] = $signed(rs2_d[31:0]) > $signed(tmp32) ? rs2_d[31:0] : tmp32;
+					end
+					5'b11000: begin		// AMOMINU.W
+						tmp32 = mem[rs1_d[22-1:2]];
+						if(rd0 != 5'h00) reg_file[rd0] = {{32{tmp32[31]}}, tmp32};
+						mem[rs1_d[22-1:2]] = rs2_d[31:0] < tmp32 ? rs2_d[31:0] : tmp32;
+					end
+					5'b11100: begin		// AMOMAXU.W
+						tmp32 = mem[rs1_d[22-1:2]];
+						if(rd0 != 5'h00) reg_file[rd0] = {{32{tmp32[31]}}, tmp32};
+						mem[rs1_d[22-1:2]] = rs2_d[31:0] > tmp32 ? rs2_d[31:0] : tmp32;
+					end
+					default: ;
+					endcase
+				end
+				3'b011: begin
+					case (funct5)
+					5'b00010: begin		// LR.D
+					end
+					5'b00011: begin		// SC.D
+					end
+					5'b00001: begin		// AMOSWAP.D
+						tmp[31:0]  = mem[rs1_d[22-1:2]];
+						tmp[63:32] = mem[rs1_d[22-1:2] + 'b1];
+						if(rd0 != 5'h00) reg_file[rd0] = tmp;
+						mem[rs1_d[22-1:2]]       = rs2_d[31:0];
+						mem[rs1_d[22-1:2] + 'b1] = rs2_d[63:32];
+					end
+					5'b00000: begin		// AMOADD.D
+						tmp[31:0]  = mem[rs1_d[22-1:2]];
+						tmp[63:32] = mem[rs1_d[22-1:2] + 'b1];
+						if(rd0 != 5'h00) reg_file[rd0] = tmp;
+						tmp = rs2_d + tmp;
+						mem[rs1_d[22-1:2]]       = tmp[31:0];
+						mem[rs1_d[22-1:2] + 'b1] = tmp[63:32];
+					end
+					5'b00100: begin		// AMOXOR.D
+						tmp[31:0]  = mem[rs1_d[22-1:2]];
+						tmp[63:32] = mem[rs1_d[22-1:2] + 'b1];
+						if(rd0 != 5'h00) reg_file[rd0] = tmp;
+						tmp = rs2_d ^ tmp;
+						mem[rs1_d[22-1:2]]       = tmp[31:0];
+						mem[rs1_d[22-1:2] + 'b1] = tmp[63:32];
+					end
+					5'b01100: begin		// AMOAND.D
+						tmp[31:0]  = mem[rs1_d[22-1:2]];
+						tmp[63:32] = mem[rs1_d[22-1:2] + 'b1];
+						if(rd0 != 5'h00) reg_file[rd0] = tmp;
+						tmp = rs2_d & tmp;
+						mem[rs1_d[22-1:2]]       = tmp[31:0];
+						mem[rs1_d[22-1:2] + 'b1] = tmp[63:32];
+					end
+					5'b01000: begin		// AMOOR.D
+						tmp[31:0]  = mem[rs1_d[22-1:2]];
+						tmp[63:32] = mem[rs1_d[22-1:2] + 'b1];
+						if(rd0 != 5'h00) reg_file[rd0] = tmp;
+						tmp = rs2_d | tmp;
+						mem[rs1_d[22-1:2]]       = tmp[31:0];
+						mem[rs1_d[22-1:2] + 'b1] = tmp[63:32];
+					end
+					5'b10000: begin		// AMOMIN.D
+						tmp[31:0]  = mem[rs1_d[22-1:2]];
+						tmp[63:32] = mem[rs1_d[22-1:2] + 'b1];
+						if(rd0 != 5'h00) reg_file[rd0] = tmp;
+						tmp = $signed(rs2_d) < $signed(tmp) ? rs2_d : tmp;
+						mem[rs1_d[22-1:2]]       = tmp[31:0];
+						mem[rs1_d[22-1:2] + 'b1] = tmp[63:32];
+					end
+					5'b10100: begin		// AMOMAX.D
+						tmp[31:0]  = mem[rs1_d[22-1:2]];
+						tmp[63:32] = mem[rs1_d[22-1:2] + 'b1];
+						if(rd0 != 5'h00) reg_file[rd0] = tmp;
+						tmp = $signed(rs2_d) > $signed(tmp) ? rs2_d : tmp;
+						mem[rs1_d[22-1:2]]       = tmp[31:0];
+						mem[rs1_d[22-1:2] + 'b1] = tmp[63:32];
+					end
+					5'b11000: begin		// AMOMINU.D
+						tmp[31:0]  = mem[rs1_d[22-1:2]];
+						tmp[63:32] = mem[rs1_d[22-1:2] + 'b1];
+						if(rd0 != 5'h00) reg_file[rd0] = tmp;
+						tmp = rs2_d < tmp ? rs2_d : tmp;
+						mem[rs1_d[22-1:2]]       = tmp[31:0];
+						mem[rs1_d[22-1:2] + 'b1] = tmp[63:32];
+					end
+					5'b11100: begin		// AMOMAXU.D
+						tmp[31:0]  = mem[rs1_d[22-1:2]];
+						tmp[63:32] = mem[rs1_d[22-1:2] + 'b1];
+						if(rd0 != 5'h00) reg_file[rd0] = tmp;
+						tmp = rs2_d > tmp ? rs2_d : tmp;
+						mem[rs1_d[22-1:2]]       = tmp[31:0];
+						mem[rs1_d[22-1:2] + 'b1] = tmp[63:32];
+					end
+					default: ;
+					endcase
+				end
+				default: ;
+				endcase
 			end
 
 			7'b10_011_11: begin	// NMADD
@@ -713,7 +872,41 @@ module RISCV64G_ISS (
 				endcase
 			end
 			7'b01_011_11: begin	// AMO
-				$display("pc=%016H: %08H, opcode = %07B, ??? ", pc, inst, opcode );
+				case (funct3)
+				3'b010: begin
+					case (funct5)
+					5'b00010: $display("pc=%016H: %08H, opcode = %07B, funct3 = %03B, funct5 = %05B, LR.W,  rd0 = x%d, rs1 = x%d, aq = %1B, rl = %1B", pc, inst, opcode, funct3, funct5, rd0, rs1, aq, rl);
+					5'b00011: $display("pc=%016H: %08H, opcode = %07B, funct3 = %03B, funct5 = %05B, SC.W,  rd0 = x%d, rs1 = x%d, rs2 = x%d, aq = %1B, rl = %1B", pc, inst, opcode, funct3, funct5, rd0, rs1, rs2, aq, rl );
+					5'b00001: $display("pc=%016H: %08H, opcode = %07B, funct3 = %03B, funct5 = %05B, AMOSWAP.W, rd0 = x%d, rs1 = x%d, rs2 = x%d, aq = %1B, rl = %1B", pc, inst, opcode, funct3, funct5, rd0, rs1, rs2, aq, rl );
+					5'b00000: $display("pc=%016H: %08H, opcode = %07B, funct3 = %03B, funct5 = %05B, AMOADD.W,  rd0 = x%d, rs1 = x%d, rs2 = x%d, aq = %1B, rl = %1B", pc, inst, opcode, funct3, funct5, rd0, rs1, rs2, aq, rl );
+					5'b00100: $display("pc=%016H: %08H, opcode = %07B, funct3 = %03B, funct5 = %05B, AMOXOR.W,  rd0 = x%d, rs1 = x%d, rs2 = x%d, aq = %1B, rl = %1B", pc, inst, opcode, funct3, funct5, rd0, rs1, rs2, aq, rl );
+					5'b01100: $display("pc=%016H: %08H, opcode = %07B, funct3 = %03B, funct5 = %05B, AMOAND.W,  rd0 = x%d, rs1 = x%d, rs2 = x%d, aq = %1B, rl = %1B", pc, inst, opcode, funct3, funct5, rd0, rs1, rs2, aq, rl );
+					5'b01000: $display("pc=%016H: %08H, opcode = %07B, funct3 = %03B, funct5 = %05B, AMOOR.W,   rd0 = x%d, rs1 = x%d, rs2 = x%d, aq = %1B, rl = %1B", pc, inst, opcode, funct3, funct5, rd0, rs1, rs2, aq, rl );
+					5'b10000: $display("pc=%016H: %08H, opcode = %07B, funct3 = %03B, funct5 = %05B, AMOMIN.W,  rd0 = x%d, rs1 = x%d, rs2 = x%d, aq = %1B, rl = %1B", pc, inst, opcode, funct3, funct5, rd0, rs1, rs2, aq, rl );
+					5'b10100: $display("pc=%016H: %08H, opcode = %07B, funct3 = %03B, funct5 = %05B, AMOMAX.W,  rd0 = x%d, rs1 = x%d, rs2 = x%d, aq = %1B, rl = %1B", pc, inst, opcode, funct3, funct5, rd0, rs1, rs2, aq, rl );
+					5'b11000: $display("pc=%016H: %08H, opcode = %07B, funct3 = %03B, funct5 = %05B, AMOMINU.W, rd0 = x%d, rs1 = x%d, rs2 = x%d, aq = %1B, rl = %1B", pc, inst, opcode, funct3, funct5, rd0, rs1, rs2, aq, rl );
+					5'b11100: $display("pc=%016H: %08H, opcode = %07B, funct3 = %03B, funct5 = %05B, AMOMAXU.W, rd0 = x%d, rs1 = x%d, rs2 = x%d, aq = %1B, rl = %1B", pc, inst, opcode, funct3, funct5, rd0, rs1, rs2, aq, rl );
+					default: $display("pc=%016H: %08H, opcode = %07B, funct3 = %03B, funct5 = %05B, ???,  rd0 = x%d, rs1 = x%d, rs2 = x%d, aq = %1B, rl = %1B", pc, inst, opcode, funct3, funct5, rd0, rs1, rs2, aq, rl );
+					endcase
+				end
+				3'b011: begin
+					case (funct5)
+					5'b00010: $display("pc=%016H: %08H, opcode = %07B, funct3 = %03B, funct5 = %05B, LR.D,  rd0 = x%d, rs1 = x%d, aq = %1B, rl = %1B", pc, inst, opcode, funct3, funct5, rd0, rs1, aq, rl);
+					5'b00011: $display("pc=%016H: %08H, opcode = %07B, funct3 = %03B, funct5 = %05B, SC.D,  rd0 = x%d, rs1 = x%d, rs2 = x%d, aq = %1B, rl = %1B", pc, inst, opcode, funct3, funct5, rd0, rs1, rs2, aq, rl );
+					5'b00001: $display("pc=%016H: %08H, opcode = %07B, funct3 = %03B, funct5 = %05B, AMOSWAP.D, rd0 = x%d, rs1 = x%d, rs2 = x%d, aq = %1B, rl = %1B", pc, inst, opcode, funct3, funct5, rd0, rs1, rs2, aq, rl );
+					5'b00000: $display("pc=%016H: %08H, opcode = %07B, funct3 = %03B, funct5 = %05B, AMOADD.D,  rd0 = x%d, rs1 = x%d, rs2 = x%d, aq = %1B, rl = %1B", pc, inst, opcode, funct3, funct5, rd0, rs1, rs2, aq, rl );
+					5'b00100: $display("pc=%016H: %08H, opcode = %07B, funct3 = %03B, funct5 = %05B, AMOXOR.D,  rd0 = x%d, rs1 = x%d, rs2 = x%d, aq = %1B, rl = %1B", pc, inst, opcode, funct3, funct5, rd0, rs1, rs2, aq, rl );
+					5'b01100: $display("pc=%016H: %08H, opcode = %07B, funct3 = %03B, funct5 = %05B, AMOAND.D,  rd0 = x%d, rs1 = x%d, rs2 = x%d, aq = %1B, rl = %1B", pc, inst, opcode, funct3, funct5, rd0, rs1, rs2, aq, rl );
+					5'b01000: $display("pc=%016H: %08H, opcode = %07B, funct3 = %03B, funct5 = %05B, AMOOR.D,   rd0 = x%d, rs1 = x%d, rs2 = x%d, aq = %1B, rl = %1B", pc, inst, opcode, funct3, funct5, rd0, rs1, rs2, aq, rl );
+					5'b10000: $display("pc=%016H: %08H, opcode = %07B, funct3 = %03B, funct5 = %05B, AMOMIN.D,  rd0 = x%d, rs1 = x%d, rs2 = x%d, aq = %1B, rl = %1B", pc, inst, opcode, funct3, funct5, rd0, rs1, rs2, aq, rl );
+					5'b10100: $display("pc=%016H: %08H, opcode = %07B, funct3 = %03B, funct5 = %05B, AMOMAX.D,  rd0 = x%d, rs1 = x%d, rs2 = x%d, aq = %1B, rl = %1B", pc, inst, opcode, funct3, funct5, rd0, rs1, rs2, aq, rl );
+					5'b11000: $display("pc=%016H: %08H, opcode = %07B, funct3 = %03B, funct5 = %05B, AMOMINU.D, rd0 = x%d, rs1 = x%d, rs2 = x%d, aq = %1B, rl = %1B", pc, inst, opcode, funct3, funct5, rd0, rs1, rs2, aq, rl );
+					5'b11100: $display("pc=%016H: %08H, opcode = %07B, funct3 = %03B, funct5 = %05B, AMOMAXU.D, rd0 = x%d, rs1 = x%d, rs2 = x%d, aq = %1B, rl = %1B", pc, inst, opcode, funct3, funct5, rd0, rs1, rs2, aq, rl );
+					default: $display("pc=%016H: %08H, opcode = %07B, funct3 = %03B, funct5 = %05B, ???,  rd0 = x%d, rs1 = x%d, rs2 = x%d, aq = %1B, rl = %1B", pc, inst, opcode, funct3, funct5, rd0, rs1, rs2, aq, rl );
+					endcase
+				end
+				default: $display("pc=%016H: %08H, opcode = %07B, funct3 = %03B, funct5 = %05B, ???,  rd0 = x%d, rs1 = x%d, rs2 = x%d, aq = %1B, rl = %1B", pc, inst, opcode, funct3, funct5, rd0, rs1, rs2, aq, rl );
+				endcase
 			end
 			7'b10_011_11: begin	// NMADD
 				$display("pc=%016H: %08H, opcode = %07B, ??? ", pc, inst, opcode );

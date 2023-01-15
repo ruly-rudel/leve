@@ -1,7 +1,7 @@
 #!/bin/bash
 
 if [ $# -eq 0 ]; then
-	files=(`ls -1 ../tests/rv64ui-p/*.hex ../tests/rv64um-p/*.hex`)
+	files=(`ls -1 ../tests/rv64ui-p/*.hex ../tests/rv64um-p/*.hex ../tests/rv64ua-p/*.hex`)
 else
 	files=$@
 fi
