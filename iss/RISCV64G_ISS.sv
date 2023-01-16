@@ -311,8 +311,10 @@ module RISCV64G_ISS (
 						if(lrsc_valid && lrsc_addr == rs1_d) begin
 							lrsc_valid <= 1'b0;
 							tmp32 = mem[rs1_d[22-1:2]];
-							if(rd0 != 5'h00) reg_file[rd0] = {{32{tmp32[31]}}, tmp32};
+							if(rd0 != 5'h00) reg_file[rd0] = {`XLEN{1'b0}};
 							mem[rs1_d[22-1:2]] = rs2_d[31:0];
+						end else begin
+							if(rd0 != 5'h00) reg_file[rd0] = {{`XLEN-1{1'b0}}, 1'b1};
 						end
 					end
 					5'b00001: begin		// AMOSWAP.W
