@@ -65,10 +65,13 @@ module RISCV64G_ISS (
 	wire [2:0]		funct3;
 	wire [4:0]		rs1;
 	wire [4:0]		rs2;
+	wire [4:0]		rs3;
 	wire [6:0]		funct7;
 	wire [4:0]		funct5;
+	wire [1:0]		funct2;
 	wire			aq;
 	wire			rl;
+	wire [2:0]		rm;
 	wire [32-1:0]		imm_i;
 	wire [32-1:0]		imm_s;
 	wire [32-1:0]		imm_b;
@@ -88,9 +91,14 @@ module RISCV64G_ISS (
 
 	wire [`XLEN-1:0]	rs1_d;
 	wire [`XLEN-1:0]	rs2_d;
+	wire [`FLEN-1:0]	fp_rs1_d;
+	wire [`FLEN-1:0]	fp_rs2_d;
+
+	wire [31:0]		fmul_f_d;
 
 	// registers
 	reg [`XLEN-1:0]		reg_file[0:`NUM_REG-1];
+	reg [`FLEN-1:0]		fp_reg_file[0:`FP_NUM_REG-1];
 
 	// LR/WC register
 	reg 			lrsc_valid;
@@ -104,10 +112,13 @@ module RISCV64G_ISS (
 	assign funct3 = inst[14:12];
 	assign rs1    = inst[19:15];
 	assign rs2    = inst[24:20];
+	assign rs3    = inst[31:27];
 	assign funct7 = inst[31:25];
 	assign funct5 = inst[31:27];
+	assign funct2 = inst[26:25];
 	assign aq     = inst[26];
 	assign rl     = inst[25];
+	assign rm     = inst[14:12];
 	
 	assign imm_i  = {{20{inst[31]}}, inst[31:20]};
 	assign imm_s  = {{20{inst[31]}}, inst[31:25], inst[11:7]};
@@ -127,8 +138,10 @@ module RISCV64G_ISS (
 	assign shamt  = imm_i[5:0];
 
 	// 2. register fetch
-	assign	rs1_d = reg_file[rs1];
-	assign	rs2_d = reg_file[rs2];
+	assign	rs1_d    = reg_file[rs1];
+	assign	rs2_d    = reg_file[rs2];
+	assign	fp_rs1_d = fp_reg_file[rs1];
+	assign	fp_rs2_d = fp_reg_file[rs2];
 
 	// CSR
 	reg			csr_we;
@@ -151,6 +164,15 @@ module RISCV64G_ISS (
 		.mepc		(mepc),
 
 		.trap		(trap)
+	);
+
+
+	// floating point arithmetics
+	FMUL_F	FMUL_F
+	(
+		.in1		(fp_rs1_d[31:0]),
+		.in2		(fp_rs2_d[31:0]),
+		.out		(fmul_f_d)
 	);
 
 	// main loop
@@ -832,8 +854,11 @@ module RISCV64G_ISS (
 				default: $display("pc=%016H: %08H, opcode = %07B, funct3 = %03B, ???,    rs1 = x%d, rs2 = x%d, imm = %08H", pc, inst, opcode, funct3, rs1, rs2, imm_s );
 				endcase
 			end
-			7'b10_000_11: begin	// MADD
-				$display("pc=%016H: %08H, opcode = %07B, ??? ", pc, inst, opcode );
+			7'b10_000_11: begin	// MADD: R4 type
+				case (funct2)
+				2'b00: $display("pc=%016H: %08H, opcode = %07B, funct2 = %02B, FMADD.S, rm = %03B,  rd = x%d, rs1 = x%d, rs2 = x%d, rs3 = x%d", pc, inst, opcode, funct2, rm, rd0, rs1, rs2, rs3 );
+				default: $display("pc=%016H: %08H, opcode = %07B, funct2 = %02B, ???,    rm = %03B,  rd = x%d, rs1 = x%d, rs2 = x%d, rs3 = x%d", pc, inst, opcode, funct2, rm, rd0, rs1, rs2, rs3 );
+				endcase
 			end
 			7'b11_000_11: begin	// BRANCH: B type
 				case (funct3)
@@ -847,14 +872,23 @@ module RISCV64G_ISS (
 				endcase
 			end
 
-			7'b00_001_11: begin	// LOAD-FP
-				$display("pc=%016H: %08H, opcode = %07B, ??? ", pc, inst, opcode );
+			7'b00_001_11: begin	// LOAD-FP: I type
+				case (funct3)
+				3'b010: $display("pc=%016H: %08H, opcode = %07B, funct3 = %03B, FLW,   rd0 = x%d, rs1 = x%d, imm = %08H", pc, inst, opcode, funct3, rd0, rs1, imm_i );
+				default: $display("pc=%016H: %08H, opcode = %07B, funct3 = %03B, ???,   rd0 = x%d, rs1 = x%d, imm = %08H", pc, inst, opcode, funct3, rd0, rs1, imm_i );
+				endcase
 			end
-			7'b01_001_11: begin	// STORE-FP
-				$display("pc=%016H: %08H, opcode = %07B, ??? ", pc, inst, opcode );
+			7'b01_001_11: begin	// STORE-FP: S type
+				case (funct3)
+				3'b010: $display("pc=%016H: %08H, opcode = %07B, funct3 = %03B, FSW,    rs1 = x%d, rs2 = x%d, imm = %08H", pc, inst, opcode, funct3, rs1, rs2, imm_s );
+				default: $display("pc=%016H: %08H, opcode = %07B, funct3 = %03B, ???,    rs1 = x%d, rs2 = x%d, imm = %08H", pc, inst, opcode, funct3, rs1, rs2, imm_s );
+				endcase
 			end
-			7'b10_001_11: begin	// MSUB
-				$display("pc=%016H: %08H, opcode = %07B, ??? ", pc, inst, opcode );
+			7'b10_001_11: begin	// MSUB: R4 type
+				case (funct2)
+				2'b00: $display("pc=%016H: %08H, opcode = %07B, funct2 = %02B, FMSUB.S, rm = %03B,  rd = x%d, rs1 = x%d, rs2 = x%d, rs3 = x%d", pc, inst, opcode, funct2, rm, rd0, rs1, rs2, rs3 );
+				default: $display("pc=%016H: %08H, opcode = %07B, funct2 = %02B, ???,     rm = %03B,  rd = x%d, rs1 = x%d, rs2 = x%d, rs3 = x%d", pc, inst, opcode, funct2, rm, rd0, rs1, rs2, rs3 );
+				endcase
 			end
 			7'b11_001_11: begin	// JALR
 				case (funct3)
@@ -864,7 +898,10 @@ module RISCV64G_ISS (
 			end
 
 			7'b10_010_11: begin	// NMSUB
-				$display("pc=%016H: %08H, opcode = %07B, ??? ", pc, inst, opcode );
+				case (funct2)
+				2'b00: $display("pc=%016H: %08H, opcode = %07B, funct2 = %02B, FNMSUB.S, rm = %03B,  rd = x%d, rs1 = x%d, rs2 = x%d, rs3 = x%d", pc, inst, opcode, funct2, rm, rd0, rs1, rs2, rs3 );
+				default: $display("pc=%016H: %08H, opcode = %07B, funct2 = %02B, ???,      rm = %03B,  rd = x%d, rs1 = x%d, rs2 = x%d, rs3 = x%d", pc, inst, opcode, funct2, rm, rd0, rs1, rs2, rs3 );
+				endcase
 			end
 
 			7'b00_011_11: begin	// MISC-MEM
@@ -911,7 +948,10 @@ module RISCV64G_ISS (
 				endcase
 			end
 			7'b10_011_11: begin	// NMADD
-				$display("pc=%016H: %08H, opcode = %07B, ??? ", pc, inst, opcode );
+				case (funct2)
+				2'b00: $display("pc=%016H: %08H, opcode = %07B, funct2 = %02B, FNMADD.S, rm = %03B,  rd = x%d, rs1 = x%d, rs2 = x%d, rs3 = x%d", pc, inst, opcode, funct2, rm, rd0, rs1, rs2, rs3 );
+				default: $display("pc=%016H: %08H, opcode = %07B, funct2 = %02B, ???,     rm = %03B,  rd = x%d, rs1 = x%d, rs2 = x%d, rs3 = x%d", pc, inst, opcode, funct2, rm, rd0, rs1, rs2, rs3 );
+				endcase
 			end
 			7'b11_011_11: begin	// JAL: J type
 				$display("pc=%016H: %08H, opcode = %07B, JAL,   rd0 = x%d, imm = %08H", pc, inst, opcode, rd0, imm_j );
@@ -1011,8 +1051,84 @@ module RISCV64G_ISS (
 				default: $display("pc=%016H: %08H, opcode = %07B, funct3 = %03B, funct7 = %07B, ???,  rd0 = x%d, rs1 = x%d, rs2 = x%d", pc, inst, opcode, funct3, funct7, rd0, rs1, rs2 );
 				endcase
 			end
-			7'b10_100_11: begin	// OP-FP
-				$display("pc=%016H: %08H, opcode = %07B, ??? ", pc, inst, opcode );
+			7'b10_100_11: begin	// OP-FP: R type
+				case(funct7)
+				7'b00000_00: $display("pc=%016H: %08H, opcode = %07B, funct7 = %02B, FADD.S,    rm = %03B,  rd = x%d, rs1 = x%d, rs2 = x%d", pc, inst, opcode, funct7, rm, rd0, rs1, rs2);
+				7'b00001_00: $display("pc=%016H: %08H, opcode = %07B, funct7 = %02B, FSUB.S,    rm = %03B,  rd = x%d, rs1 = x%d, rs2 = x%d", pc, inst, opcode, funct7, rm, rd0, rs1, rs2);
+				7'b00010_00: $display("pc=%016H: %08H, opcode = %07B, funct7 = %02B, FMUL.S,    rm = %03B,  rd = x%d, rs1 = x%d, rs2 = x%d", pc, inst, opcode, funct7, rm, rd0, rs1, rs2);
+				7'b00011_00: $display("pc=%016H: %08H, opcode = %07B, funct7 = %02B, FDIV.S,    rm = %03B,  rd = x%d, rs1 = x%d, rs2 = x%d", pc, inst, opcode, funct7, rm, rd0, rs1, rs2);
+				7'b01011_00: begin
+					case (rs2)
+					5'b00000: $display("pc=%016H: %08H, opcode = %07B, funct7 = %02B, rs2 = %05B, FSQRT.S,   rm = %03B,  rd = x%d, rs1 = x%d", pc, inst, opcode, funct7, rs2, rm, rd0, rs1);
+					default: $display("pc=%016H: %08H, opcode = %07B, funct7 = %02B, rs2 = %05B, ???,       rm = %03B,  rd = x%d, rs1 = x%d", pc, inst, opcode, funct7, rs2, rm, rd0, rs1);
+					endcase
+				end
+				7'b00100_00: begin
+					case (funct3)
+					3'b000: $display("pc=%016H: %08H, opcode = %07B, funct7 = %02B, funct3 = %03B, FSGNJ.S,    rd = x%d, rs1 = x%d, rs2 = x%d", pc, inst, opcode, funct7, funct3, rd0, rs1, rs2);
+					3'b001: $display("pc=%016H: %08H, opcode = %07B, funct7 = %02B, funct3 = %03B, FSGNJN.S,   rd = x%d, rs1 = x%d, rs2 = x%d", pc, inst, opcode, funct7, funct3, rd0, rs1, rs2);
+					3'b010: $display("pc=%016H: %08H, opcode = %07B, funct7 = %02B, funct3 = %03B, FSGNJX.S,   rd = x%d, rs1 = x%d, rs2 = x%d", pc, inst, opcode, funct7, funct3, rd0, rs1, rs2);
+					default: $display("pc=%016H: %08H, opcode = %07B, funct7 = %02B, funct3 = %03B, ???,        rd = x%d, rs1 = x%d, rs2 = x%d", pc, inst, opcode, funct7, funct3, rd0, rs1, rs2);
+					endcase
+				end
+				7'b00101_00: begin
+					case (funct3)
+					3'b000: $display("pc=%016H: %08H, opcode = %07B, funct7 = %02B, funct3 = %03B, FMIN.S,     rd = x%d, rs1 = x%d, rs2 = x%d", pc, inst, opcode, funct7, funct3, rd0, rs1, rs2);
+					3'b001: $display("pc=%016H: %08H, opcode = %07B, funct7 = %02B, funct3 = %03B, FMAX.S,     rd = x%d, rs1 = x%d, rs2 = x%d", pc, inst, opcode, funct7, funct3, rd0, rs1, rs2);
+					default: $display("pc=%016H: %08H, opcode = %07B, funct7 = %02B, funct3 = %03B, ???,        rd = x%d, rs1 = x%d, rs2 = x%d", pc, inst, opcode, funct7, funct3, rd0, rs1, rs2);
+					endcase
+				end
+				7'b11000_00: begin
+					case (rs2)
+					5'b00000: $display("pc=%016H: %08H, opcode = %07B, funct7 = %02B, rs2 = %05B, FCVT.W.S,  rm = %03B,  rd = x%d, rs1 = x%d", pc, inst, opcode, funct7, rs2, rm, rd0, rs1);
+					5'b00001: $display("pc=%016H: %08H, opcode = %07B, funct7 = %02B, rs2 = %05B, FCVT.WU.S, rm = %03B,  rd = x%d, rs1 = x%d", pc, inst, opcode, funct7, rs2, rm, rd0, rs1);
+					5'b00010: $display("pc=%016H: %08H, opcode = %07B, funct7 = %02B, rs2 = %05B, FCVT.L.S,  rm = %03B,  rd = x%d, rs1 = x%d", pc, inst, opcode, funct7, rs2, rm, rd0, rs1);
+					5'b00011: $display("pc=%016H: %08H, opcode = %07B, funct7 = %02B, rs2 = %05B, FCVT.LU.S, rm = %03B,  rd = x%d, rs1 = x%d", pc, inst, opcode, funct7, rs2, rm, rd0, rs1);
+					default: $display("pc=%016H: %08H, opcode = %07B, funct7 = %02B, rs2 = %05B, ???,       rm = %03B,  rd = x%d, rs1 = x%d", pc, inst, opcode, funct7, rs2, rm, rd0, rs1);
+					endcase
+				end
+				7'b11100_00: begin
+					case (rs2)
+					5'b00000: begin
+						case (funct3)
+						3'b000: $display("pc=%016H: %08H, opcode = %07B, funct7 = %02B, rs2 = %05B, funct3 = %03B, FMV.X.W,  rd = x%d, rs1 = x%d", pc, inst, opcode, funct7, rs2, funct3, rd0, rs1);
+						3'b001: $display("pc=%016H: %08H, opcode = %07B, funct7 = %02B, rs2 = %05B, funct3 = %03B, FCLASS.W, rd = x%d, rs1 = x%d", pc, inst, opcode, funct7, rs2, funct3, rd0, rs1);
+						default: $display("pc=%016H: %08H, opcode = %07B, funct7 = %02B, rs2 = %05B, funct3 = %03B, ???,      rd = x%d, rs1 = x%d", pc, inst, opcode, funct7, rs2, funct3, rd0, rs1);
+						endcase
+					end
+					default: $display("pc=%016H: %08H, opcode = %07B, funct7 = %02B, rs2 = %05B, funct3 = %03B, ???,      rd = x%d, rs1 = x%d", pc, inst, opcode, funct7, rs2, funct3, rd0, rs1);
+					endcase
+				end
+				7'b10100_00: begin
+					case (funct3)
+					3'b010: $display("pc=%016H: %08H, opcode = %07B, funct7 = %02B, funct3 = %03B, FEQ.S,      rd = x%d, rs1 = x%d, rs2 = x%d", pc, inst, opcode, funct7, funct3, rd0, rs1, rs2);
+					3'b001: $display("pc=%016H: %08H, opcode = %07B, funct7 = %02B, funct3 = %03B, FLT.S,      rd = x%d, rs1 = x%d, rs2 = x%d", pc, inst, opcode, funct7, funct3, rd0, rs1, rs2);
+					3'b000: $display("pc=%016H: %08H, opcode = %07B, funct7 = %02B, funct3 = %03B, FLE.S,      rd = x%d, rs1 = x%d, rs2 = x%d", pc, inst, opcode, funct7, funct3, rd0, rs1, rs2);
+					default: $display("pc=%016H: %08H, opcode = %07B, funct7 = %02B, funct3 = %03B, ???,        rd = x%d, rs1 = x%d, rs2 = x%d", pc, inst, opcode, funct7, funct3, rd0, rs1, rs2);
+					endcase
+				end
+				7'b11010_00: begin
+					case (rs2)
+					5'b00000: $display("pc=%016H: %08H, opcode = %07B, funct7 = %02B, rs2 = %05B, FCVT.S.W,  rm = %03B,  rd = x%d, rs1 = x%d", pc, inst, opcode, funct7, rs2, rm, rd0, rs1);
+					5'b00001: $display("pc=%016H: %08H, opcode = %07B, funct7 = %02B, rs2 = %05B, FCVT.S.WU, rm = %03B,  rd = x%d, rs1 = x%d", pc, inst, opcode, funct7, rs2, rm, rd0, rs1);
+					5'b00010: $display("pc=%016H: %08H, opcode = %07B, funct7 = %02B, rs2 = %05B, FCVT.S.L,  rm = %03B,  rd = x%d, rs1 = x%d", pc, inst, opcode, funct7, rs2, rm, rd0, rs1);
+					5'b00011: $display("pc=%016H: %08H, opcode = %07B, funct7 = %02B, rs2 = %05B, FCVT.S.LU, rm = %03B,  rd = x%d, rs1 = x%d", pc, inst, opcode, funct7, rs2, rm, rd0, rs1);
+					default: $display("pc=%016H: %08H, opcode = %07B, funct7 = %02B, rs2 = %05B, ???,       rm = %03B,  rd = x%d, rs1 = x%d", pc, inst, opcode, funct7, rs2, rm, rd0, rs1);
+					endcase
+				end
+				7'b11110_00: begin
+					case (rs2)
+					5'b00000: begin
+						case (funct3)
+						3'b000: $display("pc=%016H: %08H, opcode = %07B, funct7 = %02B, rs2 = %05B, funct3 = %03B, FMV.W.X,    rd = x%d, rs1 = x%d", pc, inst, opcode, funct7, rs2, funct3, rd0, rs1);
+						default: $display("pc=%016H: %08H, opcode = %07B, funct7 = %02B, rs2 = %05B, funct3 = %03B, ???,        rd = x%d, rs1 = x%d", pc, inst, opcode, funct7, rs2, funct3, rd0, rs1);
+						endcase
+					end
+					default: $display("pc=%016H: %08H, opcode = %07B, funct7 = %02B, rs2 = %05B, funct3 = %03B, ???,        rd = x%d, rs1 = x%d", pc, inst, opcode, funct7, rs2, funct3, rd0, rs1);
+					endcase
+				end
+				default: $display("pc=%016H: %08H, opcode = %07B, ??? ", pc, inst, opcode );
+				endcase
 			end
 			7'b11_100_11: begin	// SYSTEM: I type
 				case (funct3)

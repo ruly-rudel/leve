@@ -1,16 +1,16 @@
 
 
 sc:
-	verilator --sc --exe --build -I../conf -I../iss sc_main.cpp tb_iss.sv ../iss/RISCV64G_ISS.sv
+	verilator --sc --exe --build -I../conf -I../iss sc_main.cpp tb_iss.sv ../iss/RISCV64G_ISS.sv ../iss/FMUL_F.sv
 
 sc-trace:
-	verilator --sc --trace --exe --build -I../conf -I../iss sc_main.cpp tb_iss.sv ../iss/RISCV64G_ISS.sv
+	verilator --sc --trace --exe --build -I../conf -I../iss sc_main.cpp tb_iss.sv ../iss/RISCV64G_ISS.sv ../iss/FMUL_F.sv
 
 test:
 	./run.sh
 
-cc:
-	verilator --cc --exe --build -Wall sim_main.cpp ../iss/RISCV64G_ISS.sv
+sc-fp:
+	verilator --sc --trace --exe --build -I../conf -I../iss fp_sc_main.cpp ../iss/FMUL_F.sv
 
 
 clean:
