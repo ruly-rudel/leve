@@ -93,8 +93,16 @@ module RISCV64G_ISS (
 	wire [`XLEN-1:0]	rs2_d;
 	wire [`FLEN-1:0]	fp_rs1_d;
 	wire [`FLEN-1:0]	fp_rs2_d;
+	wire [`FLEN-1:0]	fp_rs3_d;
 
+	wire [31:0]		fadd_f_d;
+	wire [31:0]		fsub_f_d;
 	wire [31:0]		fmul_f_d;
+
+	wire			fp_inexact;
+	wire			fadd_f_inexact;
+	wire			fsub_f_inexact;
+	wire			fmul_f_inexact;
 
 	// registers
 	reg [`XLEN-1:0]		reg_file[0:`NUM_REG-1];
@@ -142,38 +150,85 @@ module RISCV64G_ISS (
 	assign	rs2_d    = reg_file[rs2];
 	assign	fp_rs1_d = fp_reg_file[rs1];
 	assign	fp_rs2_d = fp_reg_file[rs2];
+	assign	fp_rs3_d = fp_reg_file[rs3];
 
 	// CSR
+	reg [`XLEN-1:0]		csr_reg[0:`NUM_CSR-1];
+
 	reg			csr_we;
-	wire  [`XLEN-1:0]	csr_rd;
+	logic  [`XLEN-1:0]	csr_rd;
 	logic [`XLEN-1:0]	csr_wd;
 
 	wire [`XLEN-1:0]	mtvec;
 	wire [`XLEN-1:0]	mepc;
 	logic			trap;
-	RISCV64G_ISS_CSR	RISCV64G_ISS_CSR
-	(
-		.CLK		(CLK),
-		.RSTn		(RSTn),
-		.WE		(csr_we),
-		.A		(csr),
-		.RD		(csr_rd),
-		.WD		(csr_wd),
+	wire			fp_exception;
 
-		.mtvec		(mtvec),
-		.mepc		(mepc),
+	always_comb
+	begin
+		case (csr)
+		12'hf14:	csr_rd = 64'h0000_0000_0000_0000;
+		default:	csr_rd = csr_reg[csr];
+		endcase
+	end
 
-		.trap		(trap)
-	);
+	always_ff @(posedge CLK or negedge RSTn)
+	begin
+		if(!RSTn) begin
+			integer i;
+			for(i = 0; i < `NUM_CSR; i = i + 1) begin
+				csr_reg[i] = {`XLEN{1'b0}};
+			end
+		end else begin
+			if(csr_we) begin
+				csr_reg[csr] <= csr_wd;
+			end 
+			if (trap) begin	// TRAP
+				csr_reg[12'h342] <= 64'h0000_0000_0000_000b;	// mcause
+			end 
+			if(fp_exception) begin
+				csr_reg[12'h001] = {csr_reg[12'h001][`XLEN-1:1], fp_inexact};
+			end
+		end
+	end
+
+	assign	mtvec = csr_reg[12'h305];
+	assign	mepc  = csr_reg[12'h341];
 
 
 	// floating point arithmetics
+	FADD_F	FADD_F
+	(
+		.in1		(fp_rs1_d[31:0]),
+		.in2		(fp_rs2_d[31:0]),
+		.out		(fadd_f_d),
+		.inexact	(fadd_f_inexact)
+	);
+
+	FADD_F	FSUB_F
+	(
+		.in1		(fp_rs1_d[31:0]),
+		.in2		({~fp_rs2_d[31], fp_rs2_d[30:0]}),
+		.out		(fsub_f_d),
+		.inexact	(fsub_f_inexact)
+	);
+	
 	FMUL_F	FMUL_F
 	(
 		.in1		(fp_rs1_d[31:0]),
 		.in2		(fp_rs2_d[31:0]),
-		.out		(fmul_f_d)
+		.out		(fmul_f_d),
+		.inexact	(fmul_f_inexact)
 	);
+
+	assign fp_exception = opcode == 7'b10_100_11 && (
+							 funct7 == 7'b00000_00 ||
+							 funct7 == 7'b00001_00 ||
+						 	 funct7 == 7'b00010_00
+						 	) ? 1'b1 : 1'b0;
+	assign fp_inexact   = funct7 == 7'b00000_00 ? fadd_f_inexact :
+	                      funct7 == 7'b00001_00 ? fsub_f_inexact : 
+	                      funct7 == 7'b00010_00 ? fmul_f_inexact : 1'b0;
 
 	// main loop
 	always_ff @(posedge CLK or negedge RSTn)
@@ -297,9 +352,24 @@ module RISCV64G_ISS (
 			// 7'b11_000_11:	// BRANCH
 
 			7'b00_001_11: begin	// LOAD-FP
+				case (funct3)
+				3'b010: begin			// FLW
+						tmp = rs1_d + imm_iw;
+						tmp32 = mem[tmp[22-1:2]];
+						fp_reg_file[rd0] = {{32{1'b0}}, tmp32};
+				end
+				default: ;
+				endcase
 			end
 
 			7'b01_001_11: begin	// STORE-FP
+				case (funct3)
+				3'b010: begin			// FSW
+						tmp = rs1_d + imm_iw;
+						mem[tmp[22-1:2]] = fp_rs2_d[31:0];
+				end
+				default: ;
+				endcase
 			end
 
 			7'b10_001_11: begin	// MSUB
@@ -618,7 +688,96 @@ module RISCV64G_ISS (
 				endcase
 			end
 
-			7'b10_100_11: begin	// OP-FP
+			7'b10_100_11: begin	// OP-FP: R type
+				case(funct7)
+				7'b00000_00: begin		// FADD.S
+						fp_reg_file[rd0] = {{32{1'b0}}, fadd_f_d};
+				end
+				7'b00001_00: begin		// FSUB.S
+						fp_reg_file[rd0] = {{32{1'b0}}, fsub_f_d};
+				end
+				7'b00010_00: begin		// FMUL.S
+						fp_reg_file[rd0] = {{32{1'b0}}, fmul_f_d};
+				end
+				7'b00011_00: begin		// FDIV.S
+				end
+				7'b01011_00: begin
+					case (rs2)
+					5'b00000: begin		// FSQRT.S
+					end
+					default: ;
+					endcase
+				end
+				7'b00100_00: begin
+					case (funct3)
+					3'b000: ;		// FSGNJ.S
+					3'b001: ;		// FSGNJN.S
+					3'b010: ;		// FSGNJX.S
+					default: ;
+					endcase
+				end
+				7'b00101_00: begin
+					case (funct3)
+					3'b000: ;		// FMIN.S
+					3'b001: ;		// FMAX.S
+					default: ;
+					endcase
+				end
+				7'b11000_00: begin
+					case (rs2)
+					5'b00000: ;		// FCVT.W.S
+					5'b00001: ;		// FCVT.WU.S
+					5'b00010: ;		// FCVT.L.S
+					5'b00011: ;		// FCVT.LU.S
+					default: ;
+					endcase
+				end
+				7'b11100_00: begin
+					case (rs2)
+					5'b00000: begin
+						case (funct3)
+						3'b000: begin	// FMV.X.W
+					 		if(rd0 != 5'h00) reg_file[rd0] <= {{32{fp_rs1_d[31]}}, fp_rs1_d[31:0]};
+						end
+						3'b001: ;	// FCLASS.W
+						default: ;
+						endcase
+					end
+					default: ;
+					endcase
+				end
+				7'b10100_00: begin
+					case (funct3)
+					3'b010: ;		// FEQ.S
+					3'b001: ;		// FLT.S
+					3'b000: ;		// FLE.S
+					default: ;
+					endcase
+				end
+				7'b11010_00: begin
+					case (rs2)
+					5'b00000: ;		// FCVT.S.W
+					5'b00001: ;		// FCVT.S.WU
+					5'b00010: ;		// FCVT.S.L
+					5'b00011: ;		// FCVT.S.LU
+					default: ;
+					endcase
+				end
+				7'b11110_00: begin
+					case (rs2)
+					5'b00000: begin
+						case (funct3)
+						3'b000: begin	// FMV.W.X
+					 		fp_reg_file[rd0] <= rs1_d;
+						end
+						default: ;
+						endcase
+					end
+					default: ;
+					endcase
+				end
+				default: ;
+				endcase
 			end
 
 			7'b11_100_11: begin	// SYSTEM

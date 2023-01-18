@@ -5,7 +5,8 @@ module FMUL_F
 (
 	input [31:0]		in1,
 	input [31:0]		in2,
-	output logic [31:0]	out
+	output logic [31:0]	out,
+	output logic		inexact
 );
 	logic 		sign_1, sign_2;
 	logic [7:0]	exp_1, exp_2;
@@ -72,6 +73,7 @@ module FMUL_F
 						 {mul_sign, round_exp[7:0], round_flac[22:0]};
 	
 		out = mul_f;
+		inexact = |norm_flac[23:0];
 	end
 
 endmodule
