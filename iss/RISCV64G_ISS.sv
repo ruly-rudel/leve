@@ -100,12 +100,10 @@ module RISCV64G_ISS (
 	wire [31:0]		fmul_f_d;
 	wire [31:0]		fclass_f_d;
 
-	wire			fp_inexact;
 	wire			fadd_f_inexact;
 	wire			fsub_f_inexact;
 	wire			fmul_f_inexact;
 
-	wire			fp_invalid;
 	wire			fadd_f_invalid;
 	wire			fsub_f_invalid;
 
@@ -160,14 +158,7 @@ module RISCV64G_ISS (
 	// CSR
 	reg [`XLEN-1:0]		csr_reg[0:`NUM_CSR-1];
 
-	reg			csr_we;
 	logic  [`XLEN-1:0]	csr_rd;
-	logic [`XLEN-1:0]	csr_wd;
-
-	wire [`XLEN-1:0]	mtvec;
-	wire [`XLEN-1:0]	mepc;
-	logic			trap;
-	wire			fp_exception;
 
 	always_comb
 	begin
@@ -176,29 +167,6 @@ module RISCV64G_ISS (
 		default:	csr_rd = csr_reg[csr];
 		endcase
 	end
-
-	always_ff @(posedge CLK or negedge RSTn)
-	begin
-		if(!RSTn) begin
-			integer i;
-			for(i = 0; i < `NUM_CSR; i = i + 1) begin
-				csr_reg[i] = {`XLEN{1'b0}};
-			end
-		end else begin
-			if(csr_we) begin
-				csr_reg[csr] <= csr_wd;
-			end 
-			if (trap) begin	// TRAP
-				csr_reg[12'h342] <= 64'h0000_0000_0000_000b;	// mcause
-			end 
-			if(fp_exception) begin
-				csr_reg[12'h001] = {csr_reg[12'h001][`XLEN-1:5], fp_invalid, 3'h0, fp_inexact};
-			end
-		end
-	end
-
-	assign	mtvec = csr_reg[12'h305];
-	assign	mepc  = csr_reg[12'h341];
 
 
 	// floating point arithmetics
@@ -234,17 +202,6 @@ module RISCV64G_ISS (
 		.out		(fclass_f_d)
 	);
 
-	assign fp_exception = opcode == 7'b10_100_11 && (
-							 funct7 == 7'b00000_00 ||
-							 funct7 == 7'b00001_00 ||
-						 	 funct7 == 7'b00010_00
-						 	) ? 1'b1 : 1'b0;
-	assign fp_inexact   = funct7 == 7'b00000_00 ? fadd_f_inexact :
-	                      funct7 == 7'b00001_00 ? fsub_f_inexact : 
-	                      funct7 == 7'b00010_00 ? fmul_f_inexact : 1'b0;
-	assign fp_invalid   = funct7 == 7'b00000_00 ? fadd_f_invalid :
-	                      funct7 == 7'b00001_00 ? fsub_f_invalid : 1'b0;
-
 	// main loop
 	always_ff @(posedge CLK or negedge RSTn)
 	begin
@@ -253,19 +210,18 @@ module RISCV64G_ISS (
 		logic [`XLEN*2-1:0]	tmp128;
 
 		if(!RSTn) begin
-			integer i;
+			for(integer i = 0; i < `NUM_CSR; i = i + 1) begin
+				csr_reg[i] = {`XLEN{1'b0}};
+			end
+
 			// pc
 			pc <= 64'h0000_0000_8000_0000;
 
 			lrsc_valid <= 1'b0;
 
-			csr_we = 1'b0;
-			trap = 1'b0;
 			tohost_we = 1'b0;
 		end else begin
 			// reset csr_we
-			csr_we = 1'b0;
-			trap = 1'b0;
 			tohost_we = 1'b0;
 
 			// execute and write back
@@ -707,12 +663,15 @@ module RISCV64G_ISS (
 				case(funct7)
 				7'b00000_00: begin		// FADD.S
 						fp_reg_file[rd0] = {{32{1'b0}}, fadd_f_d};
+						csr_reg[12'h001] = {csr_reg[12'h001][`XLEN-1:5], fadd_f_invalid, 3'h0, fadd_f_inexact};
 				end
 				7'b00001_00: begin		// FSUB.S
 						fp_reg_file[rd0] = {{32{1'b0}}, fsub_f_d};
+						csr_reg[12'h001] = {csr_reg[12'h001][`XLEN-1:5], fsub_f_invalid, 3'h0, fsub_f_inexact};
 				end
 				7'b00010_00: begin		// FMUL.S
 						fp_reg_file[rd0] = {{32{1'b0}}, fmul_f_d};
+						csr_reg[12'h001] = {csr_reg[12'h001][`XLEN-1:5],           1'b0, 3'h0, fmul_f_inexact};
 				end
 				7'b00011_00: begin		// FDIV.S
 				end
@@ -800,33 +759,31 @@ module RISCV64G_ISS (
 			7'b11_100_11: begin	// SYSTEM
 				case (funct3)
 				3'b001: begin		// CSRRW
-					csr_we = 1'b1;
-					csr_wd = rs1_d;
+					csr_reg[csr] <= rs1_d;
 					if(rd0 != 5'h00) reg_file[rd0] <= csr_rd;
 				end
 				3'b010: begin		// CSRRS
-					csr_we = rs1 == 5'h00 ? 1'b0 : 1'b1;
-					csr_wd = csr_rd | rs1_d;
+					if(rs1 != 5'h00) begin
+						csr_reg[csr] <= csr_rd | rs1_d;
+					end
 					if(rd0 != 5'h00) reg_file[rd0] <= csr_rd;
 				end
 				3'b011: begin		// CSRRC
-					csr_we = rs1 == 5'h00 ? 1'b0 : 1'b1;
-					csr_wd = csr_rd & ~rs1_d;
+					if(rs1 != 5'h00) begin
+						csr_reg[csr] <= csr_rd & ~rs1_d;
+					end
 					if(rd0 != 5'h00) reg_file[rd0] <= csr_rd;
 				end
 				3'b101: begin		// CSRRWI
-					csr_we = 1'b1;
-					csr_wd = uimm_w;
+					csr_reg[csr] <= uimm_w;
 					if(rd0 != 5'h00) reg_file[rd0] <= csr_rd;
 				end
 				3'b110: begin		// CSRRSI
-					csr_we = 1'b1;
-					csr_wd = csr_rd | uimm_w;
+					csr_reg[csr] <= csr_rd | uimm_w;
 					if(rd0 != 5'h00) reg_file[rd0] <= csr_rd;
 				end
 				3'b111: begin		// CSRRCI
-					csr_we = 1'b1;
-					csr_wd = csr_rd & ~uimm_w;
+					csr_reg[csr] <= csr_rd & ~uimm_w;
 					if(rd0 != 5'h00) reg_file[rd0] <= csr_rd;
 				end
 				default: ;
@@ -982,15 +939,16 @@ module RISCV64G_ISS (
 				3'b000: begin
 					case ({funct7, rs2})
 					12'b0000000_00000: begin	// ECALL
-						trap = 1'b1;
-						pc <= mtvec;
+						csr_reg[12'h342] <= 64'h0000_0000_0000_000b;	// mcause
+						pc <= csr_reg[12'h305];	// mtvec
+
 					end
 					12'b0000000_00001: begin	// EBREAK
 					end
 					12'b0001000_00010: begin	// SRET
 					end
 					12'b0011000_00010: begin	// MRET
-						pc <= mepc;
+						pc <= csr_reg[12'h341];	// mepc
 					end
 					default: ;
 					endcase
