@@ -98,11 +98,16 @@ module RISCV64G_ISS (
 	wire [31:0]		fadd_f_d;
 	wire [31:0]		fsub_f_d;
 	wire [31:0]		fmul_f_d;
+	wire [31:0]		fclass_f_d;
 
 	wire			fp_inexact;
 	wire			fadd_f_inexact;
 	wire			fsub_f_inexact;
 	wire			fmul_f_inexact;
+
+	wire			fp_invalid;
+	wire			fadd_f_invalid;
+	wire			fsub_f_invalid;
 
 	// registers
 	reg [`XLEN-1:0]		reg_file[0:`NUM_REG-1];
@@ -187,7 +192,7 @@ module RISCV64G_ISS (
 				csr_reg[12'h342] <= 64'h0000_0000_0000_000b;	// mcause
 			end 
 			if(fp_exception) begin
-				csr_reg[12'h001] = {csr_reg[12'h001][`XLEN-1:1], fp_inexact};
+				csr_reg[12'h001] = {csr_reg[12'h001][`XLEN-1:5], fp_invalid, 3'h0, fp_inexact};
 			end
 		end
 	end
@@ -202,7 +207,8 @@ module RISCV64G_ISS (
 		.in1		(fp_rs1_d[31:0]),
 		.in2		(fp_rs2_d[31:0]),
 		.out		(fadd_f_d),
-		.inexact	(fadd_f_inexact)
+		.inexact	(fadd_f_inexact),
+		.invalid	(fadd_f_invalid)
 	);
 
 	FADD_F	FSUB_F
@@ -210,7 +216,8 @@ module RISCV64G_ISS (
 		.in1		(fp_rs1_d[31:0]),
 		.in2		({~fp_rs2_d[31], fp_rs2_d[30:0]}),
 		.out		(fsub_f_d),
-		.inexact	(fsub_f_inexact)
+		.inexact	(fsub_f_inexact),
+		.invalid	(fsub_f_invalid)
 	);
 	
 	FMUL_F	FMUL_F
@@ -221,6 +228,12 @@ module RISCV64G_ISS (
 		.inexact	(fmul_f_inexact)
 	);
 
+	FCLASS_F	FCLASS_F
+	(
+		.in1		(fp_rs1_d[31:0]),
+		.out		(fclass_f_d)
+	);
+
 	assign fp_exception = opcode == 7'b10_100_11 && (
 							 funct7 == 7'b00000_00 ||
 							 funct7 == 7'b00001_00 ||
@@ -229,6 +242,8 @@ module RISCV64G_ISS (
 	assign fp_inexact   = funct7 == 7'b00000_00 ? fadd_f_inexact :
 	                      funct7 == 7'b00001_00 ? fsub_f_inexact : 
 	                      funct7 == 7'b00010_00 ? fmul_f_inexact : 1'b0;
+	assign fp_invalid   = funct7 == 7'b00000_00 ? fadd_f_invalid :
+	                      funct7 == 7'b00001_00 ? fsub_f_invalid : 1'b0;
 
 	// main loop
 	always_ff @(posedge CLK or negedge RSTn)
@@ -739,7 +754,9 @@ module RISCV64G_ISS (
 						3'b000: begin	// FMV.X.W
 					 		if(rd0 != 5'h00) reg_file[rd0] <= {{32{fp_rs1_d[31]}}, fp_rs1_d[31:0]};
 						end
-						3'b001: ;	// FCLASS.W
+						3'b001: begin	// FCLASS.W
+							if(rd0 != 5'h00) reg_file[rd0] <= {{32{1'b0}}, fclass_f_d};
+						end
 						default: ;
 						endcase
 					end
