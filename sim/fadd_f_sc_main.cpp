@@ -17,12 +17,14 @@ int sc_main(int argc, char** argv)
 	sc_signal < uint32_t > in2;
 	sc_signal < uint32_t > out;
 	sc_signal < bool >     inexact;
+	sc_signal < bool >     invalid;
 	VFADD_F* FADD_F = new VFADD_F{"FADD_F"};
 
 	FADD_F->in1(in1);
 	FADD_F->in2(in2);
 	FADD_F->out(out);
 	FADD_F->inexact(inexact);
+	FADD_F->invalid(invalid);
 
 	// sim one tick before trace on
 	sc_core::sc_start(sc_core::SC_ZERO_TIME);
@@ -170,7 +172,7 @@ int sc_main(int argc, char** argv)
 	in2 = *in2_fp;
 	sc_start(1, SC_NS);
 	*out_fp = out;
-	if(out_f == in1_f * in2_f)
+	if(out_f == in1_f + in2_f)
 	{
 		printf("PASS\n");
 	}
@@ -181,8 +183,8 @@ int sc_main(int argc, char** argv)
 	sc_start(1, SC_NS);
 
 	/////////////////////////////////////////////////
-	//  TEST 6
-	printf("[TESTBENCH] FLT_MIN - 1 = unnormalized number: ");
+	//  TEST 7
+	printf("[TESTBENCH] FLT_MIN - 1 = something: ");
 	in1_f = FLT_MIN;
 	in2_f = -1.0;
 	
@@ -190,7 +192,7 @@ int sc_main(int argc, char** argv)
 	in2 = *in2_fp;
 	sc_start(1, SC_NS);
 	*out_fp = out;
-	if(out_f == in1_f * in2_f)
+	if(out_f == in1_f + in2_f)
 	{
 		printf("PASS\n");
 	}
@@ -199,6 +201,27 @@ int sc_main(int argc, char** argv)
 		printf("FAIL\n");
 	}
 	sc_start(1, SC_NS);
+
+	/////////////////////////////////////////////////
+	//  TEST 8
+	printf("[TESTBENCH] 2.0 + -2.0 = 0.0: ");
+	in1_f = 2.0;
+	in2_f = -2.0;
+
+	in1 = *in1_fp;
+	in2 = *in2_fp;
+	sc_start(1, SC_NS);
+	*out_fp = out;
+	if(out_f == 0.0)
+	{
+		printf("PASS\n");
+	}
+	else
+	{
+		printf("FAIL\n");
+	}
+	sc_start(1, SC_NS);
+
 
 
 #if VM_TRACE

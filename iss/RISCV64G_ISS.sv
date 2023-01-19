@@ -100,12 +100,21 @@ module RISCV64G_ISS (
 	wire [31:0]		fmul_f_d;
 	wire [31:0]		fclass_f_d;
 
+	wire			fcmp_f_eq;
+	wire			fcmp_f_lt;
+	wire			fcmp_f_le;
+
 	wire			fadd_f_inexact;
 	wire			fsub_f_inexact;
 	wire			fmul_f_inexact;
 
 	wire			fadd_f_invalid;
 	wire			fsub_f_invalid;
+	wire			fmul_f_inexact;
+	wire			fcmp_f_eq_invalid;
+	wire			fcmp_f_lt_invalid;
+
+
 
 	// registers
 	reg [`XLEN-1:0]		reg_file[0:`NUM_REG-1];
@@ -200,6 +209,19 @@ module RISCV64G_ISS (
 	(
 		.in1		(fp_rs1_d[31:0]),
 		.out		(fclass_f_d)
+	);
+
+	FCMP_F		FCMP_F
+	(
+		.in1		(fp_rs1_d[31:0]),
+		.in2		(fp_rs2_d[31:0]),
+
+		.eq		(fcmp_f_eq),
+		.lt		(fcmp_f_lt),
+		.le		(fcmp_f_le),
+
+		.eq_invalid	(fcmp_f_eq_invalid),
+		.lt_invalid	(fcmp_f_lt_invalid)
 	);
 
 	// main loop
@@ -711,7 +733,7 @@ module RISCV64G_ISS (
 					5'b00000: begin
 						case (funct3)
 						3'b000: begin	// FMV.X.W
-					 		if(rd0 != 5'h00) reg_file[rd0] <= {{32{fp_rs1_d[31]}}, fp_rs1_d[31:0]};
+							if(rd0 != 5'h00) reg_file[rd0] <= {{32{fp_rs1_d[31]}}, fp_rs1_d[31:0]};
 						end
 						3'b001: begin	// FCLASS.W
 							if(rd0 != 5'h00) reg_file[rd0] <= {{32{1'b0}}, fclass_f_d};
@@ -724,9 +746,18 @@ module RISCV64G_ISS (
 				end
 				7'b10100_00: begin
 					case (funct3)
-					3'b010: ;		// FEQ.S
-					3'b001: ;		// FLT.S
-					3'b000: ;		// FLE.S
+					3'b010: begin 		// FEQ.S
+							if(rd0 != 5'h00) reg_file[rd0] <= {{63{1'b0}}, fcmp_f_eq};
+							csr_reg[12'h001] = {csr_reg[12'h001][`XLEN-1:5], fcmp_f_eq_invalid, 4'h0};
+					end
+					3'b001: begin 		// FLT.S
+							if(rd0 != 5'h00) reg_file[rd0] <= {{63{1'b0}}, fcmp_f_lt};
+							csr_reg[12'h001] = {csr_reg[12'h001][`XLEN-1:5], fcmp_f_lt_invalid, 4'h0};
+					end
+					3'b000: begin		// FLE.S
+							if(rd0 != 5'h00) reg_file[rd0] <= {{63{1'b0}}, fcmp_f_le};
+							csr_reg[12'h001] = {csr_reg[12'h001][`XLEN-1:5], fcmp_f_lt_invalid, 4'h0};
+					end
 					default: ;
 					endcase
 				end

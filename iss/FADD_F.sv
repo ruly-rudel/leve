@@ -78,6 +78,7 @@ module FADD_F
 	logic [24:0]	abs_flac;
 
 	logic [4:0]	norm_shift;
+	logic		norm_is_zero;
 	logic		norm_sign;
 	logic [7:0]	norm_exp;
 	logic [24:0]	norm_flac;
@@ -144,6 +145,7 @@ module FADD_F
 
 		// normalize
 		norm_shift = first_1_25(abs_flac);
+		norm_is_zero = norm_shift == 5'h1f ? 1'b1 : 1'b0;
 		norm_sign  = abs_sign;
 		norm_exp   = abs_exp - {3'h0, norm_shift} + 'h1;
 		norm_flac  = abs_flac << norm_shift;
@@ -159,6 +161,7 @@ module FADD_F
 		out = is_zero_1 && is_zero_2 ? {1'b0, 8'h00, 23'h00_0000} :	// zero
 		      is_zero_1              ? in2 :
 		      is_zero_2              ? in1 :
+		      norm_is_zero           ? {1'b0, 8'h00, 23'h00_0000} :
 		      is_inf_1  && is_inf_2 && (sign_1 ^ sign_2) ? {1'b0, 8'hff, 23'h40_0000} :	// inf-inf or -inf+inf = qNaN
 		      ~|norm_flac[24:1]      ? {1'b0, 8'h00, 23'h00_0000} :	// flac is zero
 						add_f;
