@@ -55,6 +55,7 @@ module FADD_F
 	logic		is_zero_1, is_zero_2;
 	logic		is_nan_1, is_nan_2;
 	logic		is_inf_1, is_inf_2;
+	logic		is_num_1, is_num_2;
 
 	logic 		mm_swap;
 	logic		mm_is_zero_1, mm_is_zero_2;
@@ -97,6 +98,7 @@ module FADD_F
 		is_zero_1 = exp_1 == 8'h00 && ~|flac_1 ? 1'b1 : 1'b0;
 		is_nan_1  = exp_1 == 8'hff &&  |flac_1 ? 1'b1 : 1'b0;
 		is_inf_1  = exp_1 == 8'hff && ~|flac_1 ? 1'b1 : 1'b0;
+		is_num_1  = exp_1 != 8'h00 && exp_1 != 8'hff ? 1'b1 : 1'b0;
 	
 		sign_2    = in2[31];
 		exp_2     = in2[30:23];
@@ -104,6 +106,7 @@ module FADD_F
 		is_zero_2 = exp_2 == 8'h00 && ~|flac_2 ? 1'b1 : 1'b0;
 		is_nan_2  = exp_2 == 8'hff &&  |flac_2 ? 1'b1 : 1'b0;
 		is_inf_2  = exp_2 == 8'hff && ~|flac_2 ? 1'b1 : 1'b0;
+		is_num_2  = exp_2 != 8'h00 && exp_2 != 8'hff ? 1'b1 : 1'b0;
 	
 		// ensure mm_1 > mm_2
 		mm_swap   = exp_1 < exp_2 ? 1'b1 : 1'b0;
@@ -158,15 +161,18 @@ module FADD_F
 		// result
 		add_f = {round_sign, round_exp, round_flac};
 	
-		out = is_zero_1 && is_zero_2 ? {1'b0, 8'h00, 23'h00_0000} :	// zero
-		      is_zero_1              ? in2 :
-		      is_zero_2              ? in1 :
-		      norm_is_zero           ? {1'b0, 8'h00, 23'h00_0000} :
-		      is_inf_1  && is_inf_2 && (sign_1 ^ sign_2) ? {1'b0, 8'hff, 23'h40_0000} :	// inf-inf or -inf+inf = qNaN
-		      ~|norm_flac[24:1]      ? {1'b0, 8'h00, 23'h00_0000} :	// flac is zero
+		out = is_inf_1  && is_inf_2 && (sign_1 ^ sign_2) ? {1'b0, 8'hff, 23'h40_0000} :	// inf-inf or -inf+inf = qNaN
+		      is_nan_1  || is_nan_2  ? {1'b0, 8'hff, 23'h40_0000} :	// NaN + any = NaN, any + NaN = NaN
+		      is_inf_1               ? in1 :				// +-inf + (any) = +-inf
+		      is_inf_2               ? in2 :				// (any) + +-inf = +-inf
+		      is_zero_1 && is_zero_2 ? {1'b0, 8'h00, 23'h00_0000} :	// +-0   + +-0   = +0
+		      is_zero_1 && is_num_2  ? in2 :				// +-0   + num	 = num
+		      is_zero_2 && is_num_1  ? in1 :				// num   + +-0   = num
+		      norm_is_zero           ? {1'b0, 8'h00, 23'h00_0000} :	// flac is zero
 						add_f;
 		inexact = norm_flac[0] | (mag_shift > 0 ? last_n_dirty_23(mm_flac_2, mag_shift) : 1'b0);
-		invalid = is_inf_1  && is_inf_2 && (sign_1 ^ sign_2) ? 1'b1 : 1'b0;
+		invalid = is_inf_1  && is_inf_2 && (sign_1 ^ sign_2) ||
+			  is_nan_1  || is_nan_2 ? 1'b1 : 1'b0;
 	end
 
 endmodule

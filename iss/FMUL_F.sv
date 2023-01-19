@@ -6,13 +6,15 @@ module FMUL_F
 	input [31:0]		in1,
 	input [31:0]		in2,
 	output logic [31:0]	out,
-	output logic		inexact
+	output logic		inexact,
+	output logic		invalid
 );
 	logic 		sign_1, sign_2;
 	logic [7:0]	exp_1, exp_2;
 	logic [22:0]	flac_1, flac_2;
 	logic		is_zero_1, is_zero_2;
 	logic		is_nan_1, is_nan_2;
+	logic		is_inf_1, is_inf_2;
 
 	logic		mul_sign;
 	logic [9:0]	mul_exp;
@@ -33,12 +35,14 @@ module FMUL_F
 		flac_1    = in1[22:0];
 		is_zero_1 = exp_1 == 8'h00 && flac_1 == 23'h00_0000 ? 1'b1 : 1'b0;
 		is_nan_1  = exp_1 == 8'hff && |flac_1 ? 1'b1 : 1'b0;
+		is_inf_1  = exp_1 == 8'hff && ~|flac_1 ? 1'b1 : 1'b0;
 	
 		sign_2    = in2[31];
 		exp_2     = in2[30:23];
 		flac_2    = in2[22:0];
 		is_zero_2 = exp_2 == 8'h00 && flac_2 == 23'h00_0000 ? 1'b1 : 1'b0;
 		is_nan_2  = exp_2 == 8'hff && |flac_2 ? 1'b1 : 1'b0;
+		is_inf_2  = exp_2 == 8'hff && ~|flac_2 ? 1'b1 : 1'b0;
 	
 		// multiply
 		mul_sign  = sign_1 ^ sign_2;
@@ -65,14 +69,19 @@ module FMUL_F
 		round_flac = norm_flac[47:24];
 	
 		// result
-		mul_f = is_zero_1 || is_zero_2      ? {mul_sign, 8'h00, 23'h00_0000} :	// zero
-		        is_nan_1                    ? in1 :				// NaN
-		        is_nan_2                    ? in2 :				// NaN
-			$signed(round_exp) >= 'd255 ? {mul_sign, 8'hff, 23'h00_0000} :	// inf
-			round_exp[9]                ? {mul_sign, 8'h00, round_flac[22:0]} :	// unnormalized number
-						 {mul_sign, round_exp[7:0], round_flac[22:0]};
+		mul_f = is_nan_1  || is_nan_2       ? {1'b0, 8'hff, 23'h40_0000} :		// NaN   * any   = NaN, any * NaN = NaN
+			is_zero_1 && is_inf_2       ? {1'b0, 8'hff, 23'h40_0000} :		// +-0   * +-inf = NaN
+			is_zero_2 && is_inf_1       ? {1'b0, 8'hff, 23'h40_0000} :		// +-inf * +-0   = NaN
+			is_zero_1 && is_zero_2      ? {sign_1 ^ sign_2, 8'h00, 23'h00_0000} :	// +-0   * +-0   = +-0
+			is_inf_1  && is_inf_2       ? {sign_1 ^ sign_2, 8'hff, 23'h00_0000} :	// +-inf * +-inf = +-inf
+			$signed(round_exp) >= 'd255 ? {mul_sign, 8'hff, 23'h00_0000} :		// inf
+			round_exp[9]                ? {mul_sign, 8'h00, round_flac[23:1]} :	// subnormal number
+						      {mul_sign, round_exp[7:0], round_flac[22:0]};
 	
 		out = mul_f;
+		invalid = is_inf_1  && is_zero_2	? 1'b0 :
+		          is_inf_2  && is_zero_1	? 1'b0 :
+			  is_nan_1  || is_nan_2		? 1'b1 : 1'b0;
 		inexact = |norm_flac[23:0];
 	end
 

@@ -110,7 +110,7 @@ module RISCV64G_ISS (
 
 	wire			fadd_f_invalid;
 	wire			fsub_f_invalid;
-	wire			fmul_f_inexact;
+	wire			fmul_f_invalid;
 	wire			fcmp_f_eq_invalid;
 	wire			fcmp_f_lt_invalid;
 
@@ -202,7 +202,8 @@ module RISCV64G_ISS (
 		.in1		(fp_rs1_d[31:0]),
 		.in2		(fp_rs2_d[31:0]),
 		.out		(fmul_f_d),
-		.inexact	(fmul_f_inexact)
+		.inexact	(fmul_f_inexact),
+		.invalid	(fsub_f_invalid)
 	);
 
 	FCLASS_F	FCLASS_F
@@ -693,7 +694,7 @@ module RISCV64G_ISS (
 				end
 				7'b00010_00: begin		// FMUL.S
 						fp_reg_file[rd0] = {{32{1'b0}}, fmul_f_d};
-						csr_reg[12'h001] = {csr_reg[12'h001][`XLEN-1:5],           1'b0, 3'h0, fmul_f_inexact};
+						csr_reg[12'h001] = {csr_reg[12'h001][`XLEN-1:5], fmul_f_invalid, 3'h0, fmul_f_inexact};
 				end
 				7'b00011_00: begin		// FDIV.S
 				end
