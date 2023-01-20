@@ -41,73 +41,78 @@ end
 endfunction
 
 module FADD_F
+#(
+	parameter	F_WIDTH = 32,
+	parameter	F_EXP   = 8,
+	parameter	F_FLAC  = 23
+)
 (
-	input [31:0]		in1,
-	input [31:0]		in2,
-	output logic [31:0]	out,
+	input [F_WIDTH-1:0]		in1,
+	input [F_WIDTH-1:0]		in2,
+	output logic [F_WIDTH-1:0]	out,
 
-	output logic		inexact,
-	output logic		invalid
+	output logic			inexact,
+	output logic			invalid
 );
-	logic 		sign_1, sign_2;
-	logic [7:0]	exp_1, exp_2;
-	logic [22:0]	flac_1, flac_2;
-	logic		is_zero_1, is_zero_2;
-	logic		is_nan_1, is_nan_2;
-	logic		is_inf_1, is_inf_2;
-	logic		is_num_1, is_num_2;
+	logic 			sign_1, sign_2;
+	logic [F_EXP-1:0]	exp_1, exp_2;
+	logic [F_FLAC-1:0]	flac_1, flac_2;
+	logic			is_zero_1, is_zero_2;
+	logic			is_nan_1, is_nan_2;
+	logic			is_inf_1, is_inf_2;
+	logic			is_num_1, is_num_2;
 
-	logic 		mm_swap;
-	logic		mm_is_zero_1, mm_is_zero_2;
-	logic		mm_sign_1, mm_sign_2;
-	logic [7:0]	mm_exp_1,  mm_exp_2;
-	logic [22:0]	mm_flac_1, mm_flac_2;
+	logic 			mm_swap;
+	logic			mm_is_zero_1, mm_is_zero_2;
+	logic			mm_sign_1, mm_sign_2;
+	logic [F_EXP-1:0]	mm_exp_1,  mm_exp_2;
+	logic [F_FLAC-1:0]	mm_flac_1, mm_flac_2;
 
-	logic [7:0]	mag_shift;
-	logic		sf_sign_1, sf_sign_2;
-	logic [7:0]	sf_exp_1, sf_exp_2;
-	logic [23:0]	sf_flac_1, sf_flac_2;
+	logic [F_EXP-1:0]	mag_shift;
+	logic			sf_sign_1, sf_sign_2;
+	logic [F_EXP-1:0]	sf_exp_1, sf_exp_2;
+	logic [F_FLAC:0]	sf_flac_1, sf_flac_2;
 
-	logic [7:0]	cm_exp_1,  cm_exp_2;
-	logic [24:0]	cm_flac_1, cm_flac_2;
+	logic [F_EXP-1:0]	cm_exp_1,  cm_exp_2;
+	logic [F_FLAC+1:0]	cm_flac_1, cm_flac_2;
 
-	logic [7:0]	add_exp;
-	logic [25:0]	add_flac;
+	logic [F_EXP-1:0]	add_exp;
+	logic [F_FLAC+2:0]	add_flac;
 
-	logic		abs_sign;
-	logic [7:0]	abs_exp;
-	logic [24:0]	abs_flac;
+	logic			abs_sign;
+	logic [F_EXP-1:0]	abs_exp;
+	logic [F_FLAC+1:0]	abs_flac;
 
-	logic [4:0]	norm_shift;
-	logic		norm_is_zero;
-	logic		norm_sign;
-	logic [7:0]	norm_exp;
-	logic [24:0]	norm_flac;
+	logic [4:0]		norm_shift;
+	logic			norm_is_zero;
+	logic			norm_sign;
+	logic [F_EXP-1:0]	norm_exp;
+	logic [F_FLAC+1:0]	norm_flac;
 
-	logic		round_sign;
-	logic [7:0]	round_exp;
-	logic [22:0]	round_flac;
+	logic			round_sign;
+	logic [F_EXP-1:0]	round_exp;
+	logic [F_FLAC-1:0]	round_flac;
 
-	logic [31:0]	add_f;
+	logic [F_WIDTH-1:0]	add_f;
 
 	always_comb begin
 		// parse
-		sign_1    = in1[31];
-		exp_1     = in1[30:23];
-		flac_1    = in1[22:0];
-		is_zero_1 = exp_1 == 8'h00 && ~|flac_1 ? 1'b1 : 1'b0;
-		is_nan_1  = exp_1 == 8'hff &&  |flac_1 ? 1'b1 : 1'b0;
-		is_inf_1  = exp_1 == 8'hff && ~|flac_1 ? 1'b1 : 1'b0;
-		is_num_1  = exp_1 != 8'h00 && exp_1 != 8'hff ? 1'b1 : 1'b0;
-	
-		sign_2    = in2[31];
-		exp_2     = in2[30:23];
-		flac_2    = in2[22:0];
-		is_zero_2 = exp_2 == 8'h00 && ~|flac_2 ? 1'b1 : 1'b0;
-		is_nan_2  = exp_2 == 8'hff &&  |flac_2 ? 1'b1 : 1'b0;
-		is_inf_2  = exp_2 == 8'hff && ~|flac_2 ? 1'b1 : 1'b0;
-		is_num_2  = exp_2 != 8'h00 && exp_2 != 8'hff ? 1'b1 : 1'b0;
-	
+		sign_1    = in1[F_WIDTH-1];
+		exp_1     = in1[F_WIDTH-2:F_FLAC];
+		flac_1    = in1[F_FLAC-1:0];
+		is_zero_1 = exp_1 == {F_EXP{1'b0}} && ~|flac_1 ? 1'b1 : 1'b0;
+		is_nan_1  = exp_1 == {F_EXP{1'b1}} &&  |flac_1 ? 1'b1 : 1'b0;
+		is_inf_1  = exp_1 == {F_EXP{1'b1}} && ~|flac_1 ? 1'b1 : 1'b0;
+		is_num_1  = exp_1 != {F_EXP{1'b0}} && exp_1 != {F_EXP{1'b1}} ? 1'b1 : 1'b0;
+
+		sign_2    = in2[F_WIDTH-1];
+		exp_2     = in2[F_WIDTH-2:F_FLAC];
+		flac_2    = in2[F_FLAC-1:0];
+		is_zero_2 = exp_2 == {F_EXP{1'b0}} && ~|flac_2 ? 1'b1 : 1'b0;
+		is_nan_2  = exp_2 == {F_EXP{1'b1}} &&  |flac_2 ? 1'b1 : 1'b0;
+		is_inf_2  = exp_2 == {F_EXP{1'b1}} && ~|flac_2 ? 1'b1 : 1'b0;
+		is_num_2  = exp_2 != {F_EXP{1'b0}} && exp_2 != {F_EXP{1'b1}} ? 1'b1 : 1'b0;
+
 		// ensure mm_1 > mm_2
 		mm_swap   = exp_1 < exp_2 ? 1'b1 : 1'b0;
 		mm_is_zero_1 = mm_swap ? is_zero_2 : is_zero_1;
@@ -139,12 +144,12 @@ module FADD_F
 	
 		// add
 		add_exp   = cm_exp_1;
-		add_flac  = {cm_flac_1[24], cm_flac_1} + {cm_flac_2[24], cm_flac_2};
+		add_flac  = {cm_flac_1[F_FLAC+1], cm_flac_1} + {cm_flac_2[24], cm_flac_2};
 
 		// abs
-		abs_sign   = add_flac[25];
+		abs_sign   = add_flac[F_FLAC+2];
 		abs_exp    = add_exp;
-		abs_flac   = abs_sign ? ~add_flac[24:0] + 'b1 : add_flac[24:0];
+		abs_flac   = abs_sign ? ~add_flac[F_FLAC+1:0] + 'b1 : add_flac[F_FLAC+1:0];
 
 		// normalize
 		norm_shift = first_1_25(abs_flac);
@@ -156,19 +161,20 @@ module FADD_F
 		// round
 		round_sign = norm_sign;
 		round_exp  = norm_exp;
-		round_flac = norm_flac[23:1];
+		round_flac = norm_flac[F_FLAC:1];
 
 		// result
 		add_f = {round_sign, round_exp, round_flac};
 	
-		out = is_inf_1  && is_inf_2 && (sign_1 ^ sign_2) ? {1'b0, 8'hff, 23'h40_0000} :	// inf-inf or -inf+inf = qNaN
-		      is_nan_1  || is_nan_2  ? {1'b0, 8'hff, 23'h40_0000} :	// NaN + any = NaN, any + NaN = NaN
-		      is_inf_1               ? in1 :				// +-inf + (any) = +-inf
-		      is_inf_2               ? in2 :				// (any) + +-inf = +-inf
-		      is_zero_1 && is_zero_2 ? {1'b0, 8'h00, 23'h00_0000} :	// +-0   + +-0   = +0
-		      is_zero_1 && is_num_2  ? in2 :				// +-0   + num	 = num
-		      is_zero_2 && is_num_1  ? in1 :				// num   + +-0   = num
-		      norm_is_zero           ? {1'b0, 8'h00, 23'h00_0000} :	// flac is zero
+		out = is_inf_1  && is_inf_2 && (sign_1 ^ sign_2) ? {1'b0, {F_EXP+1{1'b1}}, {F_FLAC-1{1'b0}}} :	// inf-inf or -inf+inf = qNaN
+
+		      is_nan_1  || is_nan_2  ? {1'b0, {F_EXP+1{1'b1}}, {F_FLAC-1{1'b0}}} :	// NaN + any = NaN, any + NaN = NaN
+		      is_inf_1               ? in1 :						// +-inf + (any) = +-inf
+		      is_inf_2               ? in2 :						// (any) + +-inf = +-inf
+		      is_zero_1 && is_zero_2 ? {F_WIDTH{1'b0}} :				// +-0   + +-0   = +0
+		      is_zero_1 && is_num_2  ? in2 :						// +-0   + num	 = num
+		      is_zero_2 && is_num_1  ? in1 :						// num   + +-0   = num
+		      norm_is_zero           ? {F_WIDTH{1'b0}} :				// flac is zero
 						add_f;
 		inexact = norm_flac[0] | (mag_shift > 0 ? last_n_dirty_23(mm_flac_2, mag_shift) : 1'b0);
 		invalid = is_inf_1  && is_inf_2 && (sign_1 ^ sign_2) ||
