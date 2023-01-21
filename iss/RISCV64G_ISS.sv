@@ -100,6 +100,9 @@ module RISCV64G_ISS (
 	wire [31:0]		fmul_f_d;
 	wire [31:0]		fclass_f_d;
 	wire [31:0]		fcvt_w_s_d;
+	wire [31:0]		fcvt_wu_s_d;
+	wire [63:0]		fcvt_l_s_d;
+	wire [63:0]		fcvt_lu_s_d;
 
 	wire			fcmp_f_eq;
 	wire			fcmp_f_lt;
@@ -109,6 +112,9 @@ module RISCV64G_ISS (
 	wire			fsub_f_inexact;
 	wire			fmul_f_inexact;
 	wire			fcvt_w_s_inexact;
+	wire			fcvt_wu_s_inexact;
+	wire			fcvt_l_s_inexact;
+	wire			fcvt_lu_s_inexact;
 
 	wire			fadd_f_invalid;
 	wire			fsub_f_invalid;
@@ -116,6 +122,9 @@ module RISCV64G_ISS (
 	wire			fcmp_f_eq_invalid;
 	wire			fcmp_f_lt_invalid;
 	wire			fcvt_w_s_invalid;
+	wire			fcvt_wu_s_invalid;
+	wire			fcvt_l_s_invalid;
+	wire			fcvt_lu_s_invalid;
 
 
 
@@ -234,6 +243,38 @@ module RISCV64G_ISS (
 		.out1		(fcvt_w_s_d),
 		.inexact	(fcvt_w_s_inexact),
 		.invalid	(fcvt_w_s_invalid)
+	);
+
+	FCVT_WU_S	FCVT_WU_S
+	(
+		.in1		(fp_rs1_d[31:0]),
+		.out1		(fcvt_wu_s_d),
+		.inexact	(fcvt_wu_s_inexact),
+		.invalid	(fcvt_wu_s_invalid)
+	);
+
+	FCVT_W_S
+	#(
+		.I_WIDTH	(64)
+	)
+	FCVT_L_S
+	(
+		.in1		(fp_rs1_d[31:0]),
+		.out1		(fcvt_l_s_d),
+		.inexact	(fcvt_l_s_inexact),
+		.invalid	(fcvt_l_s_invalid)
+	);
+
+	FCVT_WU_S
+	#(
+		.I_WIDTH	(64)
+	)
+	FCVT_LU_S
+	(
+		.in1		(fp_rs1_d[31:0]),
+		.out1		(fcvt_lu_s_d),
+		.inexact	(fcvt_lu_s_inexact),
+		.invalid	(fcvt_lu_s_invalid)
 	);
 
 	// main loop
@@ -737,9 +778,18 @@ module RISCV64G_ISS (
 							if(rd0 != 5'h00) reg_file[rd0] <= {{32{fcvt_w_s_d[31]}}, fcvt_w_s_d[31:0]};
 							csr_reg[12'h001] = {csr_reg[12'h001][`XLEN-1:5], fcvt_w_s_invalid, 3'h0, fcvt_w_s_inexact};
 					end
-					5'b00001: ;		// FCVT.WU.S
-					5'b00010: ;		// FCVT.L.S
-					5'b00011: ;		// FCVT.LU.S
+					5'b00001: begin		// FCVT.WU.S
+							if(rd0 != 5'h00) reg_file[rd0] <= {{32{fcvt_wu_s_d[31]}}, fcvt_wu_s_d[31:0]};
+							csr_reg[12'h001] = {csr_reg[12'h001][`XLEN-1:5], fcvt_wu_s_invalid, 3'h0, fcvt_wu_s_inexact};
+					end
+					5'b00010: begin		// FCVT.L.S
+							if(rd0 != 5'h00) reg_file[rd0] <= fcvt_l_s_d;
+							csr_reg[12'h001] = {csr_reg[12'h001][`XLEN-1:5], fcvt_l_s_invalid, 3'h0, fcvt_l_s_inexact};
+					end
+					5'b00011: begin		// FCVT.LU.S
+							if(rd0 != 5'h00) reg_file[rd0] <= fcvt_lu_s_d;
+							csr_reg[12'h001] = {csr_reg[12'h001][`XLEN-1:5], fcvt_lu_s_invalid, 3'h0, fcvt_lu_s_inexact};
+					end
 					default: ;
 					endcase
 				end

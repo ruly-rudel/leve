@@ -1,7 +1,7 @@
 
 `include "defs.vh"
 
-module FCVT_W_S
+module FCVT_WU_S
 #(
 	parameter	F_WIDTH = 32,
 	parameter	F_EXP   = 8,
@@ -44,7 +44,7 @@ module FCVT_W_S
 		is_qnan_1  = is_nan_1 &&  flac_1[F_FLAC-1]      ? 1'b1 : 1'b0;
 		is_num_1   = exp_1 != {F_EXP{1'b0}} && exp_1 != {F_EXP{1'b1}} ? 1'b1 : 1'b0;
 
-		is_oor_1   = exp_1 >= ('d127 + I_WIDTH - 1) ? 1'b1 : 1'b0;
+		is_oor_1   = exp_1 >= ('d127 + I_WIDTH) ? 1'b1 : 1'b0;
 		is_min_1   = exp_1 < 'd127;
 	
 		sft_flac_1 = {{I_WIDTH{1'b0}}, 1'b1, flac_1} << (exp_1 - 'd127);
@@ -52,25 +52,27 @@ module FCVT_W_S
 		rnd_flac_1 = sft_flac_1[F_FLAC + I_WIDTH - 1:F_FLAC];
 
 		out1 = is_zero_1           ? {I_WIDTH{1'b0}} :			// zero
-		       is_nan_1            ? {2'h1, {I_WIDTH-2{1'b1}}} :	// NaN
-		       is_inf_1 && ~sign_1 ? {2'h1, {I_WIDTH-2{1'b1}}} :	// +inf
-		       is_inf_1 &&  sign_1 ? {1'b1, {I_WIDTH-1{1'b0}}} :	// -inf
+		       is_nan_1            ? {I_WIDTH{1'b1}} :			// NaN
+		       is_inf_1 && ~sign_1 ? {I_WIDTH{1'b1}} :			// +inf
+		       is_inf_1 &&  sign_1 ? {I_WIDTH{1'b0}} :			// -inf
 		       is_min_1            ? {I_WIDTH{1'b0}} :			// num < 1.0
-		       is_oor_1 && ~sign_1 ? {2'h1, {I_WIDTH-2{1'b1}}} :	// num > int_max
-		       is_oor_1 &&  sign_1 ? {1'b1, {I_WIDTH-1{1'b0}}} :	// num < int_min
-		       sign_1              ? ~rnd_flac_1 + 1'b1 : rnd_flac_1;
+		       is_oor_1 && ~sign_1 ? {I_WIDTH{1'b1}} :			// num > int_max
+		       is_oor_1 &&  sign_1 ? {I_WIDTH{1'b0}} :			// num < int_min
+		       sign_1              ? {I_WIDTH{1'b0}} : rnd_flac_1;
 
 	       invalid = is_zero_1         ? 1'b0 :
 		         is_nan_1          ? 1'b1 :
 		         is_inf_1          ? 1'b1 :
 			 is_min_1          ? 1'b0 :
-			 is_oor_1          ? 1'b1 : 1'b0;
+			 is_oor_1          ? 1'b1 :
+			 sign_1            ? 1'b1 : 1'b0;
 
 	       inexact = is_zero_1         ? 1'b0 :
 		         is_nan_1          ? 1'b0 :
 		         is_inf_1          ? 1'b0 :
 			 is_min_1          ? 1'b1 :
 			 is_oor_1          ? 1'b0 :
+			 sign_1            ? 1'b0 :
 			 |sft_flac_1[F_FLAC-1:0] ? 1'b1 : 1'b0;
 	end
 
