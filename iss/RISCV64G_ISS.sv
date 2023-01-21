@@ -105,6 +105,8 @@ module RISCV64G_ISS (
 	wire [63:0]		fcvt_lu_s_d;
 	wire [31:0]		fcvt_s_w_d;
 	wire [31:0]		fcvt_s_wu_d;
+	wire [31:0]		fcvt_s_l_d;
+	wire [31:0]		fcvt_s_lu_d;
 
 	wire			fcmp_f_eq;
 	wire			fcmp_f_lt;
@@ -119,6 +121,8 @@ module RISCV64G_ISS (
 	wire			fcvt_lu_s_inexact;
 	wire			fcvt_s_w_inexact;
 	wire			fcvt_s_wu_inexact;
+	wire			fcvt_s_l_inexact;
+	wire			fcvt_s_lu_inexact;
 
 	wire			fadd_f_invalid;
 	wire			fsub_f_invalid;
@@ -294,6 +298,21 @@ module RISCV64G_ISS (
 		.out1		(fcvt_s_wu_d),
 		.inexact	(fcvt_s_wu_inexact)
 	);
+
+	FCVT_S_L	FCVT_S_L
+	(
+		.in1		(rs1_d),
+		.out1		(fcvt_s_l_d),
+		.inexact	(fcvt_s_l_inexact)
+	);
+
+	FCVT_S_LU	FCVT_S_LU
+	(
+		.in1		(rs1_d),
+		.out1		(fcvt_s_lu_d),
+		.inexact	(fcvt_s_lu_inexact)
+	);
+
 
 	// main loop
 	always_ff @(posedge CLK or negedge RSTn)
@@ -854,8 +873,14 @@ module RISCV64G_ISS (
 							fp_reg_file[rd0] <= {{32{1'b0}}, fcvt_s_wu_d};
 							csr_reg[12'h001] = {csr_reg[12'h001][`XLEN-1:5], 4'h0, fcvt_s_wu_inexact};
 					end
-					5'b00010: ;		// FCVT.S.L
-					5'b00011: ;		// FCVT.S.LU
+					5'b00010: begin		// FCVT.S.L
+							fp_reg_file[rd0] <= {{32{1'b0}}, fcvt_s_l_d};
+							csr_reg[12'h001] = {csr_reg[12'h001][`XLEN-1:5], 4'h0, fcvt_s_l_inexact};
+					end
+					5'b00011: begin		// FCVT.S.LU
+							fp_reg_file[rd0] <= {{32{1'b0}}, fcvt_s_lu_d};
+							csr_reg[12'h001] = {csr_reg[12'h001][`XLEN-1:5], 4'h0, fcvt_s_lu_inexact};
+					end
 					default: ;
 					endcase
 				end
