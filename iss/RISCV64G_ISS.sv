@@ -99,6 +99,7 @@ module RISCV64G_ISS (
 	wire [31:0]		fsub_f_d;
 	wire [31:0]		fmul_f_d;
 	wire [31:0]		fclass_f_d;
+	wire [31:0]		fcvt_w_s_d;
 
 	wire			fcmp_f_eq;
 	wire			fcmp_f_lt;
@@ -107,12 +108,14 @@ module RISCV64G_ISS (
 	wire			fadd_f_inexact;
 	wire			fsub_f_inexact;
 	wire			fmul_f_inexact;
+	wire			fcvt_w_s_inexact;
 
 	wire			fadd_f_invalid;
 	wire			fsub_f_invalid;
 	wire			fmul_f_invalid;
 	wire			fcmp_f_eq_invalid;
 	wire			fcmp_f_lt_invalid;
+	wire			fcvt_w_s_invalid;
 
 
 
@@ -223,6 +226,14 @@ module RISCV64G_ISS (
 
 		.eq_invalid	(fcmp_f_eq_invalid),
 		.lt_invalid	(fcmp_f_lt_invalid)
+	);
+
+	FCVT_W_S	FCVT_W_S
+	(
+		.in1		(fp_rs1_d[31:0]),
+		.out1		(fcvt_w_s_d),
+		.inexact	(fcvt_w_s_inexact),
+		.invalid	(fcvt_w_s_invalid)
 	);
 
 	// main loop
@@ -722,7 +733,10 @@ module RISCV64G_ISS (
 				end
 				7'b11000_00: begin
 					case (rs2)
-					5'b00000: ;		// FCVT.W.S
+					5'b00000: begin		// FCVT.W.S
+							if(rd0 != 5'h00) reg_file[rd0] <= {{32{fcvt_w_s_d[31]}}, fcvt_w_s_d[31:0]};
+							csr_reg[12'h001] = {csr_reg[12'h001][`XLEN-1:5], fcvt_w_s_invalid, 3'h0, fcvt_w_s_inexact};
+					end
 					5'b00001: ;		// FCVT.WU.S
 					5'b00010: ;		// FCVT.L.S
 					5'b00011: ;		// FCVT.LU.S
