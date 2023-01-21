@@ -448,7 +448,7 @@ module RISCV64G_ISS (
 			7'b01_001_11: begin	// STORE-FP
 				case (funct3)
 				3'b010: begin			// FSW
-						tmp = rs1_d + imm_iw;
+						tmp = rs1_d + imm_sw;
 						mem[tmp[22-1:2]] = fp_rs2_d[31:0];
 				end
 				default: ;
@@ -1153,8 +1153,8 @@ module RISCV64G_ISS (
 
 			7'b00_001_11: begin	// LOAD-FP: I type
 				case (funct3)
-				3'b010: $display("pc=%016H: %08H, opcode = %07B, funct3 = %03B, FLW,   rd0 = x%d, rs1 = x%d, imm = %08H", pc, inst, opcode, funct3, rd0, rs1, imm_i );
-				default: $display("pc=%016H: %08H, opcode = %07B, funct3 = %03B, ???,   rd0 = x%d, rs1 = x%d, imm = %08H", pc, inst, opcode, funct3, rd0, rs1, imm_i );
+				3'b010: $display("pc=%016H: %08H, opcode = %07B, funct3 = %03B, FLW,    rd0 = x%d, rs1 = x%d, imm = %08H", pc, inst, opcode, funct3, rd0, rs1, imm_i );
+				default: $display("pc=%016H: %08H, opcode = %07B, funct3 = %03B, ???,    rd0 = x%d, rs1 = x%d, imm = %08H", pc, inst, opcode, funct3, rd0, rs1, imm_i );
 				endcase
 			end
 			7'b01_001_11: begin	// STORE-FP: S type
