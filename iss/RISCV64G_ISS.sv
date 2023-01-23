@@ -48,41 +48,29 @@ class CSR;
 	logic [`XLEN-1:0]		csr_reg[0:`NUM_CSR-1];
 
 	function void init();
-	begin
 		for(integer i = 0; i < `NUM_CSR; i = i + 1) begin
 			csr_reg[i] = {`XLEN{1'b0}};
 		end
-	end
 	endfunction
 
 	function void write (input [12-1:0] addr, input [`XLEN-1:0] data);
-	begin
 		csr_reg[addr] = data;
-	end
 	endfunction
 
 	function [`XLEN-1:0] read (input [12-1:0] addr);
-	begin
 		return csr_reg[addr];
-	end
 	endfunction
 
 	function void set (input [12-1:0] addr, input [`XLEN-1:0] data);
-	begin
 		csr_reg[addr] = csr_reg[addr] | data;
-	end
 	endfunction
 
 	function void clear (input [12-1:0] addr, input [`XLEN-1:0] data);
-	begin
 		csr_reg[addr] = csr_reg[addr] & ~data;
-	end
 	endfunction
 
 	function void set_fflags(input [4:0] fflags);
-	begin
 		csr_reg[12'h001] = {csr_reg[12'h001][`XLEN-1:5], fflags};
-	end
 	endfunction
 
 endclass : CSR;
@@ -91,57 +79,39 @@ class REG_FILE;
 	logic [`XLEN-1:0]		reg_file[0:`NUM_REG-1];
 
 	function void write (input [4:0] addr, input [`XLEN-1:0] data);
-	begin
 		if(addr != 5'h00) reg_file[addr] = data;
-	end
 	endfunction
 
 	function void write32u (input [4:0] addr, input [32-1:0] data);
-	begin
 		if(addr != 5'h00) reg_file[addr] = {{32{1'b0}}, data};
-	end
 	endfunction
 
 	function void write32s (input [4:0] addr, input [32-1:0] data);
-	begin
 		if(addr != 5'h00) reg_file[addr] = {{32{data[31]}}, data};
-	end
 	endfunction
 
 	function void write16u (input [4:0] addr, input [16-1:0] data);
-	begin
 		reg_file[addr] = {{48{1'b0}}, data};
-	end
 	endfunction
 
 	function void write16s (input [4:0] addr, input [16-1:0] data);
-	begin
 		reg_file[addr] = {{48{data[15]}}, data};
-	end
 	endfunction
 
 	function void write8u (input [4:0] addr, input [8-1:0] data);
-	begin
 		reg_file[addr] = {{56{1'b0}}, data};
-	end
 	endfunction
 
 	function void write8s (input [4:0] addr, input [8-1:0] data);
-	begin
 		reg_file[addr] = {{56{data[7]}}, data};
-	end
 	endfunction
 
 	function [`XLEN-1:0] read (input [4:0] addr);
-	begin
 		return reg_file[addr];
-	end
 	endfunction
 
 	function [32-1:0] read32 (input [4:0] addr);
-	begin
 		return reg_file[addr][31:0];
-	end
 	endfunction
 endclass : REG_FILE;
 
@@ -149,59 +119,126 @@ class REG_FILE_FP;
 	logic [`FLEN-1:0]		reg_file[0:`FP_NUM_REG-1];
 
 	function void write (input [4:0] addr, input [`XLEN-1:0] data);
-	begin
 		reg_file[addr] = data;
-	end
 	endfunction
 
 	function void write32u (input [4:0] addr, input [32-1:0] data);
-	begin
 		reg_file[addr] = {{32{1'b0}}, data};
-	end
 	endfunction
 
 	function void write32s (input [4:0] addr, input [32-1:0] data);
-	begin
 		reg_file[addr] = {{32{data[31]}}, data};
-	end
 	endfunction
 
 	function void write16u (input [4:0] addr, input [16-1:0] data);
-	begin
 		reg_file[addr] = {{48{1'b0}}, data};
-	end
 	endfunction
 
 	function void write16s (input [4:0] addr, input [16-1:0] data);
-	begin
 		reg_file[addr] = {{48{data[15]}}, data};
-	end
 	endfunction
 
 	function void write8u (input [4:0] addr, input [8-1:0] data);
-	begin
 		reg_file[addr] = {{56{1'b0}}, data};
-	end
 	endfunction
 
 	function void write8s (input [4:0] addr, input [8-1:0] data);
-	begin
 		reg_file[addr] = {{56{data[7]}}, data};
-	end
 	endfunction
 
 	function [`XLEN-1:0] read (input [4:0] addr);
-	begin
 		return reg_file[addr];
-	end
 	endfunction
 
 	function [32-1:0] read32 (input [4:0] addr);
-	begin
 		return reg_file[addr][31:0];
-	end
 	endfunction
 endclass : REG_FILE_FP;
+
+
+class MEMORY;
+	logic [32-1:0]			mem[] = new [1024*1024];
+
+	function new(string filename);
+		integer fd;
+		integer ret;
+		integer i = 0;
+		string str;
+		$display("[MEMORY] read %s", filename);
+		fd = $fopen(filename, "r");
+		if(fd == 0) begin
+			$display("[MEMORY] file open fails: %s", filename);
+			$finish;
+		end
+
+		while (!$feof(fd)) begin
+			ret = $fgets(str, fd);
+			if(ret == 0) begin
+				$display("[MEMORY] file read fails: %s, line %d", filename, i);
+			end else begin
+				mem[i++] = str.atohex();
+			end
+		end
+
+		$fclose(fd);
+		$display("[MEMORY] read finish.");
+
+	endfunction
+
+	function void write (input [`XLEN-1:0] addr, input [`XLEN-1:0] data);
+		mem[addr[22-1:2]] = data[31:0];
+		mem[addr[22-1:2] + 20'h1] = data[63:32];
+	endfunction
+
+	function void write32 (input [`XLEN-1:0] addr, input [32-1:0] data);
+		mem[addr[22-1:2]] = data;
+	endfunction
+
+	function void write16 (input [`XLEN-1:0] addr, input [16-1:0] data);
+		logic [31:0]	tmp32;
+		tmp32 = mem[addr[22-1:2]];
+		case (addr[1])
+			1'b0 : mem[addr[22-1:2]] = {tmp32[31:16], data};
+			1'b1 : mem[addr[22-1:2]] = {data[15:0], tmp32[15:0]};
+		endcase
+	endfunction
+
+	function void write8 (input [`XLEN-1:0] addr, input [8-1:0] data);
+		logic [31:0]	tmp32;
+		tmp32 = mem[addr[22-1:2]];
+		case (addr[1:0])
+			2'h0 : mem[addr[22-1:2]] = {tmp32[31:8], data};
+			2'h1 : mem[addr[22-1:2]] = {tmp32[31:16], data, tmp32[7:0]};
+			2'h2 : mem[addr[22-1:2]] = {tmp32[31:24], data, tmp32[15:0]};
+			2'h3 : mem[addr[22-1:2]] = {data, tmp32[23:0]};
+		endcase
+	endfunction
+
+	function [`XLEN-1:0] read (input [`XLEN-1:0] addr);
+		return {mem[addr[22-1:2] + 20'h1], mem[addr[22-1:2]]};
+	endfunction
+
+	function [32-1:0] read32 (input [`XLEN-1:0] addr);
+		return mem[addr[22-1:2]];
+	endfunction
+
+	function [16-1:0] read16 (input [`XLEN-1:0] addr);
+		case(addr[1])
+			1'h0 : return mem[addr[22-1:2]][15:0];
+			1'h1 : return mem[addr[22-1:2]][31:16];
+		endcase
+	endfunction
+
+	function [8-1:0] read8 (input [`XLEN-1:0] addr);
+		case(addr[1:0])
+			2'h0 : return mem[addr[22-1:2]][7:0];
+			2'h1 : return mem[addr[22-1:2]][15:8];
+			2'h2 : return mem[addr[22-1:2]][23:16];
+			2'h3 : return mem[addr[22-1:2]][31:24];
+		endcase
+	endfunction
+
+endclass : MEMORY;
 
 
 
@@ -210,15 +247,16 @@ module RISCV64G_ISS (
 	input			CLK,
 	input			RSTn,
 
+	input string		init_file,
 	output reg		tohost_we,
 	output reg [32-1:0]	tohost
 );
 	//reg [31:0]	mem[0:1024*1024*16-1];
-	reg  [32-1:0]	mem[0:1024*1024-1];
+	//reg  [32-1:0]	mem[0:1024*1024-1];
+	MEMORY			mem = new(init_file);
 
 	// PC
 	reg  [`XLEN-1:0]	pc;
-	logic [`XLEN-1:0]	pc_nxt;
 
 	wire [32-1:0]		inst;
 	wire [6:0]		opcode;
@@ -299,15 +337,47 @@ module RISCV64G_ISS (
 
 	// registers
 	REG_FILE rf = new();
-	//reg [`XLEN-1:0]		reg_file[0:`NUM_REG-1];
 	reg [`FLEN-1:0]		fp_reg_file[0:`FP_NUM_REG-1];
+
+	logic [`XLEN-1:0]	rf_1_ra;
+	logic [`XLEN-1:0]	rf_2_sp;
+	logic [`XLEN-1:0]	rf_3_gp;
+	logic [`XLEN-1:0]	rf_4_tp;
+	logic [`XLEN-1:0]	rf_5_t0;
+	logic [`XLEN-1:0]	rf_6_t1;
+	logic [`XLEN-1:0]	rf_7_t2;
+	logic [`XLEN-1:0]	rf_8_s0;
+	logic [`XLEN-1:0]	rf_9_s1;
+	logic [`XLEN-1:0]	rf_10_a0;
+	logic [`XLEN-1:0]	rf_11_a1;
+	logic [`XLEN-1:0]	rf_12_a2;
+	logic [`XLEN-1:0]	rf_13_a3;
+	logic [`XLEN-1:0]	rf_14_a4;
+	logic [`XLEN-1:0]	rf_15_a5;
+	logic [`XLEN-1:0]	rf_16_a6;
+	logic [`XLEN-1:0]	rf_17_a7;
+	logic [`XLEN-1:0]	rf_18_s2;
+	logic [`XLEN-1:0]	rf_19_s3;
+	logic [`XLEN-1:0]	rf_20_s4;
+	logic [`XLEN-1:0]	rf_21_s5;
+	logic [`XLEN-1:0]	rf_22_s6;
+	logic [`XLEN-1:0]	rf_23_s7;
+	logic [`XLEN-1:0]	rf_24_s8;
+	logic [`XLEN-1:0]	rf_25_s9;
+	logic [`XLEN-1:0]	rf_26_s10;
+	logic [`XLEN-1:0]	rf_27_s11;
+	logic [`XLEN-1:0]	rf_28_t3;
+	logic [`XLEN-1:0]	rf_29_t4;
+	logic [`XLEN-1:0]	rf_30_t5;
+	logic [`XLEN-1:0]	rf_31_t6;
 
 	// LR/WC register
 	reg 			lrsc_valid;
 	reg [`XLEN-1:0]		lrsc_addr;
 
 	// 1. instruction fetch
-	assign inst   = mem[pc[22-1:2]];
+	//assign inst   = mem[pc[22-1:2]];
+	assign inst   = mem.read32(pc);
 	
 	assign opcode = inst[6:0];
 	assign rd0    = inst[11:7];
@@ -490,54 +560,25 @@ module RISCV64G_ISS (
 			7'b00_000_11: begin	// LOAD: I type
 				case (funct3)
 				3'b000: begin			// LB
-						tmp = rs1_d + imm_iw;
-						tmp32 = mem[tmp[22-1:2]];
-						case (tmp[1:0])
-						2'h0 : rf.write8s(rd0, tmp32[7:0]);
-						2'h1 : rf.write8s(rd0, tmp32[15:8]);
-						2'h2 : rf.write8s(rd0, tmp32[23:16]);
-						2'h3 : rf.write8s(rd0, tmp32[31:24]);
-						endcase
+						rf.write8s(rd0, mem.read8(rs1_d + imm_iw));
 				end
 				3'b001: begin			// LH
-						tmp = rs1_d + imm_iw;
-						tmp32 = mem[tmp[22-1:2]];
-						case (tmp[1])
-						1'b0 : rf.write16s(rd0, tmp32[15:0]);
-						1'b1 : rf.write16s(rd0, tmp32[31:16]);
-						endcase
+						rf.write16s(rd0, mem.read16(rs1_d + imm_iw));
 				end
 				3'b010: begin			// LW
-						tmp = rs1_d + imm_iw;
-						tmp32 = mem[tmp[22-1:2]];
-						rf.write32s(rd0, tmp32);
+						rf.write32s(rd0, mem.read32(rs1_d + imm_iw));
 				end
 				3'b011: begin			// LD
-						tmp = rs1_d + imm_iw;
-						rf.write(rd0, {mem[tmp[22-1:2] + 'b1], mem[tmp[22-1:2]]});
+						rf.write(rd0, mem.read(rs1_d + imm_iw));
 				end
 				3'b100: begin			// LBU
-						tmp = rs1_d + imm_iw;
-						tmp32 = mem[tmp[22-1:2]];
-						case (tmp[1:0])
-						2'h0 : rf.write8u(rd0, tmp32[7:0]);
-						2'h1 : rf.write8u(rd0, tmp32[15:8]);
-						2'h2 : rf.write8u(rd0, tmp32[23:16]);
-						2'h3 : rf.write8u(rd0, tmp32[31:24]);
-						endcase
+						rf.write8u(rd0, mem.read8(rs1_d + imm_iw));
 				end
 				3'b101: begin			// LHU
-						tmp = rs1_d + imm_iw;
-						tmp32 = mem[tmp[22-1:2]];
-						case (tmp[1])
-						1'b0 : rf.write16u(rd0, tmp32[15:0]);
-						1'b1 : rf.write16u(rd0, tmp32[31:16]);
-						endcase
+						rf.write16u(rd0, mem.read16(rs1_d + imm_iw));
 				end
 				3'b110: begin			// LWU
-						tmp = rs1_d + imm_iw;
-						tmp32 = mem[tmp[22-1:2]];
-						rf.write32u(rd0, tmp32);
+						rf.write32u(rd0, mem.read32(rs1_d + imm_iw));
 				end
 				default: ;
 				endcase
@@ -546,33 +587,18 @@ module RISCV64G_ISS (
 			7'b01_000_11: begin	// STORE: S type
 				case (funct3)
 				3'b000: begin			// SB
-						tmp = rs1_d + imm_sw;
-						tmp32 = mem[tmp[22-1:2]];
-						case (tmp[1:0])
-						2'h0 : mem[tmp[22-1:2]]	= {tmp32[31:8], rs2_d[7:0]};
-						2'h1 : mem[tmp[22-1:2]]	= {tmp32[31:16], rs2_d[7:0], tmp32[7:0]};
-						2'h2 : mem[tmp[22-1:2]]	= {tmp32[31:24], rs2_d[7:0], tmp32[15:0]};
-						2'h3 : mem[tmp[22-1:2]]	= {rs2_d[7:0], tmp32[23:0]};
-						endcase
+						mem.write8(rs1_d + imm_sw, rs2_d[7:0]);
 				end
 				3'b001: begin			// SH
-						tmp = rs1_d + imm_sw;
-						tmp32 = mem[tmp[22-1:2]];
-						case (tmp[1])
-						1'b0 : mem[tmp[22-1:2]]	= {tmp32[31:16], rs2_d[15:0]};
-						1'b1 : mem[tmp[22-1:2]]	= {rs2_d[15:0], tmp32[15:0]};
-						endcase
+						mem.write16(rs1_d + imm_sw, rs2_d[15:0]);
 				end
 				3'b010: begin			// SW
-						tmp = rs1_d + imm_sw;
-						mem[tmp[22-1:2]]	= rs2_d[31:0];
+						mem.write32(rs1_d + imm_sw, rs2_d[31:0]);
 						tohost_we  = pc == 64'h0000_0000_8000_0040 ? 1'b1 : 1'b0;	// for testbench hack
 						tohost     = rs2_d[31:0];
 				end
 				3'b011: begin			// SD
-						tmp = rs1_d + imm_sw;
-						mem[tmp[22-1:2]]	= rs2_d[31:0];
-						mem[tmp[22-1:2] + 'b1]	= rs2_d[63:32];
+						mem.write(rs1_d + imm_sw, rs2_d);
 				end
 				default: ;
 				endcase
@@ -586,8 +612,7 @@ module RISCV64G_ISS (
 			7'b00_001_11: begin	// LOAD-FP
 				case (funct3)
 				3'b010: begin			// FLW
-						tmp = rs1_d + imm_iw;
-						tmp32 = mem[tmp[22-1:2]];
+						tmp32 = mem.read32(rs1_d + imm_iw);
 						fp_reg_file[rd0] = {{32{1'b0}}, tmp32};
 				end
 				default: ;
@@ -597,8 +622,7 @@ module RISCV64G_ISS (
 			7'b01_001_11: begin	// STORE-FP
 				case (funct3)
 				3'b010: begin			// FSW
-						tmp = rs1_d + imm_sw;
-						mem[tmp[22-1:2]] = fp_rs2_d[31:0];
+						mem.write32(rs1_d + imm_sw, fp_rs2_d[31:0]);
 				end
 				default: ;
 				endcase
@@ -628,63 +652,61 @@ module RISCV64G_ISS (
 					5'b00010: begin		// LR.W
 						lrsc_valid <= 1'b1;
 						lrsc_addr  <= rs1_d;
-						tmp32 = mem[rs1_d[22-1:2]];
-						rf.write32s(rd0, tmp32);
+						rf.write32s(rd0, mem.read32(rs1_d));
 					end
 					5'b00011: begin		// SC.W
 						if(lrsc_valid && lrsc_addr == rs1_d) begin
 							lrsc_valid <= 1'b0;
-							tmp32 = mem[rs1_d[22-1:2]];
+							tmp32 = mem.read32(rs1_d);
 							rf.write(rd0, {`XLEN{1'b0}});
-							mem[rs1_d[22-1:2]] = rs2_d[31:0];
+							mem.write32(rs1_d, rs2_d[31:0]);
 						end else begin
 							rf.write(rd0, {{`XLEN-1{1'b0}}, 1'b1});
 						end
 					end
 					5'b00001: begin		// AMOSWAP.W
-						tmp32 = mem[rs1_d[22-1:2]];
-						rf.write32s(rd0, tmp32);
-						mem[rs1_d[22-1:2]] = rs2_d[31:0];
+						rf.write32s(rd0, mem.read32(rs1_d));
+						mem.write32(rs1_d, rs2_d[31:0]);
 					end
 					5'b00000: begin		// AMOADD.W
-						tmp32 = mem[rs1_d[22-1:2]];
+						tmp32 = mem.read32(rs1_d);
 						rf.write32s(rd0, tmp32);
-						mem[rs1_d[22-1:2]] = rs2_d[31:0] + tmp32;
+						mem.write32(rs1_d, rs2_d[31:0] + tmp32);
 					end
 					5'b00100: begin		// AMOXOR.W
-						tmp32 = mem[rs1_d[22-1:2]];
+						tmp32 = mem.read32(rs1_d);
 						rf.write32s(rd0, tmp32);
-						mem[rs1_d[22-1:2]] = rs2_d[31:0] ^ tmp32;
+						mem.write32(rs1_d, rs2_d[31:0] ^ tmp32);
 					end
 					5'b01100: begin		// AMOAND.W
-						tmp32 = mem[rs1_d[22-1:2]];
+						tmp32 = mem.read32(rs1_d);
 						rf.write32s(rd0, tmp32);
-						mem[rs1_d[22-1:2]] = rs2_d[31:0] & tmp32;
+						mem.write32(rs1_d, rs2_d[31:0] & tmp32);
 					end
 					5'b01000: begin		// AMOOR.W
-						tmp32 = mem[rs1_d[22-1:2]];
+						tmp32 = mem.read32(rs1_d);
 						rf.write32s(rd0, tmp32);
-						mem[rs1_d[22-1:2]] = rs2_d[31:0] | tmp32;
+						mem.write32(rs1_d, rs2_d[31:0] | tmp32);
 					end
 					5'b10000: begin		// AMOMIN.W
-						tmp32 = mem[rs1_d[22-1:2]];
+						tmp32 = mem.read32(rs1_d);
 						rf.write32s(rd0, tmp32);
-						mem[rs1_d[22-1:2]] = $signed(rs2_d[31:0]) < $signed(tmp32) ? rs2_d[31:0] : tmp32;
+						mem.write32(rs1_d, $signed(rs2_d[31:0]) < $signed(tmp32) ? rs2_d[31:0] : tmp32);
 					end
 					5'b10100: begin		// AMOMAX.W
-						tmp32 = mem[rs1_d[22-1:2]];
+						tmp32 = mem.read32(rs1_d);
 						rf.write32s(rd0, tmp32);
-						mem[rs1_d[22-1:2]] = $signed(rs2_d[31:0]) > $signed(tmp32) ? rs2_d[31:0] : tmp32;
+						mem.write32(rs1_d, $signed(rs2_d[31:0]) > $signed(tmp32) ? rs2_d[31:0] : tmp32);
 					end
 					5'b11000: begin		// AMOMINU.W
-						tmp32 = mem[rs1_d[22-1:2]];
+						tmp32 = mem.read32(rs1_d);
 						rf.write32s(rd0, tmp32);
-						mem[rs1_d[22-1:2]] = rs2_d[31:0] < tmp32 ? rs2_d[31:0] : tmp32;
+						mem.write32(rs1_d, rs2_d[31:0] < tmp32 ? rs2_d[31:0] : tmp32);
 					end
 					5'b11100: begin		// AMOMAXU.W
-						tmp32 = mem[rs1_d[22-1:2]];
+						tmp32 = mem.read32(rs1_d);
 						rf.write32s(rd0, tmp32);
-						mem[rs1_d[22-1:2]] = rs2_d[31:0] > tmp32 ? rs2_d[31:0] : tmp32;
+						mem.write32(rs1_d, rs2_d[31:0] > tmp32 ? rs2_d[31:0] : tmp32);
 					end
 					default: ;
 					endcase
@@ -696,75 +718,56 @@ module RISCV64G_ISS (
 					5'b00011: begin		// SC.D
 					end
 					5'b00001: begin		// AMOSWAP.D
-						tmp[31:0]  = mem[rs1_d[22-1:2]];
-						tmp[63:32] = mem[rs1_d[22-1:2] + 'b1];
+						tmp = mem.read(rs1_d);
 						rf.write(rd0, tmp);
-						mem[rs1_d[22-1:2]]       = rs2_d[31:0];
-						mem[rs1_d[22-1:2] + 'b1] = rs2_d[63:32];
+						mem.write(rs1_d, rs2_d);
 					end
 					5'b00000: begin		// AMOADD.D
-						tmp[31:0]  = mem[rs1_d[22-1:2]];
-						tmp[63:32] = mem[rs1_d[22-1:2] + 'b1];
+						tmp = mem.read(rs1_d);
 						rf.write(rd0, tmp);
-						tmp = rs2_d + tmp;
-						mem[rs1_d[22-1:2]]       = tmp[31:0];
-						mem[rs1_d[22-1:2] + 'b1] = tmp[63:32];
+						mem.write(rs1_d, rs2_d + tmp);
 					end
 					5'b00100: begin		// AMOXOR.D
-						tmp[31:0]  = mem[rs1_d[22-1:2]];
-						tmp[63:32] = mem[rs1_d[22-1:2] + 'b1];
+						tmp = mem.read(rs1_d);
 						rf.write(rd0, tmp);
 						tmp = rs2_d ^ tmp;
-						mem[rs1_d[22-1:2]]       = tmp[31:0];
-						mem[rs1_d[22-1:2] + 'b1] = tmp[63:32];
+						mem.write(rs1_d, tmp);
 					end
 					5'b01100: begin		// AMOAND.D
-						tmp[31:0]  = mem[rs1_d[22-1:2]];
-						tmp[63:32] = mem[rs1_d[22-1:2] + 'b1];
+						tmp = mem.read(rs1_d);
 						rf.write(rd0, tmp);
 						tmp = rs2_d & tmp;
-						mem[rs1_d[22-1:2]]       = tmp[31:0];
-						mem[rs1_d[22-1:2] + 'b1] = tmp[63:32];
+						mem.write(rs1_d, tmp);
 					end
 					5'b01000: begin		// AMOOR.D
-						tmp[31:0]  = mem[rs1_d[22-1:2]];
-						tmp[63:32] = mem[rs1_d[22-1:2] + 'b1];
+						tmp = mem.read(rs1_d);
 						rf.write(rd0, tmp);
 						tmp = rs2_d | tmp;
-						mem[rs1_d[22-1:2]]       = tmp[31:0];
-						mem[rs1_d[22-1:2] + 'b1] = tmp[63:32];
+						mem.write(rs1_d, tmp);
 					end
 					5'b10000: begin		// AMOMIN.D
-						tmp[31:0]  = mem[rs1_d[22-1:2]];
-						tmp[63:32] = mem[rs1_d[22-1:2] + 'b1];
+						tmp = mem.read(rs1_d);
 						rf.write(rd0, tmp);
 						tmp = $signed(rs2_d) < $signed(tmp) ? rs2_d : tmp;
-						mem[rs1_d[22-1:2]]       = tmp[31:0];
-						mem[rs1_d[22-1:2] + 'b1] = tmp[63:32];
+						mem.write(rs1_d, tmp);
 					end
 					5'b10100: begin		// AMOMAX.D
-						tmp[31:0]  = mem[rs1_d[22-1:2]];
-						tmp[63:32] = mem[rs1_d[22-1:2] + 'b1];
+						tmp = mem.read(rs1_d);
 						rf.write(rd0, tmp);
 						tmp = $signed(rs2_d) > $signed(tmp) ? rs2_d : tmp;
-						mem[rs1_d[22-1:2]]       = tmp[31:0];
-						mem[rs1_d[22-1:2] + 'b1] = tmp[63:32];
+						mem.write(rs1_d, tmp);
 					end
 					5'b11000: begin		// AMOMINU.D
-						tmp[31:0]  = mem[rs1_d[22-1:2]];
-						tmp[63:32] = mem[rs1_d[22-1:2] + 'b1];
+						tmp = mem.read(rs1_d);
 						rf.write(rd0, tmp);
 						tmp = rs2_d < tmp ? rs2_d : tmp;
-						mem[rs1_d[22-1:2]]       = tmp[31:0];
-						mem[rs1_d[22-1:2] + 'b1] = tmp[63:32];
+						mem.write(rs1_d, tmp);
 					end
 					5'b11100: begin		// AMOMAXU.D
-						tmp[31:0]  = mem[rs1_d[22-1:2]];
-						tmp[63:32] = mem[rs1_d[22-1:2] + 'b1];
+						tmp = mem.read(rs1_d);
 						rf.write(rd0, tmp);
 						tmp = rs2_d > tmp ? rs2_d : tmp;
-						mem[rs1_d[22-1:2]]       = tmp[31:0];
-						mem[rs1_d[22-1:2] + 'b1] = tmp[63:32];
+						mem.write(rs1_d, tmp);
 					end
 					default: ;
 					endcase
@@ -1254,6 +1257,40 @@ module RISCV64G_ISS (
 			end
 			default:	pc <= pc + 'h4;
 			endcase
+
+
+			// debug outputs
+			rf_1_ra = rf.read('d1);
+			rf_2_sp = rf.read('d2);
+			rf_3_gp = rf.read('d3);
+			rf_4_tp = rf.read('d4);
+			rf_5_t0 = rf.read('d5);
+			rf_6_t1 = rf.read('d6);
+			rf_7_t2 = rf.read('d7);
+			rf_8_s0 = rf.read('d8);
+			rf_9_s1 = rf.read('d9);
+			rf_10_a0 = rf.read('d10);
+			rf_11_a1 = rf.read('d11);
+			rf_12_a2 = rf.read('d12);
+			rf_13_a3 = rf.read('d13);
+			rf_14_a4 = rf.read('d14);
+			rf_15_a5 = rf.read('d15);
+			rf_16_a6 = rf.read('d16);
+			rf_17_a7 = rf.read('d17);
+			rf_18_s2 = rf.read('d18);
+			rf_19_s3 = rf.read('d19);
+			rf_20_s4 = rf.read('d20);
+			rf_21_s5 = rf.read('d21);
+			rf_22_s6 = rf.read('d22);
+			rf_23_s7 = rf.read('d23);
+			rf_24_s8 = rf.read('d24);
+			rf_25_s9 = rf.read('d25);
+			rf_26_s10 = rf.read('d26);
+			rf_27_s11 = rf.read('d27);
+			rf_28_t3 = rf.read('d28);
+			rf_29_t4 = rf.read('d29);
+			rf_30_t5 = rf.read('d30);
+			rf_31_t6 = rf.read('d31);
 		end
 	end
 

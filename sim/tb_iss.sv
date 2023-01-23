@@ -15,14 +15,11 @@ module tb_iss
 		.CLK		(CLK),
 		.RSTn		(RSTn),
 
+		.init_file	("rv64ui-p.hex"),
 		.tohost_we	(tohost_we),
 		.tohost		(tohost)
 	);
 
-
-	initial begin
-		$readmemh("rv64ui-p.hex", RISCV64G_ISS_0.mem);
-	end
 
 	always_ff @(posedge CLK or negedge RSTn)
 	begin
