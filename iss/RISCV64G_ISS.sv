@@ -44,6 +44,167 @@ begin
 end
 endfunction
 
+class CSR;
+	logic [`XLEN-1:0]		csr_reg[0:`NUM_CSR-1];
+
+	function void init();
+	begin
+		for(integer i = 0; i < `NUM_CSR; i = i + 1) begin
+			csr_reg[i] = {`XLEN{1'b0}};
+		end
+	end
+	endfunction
+
+	function void write (input [12-1:0] addr, input [`XLEN-1:0] data);
+	begin
+		csr_reg[addr] = data;
+	end
+	endfunction
+
+	function [`XLEN-1:0] read (input [12-1:0] addr);
+	begin
+		return csr_reg[addr];
+	end
+	endfunction
+
+	function void set (input [12-1:0] addr, input [`XLEN-1:0] data);
+	begin
+		csr_reg[addr] = csr_reg[addr] | data;
+	end
+	endfunction
+
+	function void clear (input [12-1:0] addr, input [`XLEN-1:0] data);
+	begin
+		csr_reg[addr] = csr_reg[addr] & ~data;
+	end
+	endfunction
+
+	function void set_fflags(input [4:0] fflags);
+	begin
+		csr_reg[12'h001] = {csr_reg[12'h001][`XLEN-1:5], fflags};
+	end
+	endfunction
+
+endclass : CSR;
+
+class REG_FILE;
+	logic [`XLEN-1:0]		reg_file[0:`NUM_REG-1];
+
+	function void write (input [4:0] addr, input [`XLEN-1:0] data);
+	begin
+		if(addr != 5'h00) reg_file[addr] = data;
+	end
+	endfunction
+
+	function void write32u (input [4:0] addr, input [32-1:0] data);
+	begin
+		if(addr != 5'h00) reg_file[addr] = {{32{1'b0}}, data};
+	end
+	endfunction
+
+	function void write32s (input [4:0] addr, input [32-1:0] data);
+	begin
+		if(addr != 5'h00) reg_file[addr] = {{32{data[31]}}, data};
+	end
+	endfunction
+
+	function void write16u (input [4:0] addr, input [16-1:0] data);
+	begin
+		reg_file[addr] = {{48{1'b0}}, data};
+	end
+	endfunction
+
+	function void write16s (input [4:0] addr, input [16-1:0] data);
+	begin
+		reg_file[addr] = {{48{data[15]}}, data};
+	end
+	endfunction
+
+	function void write8u (input [4:0] addr, input [8-1:0] data);
+	begin
+		reg_file[addr] = {{56{1'b0}}, data};
+	end
+	endfunction
+
+	function void write8s (input [4:0] addr, input [8-1:0] data);
+	begin
+		reg_file[addr] = {{56{data[7]}}, data};
+	end
+	endfunction
+
+	function [`XLEN-1:0] read (input [4:0] addr);
+	begin
+		return reg_file[addr];
+	end
+	endfunction
+
+	function [32-1:0] read32 (input [4:0] addr);
+	begin
+		return reg_file[addr][31:0];
+	end
+	endfunction
+endclass : REG_FILE;
+
+class REG_FILE_FP;
+	logic [`FLEN-1:0]		reg_file[0:`FP_NUM_REG-1];
+
+	function void write (input [4:0] addr, input [`XLEN-1:0] data);
+	begin
+		reg_file[addr] = data;
+	end
+	endfunction
+
+	function void write32u (input [4:0] addr, input [32-1:0] data);
+	begin
+		reg_file[addr] = {{32{1'b0}}, data};
+	end
+	endfunction
+
+	function void write32s (input [4:0] addr, input [32-1:0] data);
+	begin
+		reg_file[addr] = {{32{data[31]}}, data};
+	end
+	endfunction
+
+	function void write16u (input [4:0] addr, input [16-1:0] data);
+	begin
+		reg_file[addr] = {{48{1'b0}}, data};
+	end
+	endfunction
+
+	function void write16s (input [4:0] addr, input [16-1:0] data);
+	begin
+		reg_file[addr] = {{48{data[15]}}, data};
+	end
+	endfunction
+
+	function void write8u (input [4:0] addr, input [8-1:0] data);
+	begin
+		reg_file[addr] = {{56{1'b0}}, data};
+	end
+	endfunction
+
+	function void write8s (input [4:0] addr, input [8-1:0] data);
+	begin
+		reg_file[addr] = {{56{data[7]}}, data};
+	end
+	endfunction
+
+	function [`XLEN-1:0] read (input [4:0] addr);
+	begin
+		return reg_file[addr];
+	end
+	endfunction
+
+	function [32-1:0] read32 (input [4:0] addr);
+	begin
+		return reg_file[addr][31:0];
+	end
+	endfunction
+endclass : REG_FILE_FP;
+
+
+
 
 module RISCV64G_ISS (
 	input			CLK,
@@ -137,7 +298,8 @@ module RISCV64G_ISS (
 
 
 	// registers
-	reg [`XLEN-1:0]		reg_file[0:`NUM_REG-1];
+	REG_FILE rf = new();
+	//reg [`XLEN-1:0]		reg_file[0:`NUM_REG-1];
 	reg [`FLEN-1:0]		fp_reg_file[0:`FP_NUM_REG-1];
 
 	// LR/WC register
@@ -178,25 +340,14 @@ module RISCV64G_ISS (
 	assign shamt  = imm_i[5:0];
 
 	// 2. register fetch
-	assign	rs1_d    = reg_file[rs1];
-	assign	rs2_d    = reg_file[rs2];
+	assign	rs1_d    = rf.read(rs1);
+	assign	rs2_d    = rf.read(rs2);
 	assign	fp_rs1_d = fp_reg_file[rs1];
 	assign	fp_rs2_d = fp_reg_file[rs2];
 	assign	fp_rs3_d = fp_reg_file[rs3];
 
 	// CSR
-	reg [`XLEN-1:0]		csr_reg[0:`NUM_CSR-1];
-
-	logic  [`XLEN-1:0]	csr_rd;
-
-	always_comb
-	begin
-		case (csr)
-		12'hf14:	csr_rd = 64'h0000_0000_0000_0000;
-		default:	csr_rd = csr_reg[csr];
-		endcase
-	end
-
+	CSR	csr_c = new();
 
 	// floating point arithmetics
 	FADD_F	FADD_F
@@ -322,9 +473,7 @@ module RISCV64G_ISS (
 		logic [`XLEN*2-1:0]	tmp128;
 
 		if(!RSTn) begin
-			for(integer i = 0; i < `NUM_CSR; i = i + 1) begin
-				csr_reg[i] = {`XLEN{1'b0}};
-			end
+			csr_c.init();
 
 			// pc
 			pc <= 64'h0000_0000_8000_0000;
@@ -344,51 +493,51 @@ module RISCV64G_ISS (
 						tmp = rs1_d + imm_iw;
 						tmp32 = mem[tmp[22-1:2]];
 						case (tmp[1:0])
-						2'h0 : if(rd0 != 5'h00) reg_file[rd0] <= {{56{tmp32[7]}}, tmp32[7:0]};
-						2'h1 : if(rd0 != 5'h00) reg_file[rd0] <= {{56{tmp32[15]}}, tmp32[15:8]};
-						2'h2 : if(rd0 != 5'h00) reg_file[rd0] <= {{56{tmp32[23]}}, tmp32[23:16]};
-						2'h3 : if(rd0 != 5'h00) reg_file[rd0] <= {{56{tmp32[31]}}, tmp32[31:24]};
+						2'h0 : rf.write8s(rd0, tmp32[7:0]);
+						2'h1 : rf.write8s(rd0, tmp32[15:8]);
+						2'h2 : rf.write8s(rd0, tmp32[23:16]);
+						2'h3 : rf.write8s(rd0, tmp32[31:24]);
 						endcase
 				end
 				3'b001: begin			// LH
 						tmp = rs1_d + imm_iw;
 						tmp32 = mem[tmp[22-1:2]];
 						case (tmp[1])
-						1'b0 : if(rd0 != 5'h00) reg_file[rd0] <= {{48{tmp32[15]}}, tmp32[15:0]};
-						1'b1 : if(rd0 != 5'h00) reg_file[rd0] <= {{48{tmp32[31]}}, tmp32[31:16]};
+						1'b0 : rf.write16s(rd0, tmp32[15:0]);
+						1'b1 : rf.write16s(rd0, tmp32[31:16]);
 						endcase
 				end
 				3'b010: begin			// LW
 						tmp = rs1_d + imm_iw;
 						tmp32 = mem[tmp[22-1:2]];
-						if(rd0 != 5'h00) reg_file[rd0] <= {{32{tmp32[31]}}, tmp32};
+						rf.write32s(rd0, tmp32);
 				end
 				3'b011: begin			// LD
 						tmp = rs1_d + imm_iw;
-						if(rd0 != 5'h00) reg_file[rd0] <= {mem[tmp[22-1:2] + 'b1], mem[tmp[22-1:2]]};
+						rf.write(rd0, {mem[tmp[22-1:2] + 'b1], mem[tmp[22-1:2]]});
 				end
 				3'b100: begin			// LBU
 						tmp = rs1_d + imm_iw;
 						tmp32 = mem[tmp[22-1:2]];
 						case (tmp[1:0])
-						2'h0 : if(rd0 != 5'h00) reg_file[rd0] <= {{56{1'b0}}, tmp32[7:0]};
-						2'h1 : if(rd0 != 5'h00) reg_file[rd0] <= {{56{1'b0}}, tmp32[15:8]};
-						2'h2 : if(rd0 != 5'h00) reg_file[rd0] <= {{56{1'b0}}, tmp32[23:16]};
-						2'h3 : if(rd0 != 5'h00) reg_file[rd0] <= {{56{1'b0}}, tmp32[31:24]};
+						2'h0 : rf.write8u(rd0, tmp32[7:0]);
+						2'h1 : rf.write8u(rd0, tmp32[15:8]);
+						2'h2 : rf.write8u(rd0, tmp32[23:16]);
+						2'h3 : rf.write8u(rd0, tmp32[31:24]);
 						endcase
 				end
 				3'b101: begin			// LHU
 						tmp = rs1_d + imm_iw;
 						tmp32 = mem[tmp[22-1:2]];
 						case (tmp[1])
-						1'b0 : if(rd0 != 5'h00) reg_file[rd0] <= {{48{1'b0}}, tmp32[15:0]};
-						1'b1 : if(rd0 != 5'h00) reg_file[rd0] <= {{48{1'b0}}, tmp32[31:16]};
+						1'b0 : rf.write16u(rd0, tmp32[15:0]);
+						1'b1 : rf.write16u(rd0, tmp32[31:16]);
 						endcase
 				end
 				3'b110: begin			// LWU
 						tmp = rs1_d + imm_iw;
 						tmp32 = mem[tmp[22-1:2]];
-						if(rd0 != 5'h00) reg_file[rd0] <= {{32{1'b0}}, tmp32};
+						rf.write32u(rd0, tmp32);
 				end
 				default: ;
 				endcase
@@ -461,7 +610,7 @@ module RISCV64G_ISS (
 			7'b11_001_11: begin	// JALR
 				case (funct3)
 				3'b000: begin
-						if(rd0 != 5'h00) reg_file[rd0] <= pc + 'h4;
+						rf.write(rd0, pc + 'h4);
 				end
 				default: ;
 				endcase
@@ -480,61 +629,61 @@ module RISCV64G_ISS (
 						lrsc_valid <= 1'b1;
 						lrsc_addr  <= rs1_d;
 						tmp32 = mem[rs1_d[22-1:2]];
-						if(rd0 != 5'h00) reg_file[rd0] = {{32{tmp32[31]}}, tmp32};
+						rf.write32s(rd0, tmp32);
 					end
 					5'b00011: begin		// SC.W
 						if(lrsc_valid && lrsc_addr == rs1_d) begin
 							lrsc_valid <= 1'b0;
 							tmp32 = mem[rs1_d[22-1:2]];
-							if(rd0 != 5'h00) reg_file[rd0] = {`XLEN{1'b0}};
+							rf.write(rd0, {`XLEN{1'b0}});
 							mem[rs1_d[22-1:2]] = rs2_d[31:0];
 						end else begin
-							if(rd0 != 5'h00) reg_file[rd0] = {{`XLEN-1{1'b0}}, 1'b1};
+							rf.write(rd0, {{`XLEN-1{1'b0}}, 1'b1});
 						end
 					end
 					5'b00001: begin		// AMOSWAP.W
 						tmp32 = mem[rs1_d[22-1:2]];
-						if(rd0 != 5'h00) reg_file[rd0] = {{32{tmp32[31]}}, tmp32};
+						rf.write32s(rd0, tmp32);
 						mem[rs1_d[22-1:2]] = rs2_d[31:0];
 					end
 					5'b00000: begin		// AMOADD.W
 						tmp32 = mem[rs1_d[22-1:2]];
-						if(rd0 != 5'h00) reg_file[rd0] = {{32{tmp32[31]}}, tmp32};
+						rf.write32s(rd0, tmp32);
 						mem[rs1_d[22-1:2]] = rs2_d[31:0] + tmp32;
 					end
 					5'b00100: begin		// AMOXOR.W
 						tmp32 = mem[rs1_d[22-1:2]];
-						if(rd0 != 5'h00) reg_file[rd0] = {{32{tmp32[31]}}, tmp32};
+						rf.write32s(rd0, tmp32);
 						mem[rs1_d[22-1:2]] = rs2_d[31:0] ^ tmp32;
 					end
 					5'b01100: begin		// AMOAND.W
 						tmp32 = mem[rs1_d[22-1:2]];
-						if(rd0 != 5'h00) reg_file[rd0] = {{32{tmp32[31]}}, tmp32};
+						rf.write32s(rd0, tmp32);
 						mem[rs1_d[22-1:2]] = rs2_d[31:0] & tmp32;
 					end
 					5'b01000: begin		// AMOOR.W
 						tmp32 = mem[rs1_d[22-1:2]];
-						if(rd0 != 5'h00) reg_file[rd0] = {{32{tmp32[31]}}, tmp32};
+						rf.write32s(rd0, tmp32);
 						mem[rs1_d[22-1:2]] = rs2_d[31:0] | tmp32;
 					end
 					5'b10000: begin		// AMOMIN.W
 						tmp32 = mem[rs1_d[22-1:2]];
-						if(rd0 != 5'h00) reg_file[rd0] = {{32{tmp32[31]}}, tmp32};
+						rf.write32s(rd0, tmp32);
 						mem[rs1_d[22-1:2]] = $signed(rs2_d[31:0]) < $signed(tmp32) ? rs2_d[31:0] : tmp32;
 					end
 					5'b10100: begin		// AMOMAX.W
 						tmp32 = mem[rs1_d[22-1:2]];
-						if(rd0 != 5'h00) reg_file[rd0] = {{32{tmp32[31]}}, tmp32};
+						rf.write32s(rd0, tmp32);
 						mem[rs1_d[22-1:2]] = $signed(rs2_d[31:0]) > $signed(tmp32) ? rs2_d[31:0] : tmp32;
 					end
 					5'b11000: begin		// AMOMINU.W
 						tmp32 = mem[rs1_d[22-1:2]];
-						if(rd0 != 5'h00) reg_file[rd0] = {{32{tmp32[31]}}, tmp32};
+						rf.write32s(rd0, tmp32);
 						mem[rs1_d[22-1:2]] = rs2_d[31:0] < tmp32 ? rs2_d[31:0] : tmp32;
 					end
 					5'b11100: begin		// AMOMAXU.W
 						tmp32 = mem[rs1_d[22-1:2]];
-						if(rd0 != 5'h00) reg_file[rd0] = {{32{tmp32[31]}}, tmp32};
+						rf.write32s(rd0, tmp32);
 						mem[rs1_d[22-1:2]] = rs2_d[31:0] > tmp32 ? rs2_d[31:0] : tmp32;
 					end
 					default: ;
@@ -549,14 +698,14 @@ module RISCV64G_ISS (
 					5'b00001: begin		// AMOSWAP.D
 						tmp[31:0]  = mem[rs1_d[22-1:2]];
 						tmp[63:32] = mem[rs1_d[22-1:2] + 'b1];
-						if(rd0 != 5'h00) reg_file[rd0] = tmp;
+						rf.write(rd0, tmp);
 						mem[rs1_d[22-1:2]]       = rs2_d[31:0];
 						mem[rs1_d[22-1:2] + 'b1] = rs2_d[63:32];
 					end
 					5'b00000: begin		// AMOADD.D
 						tmp[31:0]  = mem[rs1_d[22-1:2]];
 						tmp[63:32] = mem[rs1_d[22-1:2] + 'b1];
-						if(rd0 != 5'h00) reg_file[rd0] = tmp;
+						rf.write(rd0, tmp);
 						tmp = rs2_d + tmp;
 						mem[rs1_d[22-1:2]]       = tmp[31:0];
 						mem[rs1_d[22-1:2] + 'b1] = tmp[63:32];
@@ -564,7 +713,7 @@ module RISCV64G_ISS (
 					5'b00100: begin		// AMOXOR.D
 						tmp[31:0]  = mem[rs1_d[22-1:2]];
 						tmp[63:32] = mem[rs1_d[22-1:2] + 'b1];
-						if(rd0 != 5'h00) reg_file[rd0] = tmp;
+						rf.write(rd0, tmp);
 						tmp = rs2_d ^ tmp;
 						mem[rs1_d[22-1:2]]       = tmp[31:0];
 						mem[rs1_d[22-1:2] + 'b1] = tmp[63:32];
@@ -572,7 +721,7 @@ module RISCV64G_ISS (
 					5'b01100: begin		// AMOAND.D
 						tmp[31:0]  = mem[rs1_d[22-1:2]];
 						tmp[63:32] = mem[rs1_d[22-1:2] + 'b1];
-						if(rd0 != 5'h00) reg_file[rd0] = tmp;
+						rf.write(rd0, tmp);
 						tmp = rs2_d & tmp;
 						mem[rs1_d[22-1:2]]       = tmp[31:0];
 						mem[rs1_d[22-1:2] + 'b1] = tmp[63:32];
@@ -580,7 +729,7 @@ module RISCV64G_ISS (
 					5'b01000: begin		// AMOOR.D
 						tmp[31:0]  = mem[rs1_d[22-1:2]];
 						tmp[63:32] = mem[rs1_d[22-1:2] + 'b1];
-						if(rd0 != 5'h00) reg_file[rd0] = tmp;
+						rf.write(rd0, tmp);
 						tmp = rs2_d | tmp;
 						mem[rs1_d[22-1:2]]       = tmp[31:0];
 						mem[rs1_d[22-1:2] + 'b1] = tmp[63:32];
@@ -588,7 +737,7 @@ module RISCV64G_ISS (
 					5'b10000: begin		// AMOMIN.D
 						tmp[31:0]  = mem[rs1_d[22-1:2]];
 						tmp[63:32] = mem[rs1_d[22-1:2] + 'b1];
-						if(rd0 != 5'h00) reg_file[rd0] = tmp;
+						rf.write(rd0, tmp);
 						tmp = $signed(rs2_d) < $signed(tmp) ? rs2_d : tmp;
 						mem[rs1_d[22-1:2]]       = tmp[31:0];
 						mem[rs1_d[22-1:2] + 'b1] = tmp[63:32];
@@ -596,7 +745,7 @@ module RISCV64G_ISS (
 					5'b10100: begin		// AMOMAX.D
 						tmp[31:0]  = mem[rs1_d[22-1:2]];
 						tmp[63:32] = mem[rs1_d[22-1:2] + 'b1];
-						if(rd0 != 5'h00) reg_file[rd0] = tmp;
+						rf.write(rd0, tmp);
 						tmp = $signed(rs2_d) > $signed(tmp) ? rs2_d : tmp;
 						mem[rs1_d[22-1:2]]       = tmp[31:0];
 						mem[rs1_d[22-1:2] + 'b1] = tmp[63:32];
@@ -604,7 +753,7 @@ module RISCV64G_ISS (
 					5'b11000: begin		// AMOMINU.D
 						tmp[31:0]  = mem[rs1_d[22-1:2]];
 						tmp[63:32] = mem[rs1_d[22-1:2] + 'b1];
-						if(rd0 != 5'h00) reg_file[rd0] = tmp;
+						rf.write(rd0, tmp);
 						tmp = rs2_d < tmp ? rs2_d : tmp;
 						mem[rs1_d[22-1:2]]       = tmp[31:0];
 						mem[rs1_d[22-1:2] + 'b1] = tmp[63:32];
@@ -612,7 +761,7 @@ module RISCV64G_ISS (
 					5'b11100: begin		// AMOMAXU.D
 						tmp[31:0]  = mem[rs1_d[22-1:2]];
 						tmp[63:32] = mem[rs1_d[22-1:2] + 'b1];
-						if(rd0 != 5'h00) reg_file[rd0] = tmp;
+						rf.write(rd0, tmp);
 						tmp = rs2_d > tmp ? rs2_d : tmp;
 						mem[rs1_d[22-1:2]]       = tmp[31:0];
 						mem[rs1_d[22-1:2] + 'b1] = tmp[63:32];
@@ -628,36 +777,38 @@ module RISCV64G_ISS (
 			end
 
 			7'b11_011_11: begin	// JAL
-						if(rd0 != 5'h00) reg_file[rd0] <= pc + 'h4;
+						rf.write(rd0, pc + 'h4);
 			end
 
 			7'b00_100_11: begin	// OP-IMM
 				case (funct3)
-				3'b000: 	if(rd0 != 5'h00) reg_file[rd0] <= rs1_d + imm_iw;	// ADDI
+				3'b000: begin								// ADDI
+						rf.write(rd0, rs1_d + imm_iw);
+				end
 				3'b001: begin
 					case (funct7[6:1])
 					6'b000000: begin						// SLLI
-					 	if(rd0 != 5'h00) reg_file[rd0] <= rs1_d << shamt;
+						rf.write(rd0, rs1_d << shamt);
 					end
 					default: ;
 					endcase
 				end
-				3'b010: 	if(rd0 != 5'h00) reg_file[rd0] <= $signed(rs1_d) < $signed(imm_iw) ? 64'h0000_0000_0000_0001 : {64{1'b0}};	// SLTI
-				3'b011: 	if(rd0 != 5'h00) reg_file[rd0] <= rs1_d < imm_iw ? 64'h0000_0000_0000_0001 : {64{1'b0}};	// SLTIU
-				3'b100: 	if(rd0 != 5'h00) reg_file[rd0] <= rs1_d ^ imm_iw;	// XORI
+				3'b010: 	rf.write(rd0, $signed(rs1_d) < $signed(imm_iw) ? {{63{1'b0}}, 1'b1} : {64{1'b0}});	// SLTI
+				3'b011: 	rf.write(rd0, rs1_d < imm_iw ? {{63{1'b0}}, 1'b1} : {64{1'b0}});	// SLTIU
+				3'b100: 	rf.write(rd0, rs1_d ^ imm_iw);				// XORI
 				3'b101: begin
 					case (funct7[6:1])
 					6'b000000: begin						// SRLI
-					 	if(rd0 != 5'h00) reg_file[rd0] <= rs1_d >> shamt;
+						rf.write(rd0, rs1_d >> shamt);
 					end
 					6'b010000: begin						// SRAI
-					 	if(rd0 != 5'h00) reg_file[rd0] <= $signed(rs1_d) >>> shamt;
+						rf.write(rd0, $signed(rs1_d) >>> shamt);
 					end
 					default: ;
 					endcase
 				end
-				3'b110: 	if(rd0 != 5'h00) reg_file[rd0] <= rs1_d | imm_iw;	// ORI
-				3'b111: 	if(rd0 != 5'h00) reg_file[rd0] <= rs1_d & imm_iw;	// ANDI
+				3'b110: 	rf.write(rd0, rs1_d | imm_iw);				// ORI
+				3'b111: 	rf.write(rd0, rs1_d & imm_iw);				// ANDI
 				default: ;
 				endcase
 			end
@@ -667,14 +818,14 @@ module RISCV64G_ISS (
 				3'b000: begin
 					case (funct7)
 					7'b0000000: begin	// ADD
-						if(rd0 != 5'h00) reg_file[rd0] <= rs1_d + rs2_d;
+						rf.write(rd0, rs1_d + rs2_d);
 					end
 					7'b0000001: begin	// MUL
 						tmp128 = rs1_d * rs2_d;
-						if(rd0 != 5'h00) reg_file[rd0] <= tmp128[`XLEN-1:0];
+						rf.write(rd0, tmp128[`XLEN-1:0]);
 					end
 					7'b0100000: begin	// SUB
-						if(rd0 != 5'h00) reg_file[rd0] <= rs1_d - rs2_d;
+						rf.write(rd0, rs1_d - rs2_d);
 					end
 					default: ;
 					endcase
@@ -682,11 +833,11 @@ module RISCV64G_ISS (
 				3'b001: begin
 					case (funct7)
 					7'b0000000: begin	// SLL
-						if(rd0 != 5'h00) reg_file[rd0] <= rs1_d << rs2_d[5:0];
+						rf.write(rd0, rs1_d << rs2_d[5:0]);
 					end
 					7'b0000001: begin	// MULH
 						tmp128 = $signed(rs1_d) * $signed(rs2_d);
-						if(rd0 != 5'h00) reg_file[rd0] <= tmp128[`XLEN*2-1:`XLEN];
+						rf.write(rd0, tmp128[`XLEN*2-1:`XLEN]);
 					end
 					default: ;
 					endcase
@@ -694,12 +845,12 @@ module RISCV64G_ISS (
 				3'b010: begin
 					case (funct7)
 					7'b0000000: begin	// SLT
-						if(rd0 != 5'h00) reg_file[rd0] <= $signed(rs1_d) < $signed(rs2_d) ? 64'h0000_0000_0000_0001 : {64{1'b0}};
+						rf.write(rd0, $signed(rs1_d) < $signed(rs2_d) ? {{63{1'b0}}, 1'b1} : {64{1'b0}});
 					end
 					7'b0000001: begin	// MULHSU
 						tmp128 = absXLEN(rs1_d) * rs2_d;
 						tmp128 = twoscompXLENx2(rs1_d[`XLEN-1], tmp128);
-						if(rd0 != 5'h00) reg_file[rd0] = tmp128[`XLEN*2-1:`XLEN];
+						rf.write(rd0, tmp128[`XLEN*2-1:`XLEN]);
 					end
 					default: ;
 					endcase
@@ -707,11 +858,11 @@ module RISCV64G_ISS (
 				3'b011: begin
 					case (funct7)
 					7'b0000000: begin	// SLTU
-					 	if(rd0 != 5'h00) reg_file[rd0] <= rs1_d < rs2_d ? 64'h0000_0000_0000_0001 : {64{1'b0}};
+						rf.write(rd0, rs1_d < rs2_d ? {{63{1'b0}}, 1'b1} : {64{1'b0}});
 					end
 					7'b0000001: begin	// MULHU
 						tmp128 = rs1_d * rs2_d;
-						if(rd0 != 5'h00) reg_file[rd0] <= tmp128[`XLEN*2-1:`XLEN];
+						rf.write(rd0, tmp128[`XLEN*2-1:`XLEN]);
 					end
 					default: ;
 					endcase
@@ -719,12 +870,12 @@ module RISCV64G_ISS (
 				3'b100: begin
 					case (funct7)
 					7'b0000000: begin	// XOR
-					 	if(rd0 != 5'h00) reg_file[rd0] <= rs1_d ^ rs2_d;
+					 	rf.write(rd0, rs1_d ^ rs2_d);
 					end
 					7'b0000001: begin	// DIV
 						tmp = absXLEN(rs1_d) / absXLEN(rs2_d);
 						tmp = twoscompXLEN(rs1_d[`XLEN-1] ^ rs2_d[`XLEN-1], tmp);
-						if(rd0 != 5'h00) reg_file[rd0] = rs2_d == {`XLEN{1'b0}} ? {`XLEN{1'b1}} : tmp;
+						rf.write(rd0, rs2_d == {`XLEN{1'b0}} ? {`XLEN{1'b1}} : tmp);
 					end
 					default: ;
 					endcase
@@ -732,13 +883,13 @@ module RISCV64G_ISS (
 				3'b101: begin
 					case (funct7)
 					7'b0000000: begin	// SRL
-						if(rd0 != 5'h00) reg_file[rd0] <= rs1_d >> rs2_d[5:0];
+						rf.write(rd0, rs1_d >> rs2_d[5:0]);
 					end
 					7'b0000001: begin	// DIVU
-						if(rd0 != 5'h00) reg_file[rd0] <= rs2_d == {`XLEN{1'b0}} ? {`XLEN{1'b1}} : rs1_d / rs2_d;
+						rf.write(rd0, rs2_d == {`XLEN{1'b0}} ? {`XLEN{1'b1}} : rs1_d / rs2_d);
 					end
 					7'b0100000: begin	// SRA
-						if(rd0 != 5'h00) reg_file[rd0] <= $signed(rs1_d) >>> rs2_d[5:0];
+						rf.write(rd0, $signed(rs1_d) >>> rs2_d[5:0]);
 					end
 					default: ;
 					endcase
@@ -746,12 +897,12 @@ module RISCV64G_ISS (
 				3'b110: begin
 					case (funct7)
 					7'b0000000: begin	// OR
-					 	if(rd0 != 5'h00) reg_file[rd0] <= rs1_d | rs2_d;
+						rf.write(rd0, rs1_d | rs2_d);
 					end
 					7'b0000001: begin	// REM
 						tmp = absXLEN(rs1_d) % absXLEN(rs2_d);
 						tmp = twoscompXLEN(rs1_d[`XLEN/2-1], tmp);
-						if(rd0 != 5'h00) reg_file[rd0] = rs2_d == {`XLEN{1'b0}} ? rs1_d : tmp;
+						rf.write(rd0, rs2_d == {`XLEN{1'b0}} ? rs1_d : tmp);
 					end
 					default: ;
 					endcase
@@ -759,10 +910,10 @@ module RISCV64G_ISS (
 				3'b111: begin
 					case (funct7)
 					7'b0000000: begin	// AND
-					 	if(rd0 != 5'h00) reg_file[rd0] <= rs1_d & rs2_d;
+						rf.write(rd0, rs1_d & rs2_d);
 					end
 					7'b0000001: begin	// REMU
-						if(rd0 != 5'h00) reg_file[rd0] <= rs2_d == {`XLEN{1'b0}} ? rs1_d : rs1_d % rs2_d;
+						rf.write(rd0, rs2_d == {`XLEN{1'b0}} ? rs1_d : rs1_d % rs2_d);
 					end
 					default: ;
 					endcase
@@ -775,15 +926,15 @@ module RISCV64G_ISS (
 				case(funct7)
 				7'b00000_00: begin		// FADD.S
 						fp_reg_file[rd0] = {{32{1'b0}}, fadd_f_d};
-						csr_reg[12'h001] = {csr_reg[12'h001][`XLEN-1:5], fadd_f_invalid, 3'h0, fadd_f_inexact};
+						csr_c.set_fflags({fadd_f_invalid, 3'h0, fadd_f_inexact});
 				end
 				7'b00001_00: begin		// FSUB.S
 						fp_reg_file[rd0] = {{32{1'b0}}, fsub_f_d};
-						csr_reg[12'h001] = {csr_reg[12'h001][`XLEN-1:5], fsub_f_invalid, 3'h0, fsub_f_inexact};
+						csr_c.set_fflags({fsub_f_invalid, 3'h0, fsub_f_inexact});
 				end
 				7'b00010_00: begin		// FMUL.S
 						fp_reg_file[rd0] = {{32{1'b0}}, fmul_f_d};
-						csr_reg[12'h001] = {csr_reg[12'h001][`XLEN-1:5], fmul_f_invalid, 3'h0, fmul_f_inexact};
+						csr_c.set_fflags({fmul_f_invalid, 3'h0, fmul_f_inexact});
 				end
 				7'b00011_00: begin		// FDIV.S
 				end
@@ -812,20 +963,20 @@ module RISCV64G_ISS (
 				7'b11000_00: begin
 					case (rs2)
 					5'b00000: begin		// FCVT.W.S
-							if(rd0 != 5'h00) reg_file[rd0] <= {{32{fcvt_w_s_d[31]}}, fcvt_w_s_d[31:0]};
-							csr_reg[12'h001] = {csr_reg[12'h001][`XLEN-1:5], fcvt_w_s_invalid, 3'h0, fcvt_w_s_inexact};
+							rf.write32s(rd0, fcvt_w_s_d[31:0]);
+							csr_c.set_fflags({fcvt_w_s_invalid, 3'h0, fcvt_w_s_inexact});
 					end
 					5'b00001: begin		// FCVT.WU.S
-							if(rd0 != 5'h00) reg_file[rd0] <= {{32{fcvt_wu_s_d[31]}}, fcvt_wu_s_d[31:0]};
-							csr_reg[12'h001] = {csr_reg[12'h001][`XLEN-1:5], fcvt_wu_s_invalid, 3'h0, fcvt_wu_s_inexact};
+							rf.write32s(rd0, fcvt_wu_s_d[31:0]);
+							csr_c.set_fflags({fcvt_wu_s_invalid, 3'h0, fcvt_wu_s_inexact});
 					end
 					5'b00010: begin		// FCVT.L.S
-							if(rd0 != 5'h00) reg_file[rd0] <= fcvt_l_s_d;
-							csr_reg[12'h001] = {csr_reg[12'h001][`XLEN-1:5], fcvt_l_s_invalid, 3'h0, fcvt_l_s_inexact};
+							rf.write(rd0, fcvt_l_s_d);
+							csr_c.set_fflags({fcvt_l_s_invalid, 3'h0, fcvt_l_s_inexact});
 					end
 					5'b00011: begin		// FCVT.LU.S
-							if(rd0 != 5'h00) reg_file[rd0] <= fcvt_lu_s_d;
-							csr_reg[12'h001] = {csr_reg[12'h001][`XLEN-1:5], fcvt_lu_s_invalid, 3'h0, fcvt_lu_s_inexact};
+							rf.write(rd0, fcvt_lu_s_d);
+							csr_c.set_fflags({fcvt_lu_s_invalid, 3'h0, fcvt_lu_s_inexact});
 					end
 					default: ;
 					endcase
@@ -835,10 +986,10 @@ module RISCV64G_ISS (
 					5'b00000: begin
 						case (funct3)
 						3'b000: begin	// FMV.X.W
-							if(rd0 != 5'h00) reg_file[rd0] <= {{32{fp_rs1_d[31]}}, fp_rs1_d[31:0]};
+							rf.write32s(rd0, fp_rs1_d[31:0]);
 						end
 						3'b001: begin	// FCLASS.W
-							if(rd0 != 5'h00) reg_file[rd0] <= {{32{1'b0}}, fclass_f_d};
+							rf.write32u(rd0, fclass_f_d);
 						end
 						default: ;
 						endcase
@@ -849,16 +1000,16 @@ module RISCV64G_ISS (
 				7'b10100_00: begin
 					case (funct3)
 					3'b010: begin 		// FEQ.S
-							if(rd0 != 5'h00) reg_file[rd0] <= {{63{1'b0}}, fcmp_f_eq};
-							csr_reg[12'h001] = {csr_reg[12'h001][`XLEN-1:5], fcmp_f_eq_invalid, 4'h0};
+							rf.write(rd0, {{63{1'b0}}, fcmp_f_eq});
+							csr_c.set_fflags({fcmp_f_eq_invalid, 4'h0});
 					end
 					3'b001: begin 		// FLT.S
-							if(rd0 != 5'h00) reg_file[rd0] <= {{63{1'b0}}, fcmp_f_lt};
-							csr_reg[12'h001] = {csr_reg[12'h001][`XLEN-1:5], fcmp_f_lt_invalid, 4'h0};
+							rf.write(rd0, {{63{1'b0}}, fcmp_f_lt});
+							csr_c.set_fflags({fcmp_f_lt_invalid, 4'h0});
 					end
 					3'b000: begin		// FLE.S
-							if(rd0 != 5'h00) reg_file[rd0] <= {{63{1'b0}}, fcmp_f_le};
-							csr_reg[12'h001] = {csr_reg[12'h001][`XLEN-1:5], fcmp_f_lt_invalid, 4'h0};
+							rf.write(rd0, {{63{1'b0}}, fcmp_f_le});
+							csr_c.set_fflags({fcmp_f_lt_invalid, 4'h0});
 					end
 					default: ;
 					endcase
@@ -867,19 +1018,19 @@ module RISCV64G_ISS (
 					case (rs2)
 					5'b00000: begin		// FCVT.S.W
 							fp_reg_file[rd0] <= {{32{1'b0}}, fcvt_s_w_d};
-							csr_reg[12'h001] = {csr_reg[12'h001][`XLEN-1:5], 4'h0, fcvt_s_w_inexact};
+							csr_c.set_fflags({4'h0, fcvt_s_w_inexact});
 					end
 					5'b00001: begin		// FCVT.S.WU
 							fp_reg_file[rd0] <= {{32{1'b0}}, fcvt_s_wu_d};
-							csr_reg[12'h001] = {csr_reg[12'h001][`XLEN-1:5], 4'h0, fcvt_s_wu_inexact};
+							csr_c.set_fflags({4'h0, fcvt_s_wu_inexact});
 					end
 					5'b00010: begin		// FCVT.S.L
 							fp_reg_file[rd0] <= {{32{1'b0}}, fcvt_s_l_d};
-							csr_reg[12'h001] = {csr_reg[12'h001][`XLEN-1:5], 4'h0, fcvt_s_l_inexact};
+							csr_c.set_fflags({4'h0, fcvt_s_l_inexact});
 					end
 					5'b00011: begin		// FCVT.S.LU
 							fp_reg_file[rd0] <= {{32{1'b0}}, fcvt_s_lu_d};
-							csr_reg[12'h001] = {csr_reg[12'h001][`XLEN-1:5], 4'h0, fcvt_s_lu_inexact};
+							csr_c.set_fflags({4'h0, fcvt_s_lu_inexact});
 					end
 					default: ;
 					endcase
@@ -904,56 +1055,56 @@ module RISCV64G_ISS (
 			7'b11_100_11: begin	// SYSTEM
 				case (funct3)
 				3'b001: begin		// CSRRW
-					csr_reg[csr] <= rs1_d;
-					if(rd0 != 5'h00) reg_file[rd0] <= csr_rd;
+					rf.write(rd0, csr_c.read(csr));
+					csr_c.write(csr, rs1_d);
 				end
 				3'b010: begin		// CSRRS
+					rf.write(rd0, csr_c.read(csr));
 					if(rs1 != 5'h00) begin
-						csr_reg[csr] <= csr_rd | rs1_d;
+						csr_c.set(csr, rs1_d);
 					end
-					if(rd0 != 5'h00) reg_file[rd0] <= csr_rd;
 				end
 				3'b011: begin		// CSRRC
+					rf.write(rd0, csr_c.read(csr));
 					if(rs1 != 5'h00) begin
-						csr_reg[csr] <= csr_rd & ~rs1_d;
+						csr_c.clear(csr, rs1_d);
 					end
-					if(rd0 != 5'h00) reg_file[rd0] <= csr_rd;
 				end
 				3'b101: begin		// CSRRWI
-					csr_reg[csr] <= uimm_w;
-					if(rd0 != 5'h00) reg_file[rd0] <= csr_rd;
+					rf.write(rd0, csr_c.read(csr));
+					csr_c.write(csr, uimm_w);
 				end
 				3'b110: begin		// CSRRSI
-					csr_reg[csr] <= csr_rd | uimm_w;
-					if(rd0 != 5'h00) reg_file[rd0] <= csr_rd;
+					rf.write(rd0, csr_c.read(csr));
+					csr_c.set(csr, uimm_w);
 				end
 				3'b111: begin		// CSRRCI
-					csr_reg[csr] <= csr_rd & ~uimm_w;
-					if(rd0 != 5'h00) reg_file[rd0] <= csr_rd;
+					rf.write(rd0, csr_c.read(csr));
+					csr_c.clear(csr, uimm_w);
 				end
 				default: ;
 				endcase
 			end
 
 			7'b00_101_11: begin	// AUIPC
-						if(rd0 != 5'h00) reg_file[rd0] <= pc + imm_uw;
+						rf.write(rd0, pc + imm_uw);
 			end
 
 			7'b01_101_11: begin	// LUI
-						if(rd0 != 5'h00) reg_file[rd0] <= imm_uw;
+						rf.write(rd0, imm_uw);
 			end
 
 			7'b00_110_11: begin	// OP-IMM-32
 				case (funct3)
 				3'b000: begin			// ADDIW
 						tmp32 = rs1_d[31:0] + imm_iw[31:0];
-						if(rd0 != 5'h00) reg_file[rd0] <= {{32{tmp32[31]}}, tmp32};
+						rf.write32s(rd0, tmp32);
 				end
 				3'b001: begin
 					case (funct7)
 					7'b0000000: begin	// SLLIW
 						tmp32 = rs1_d[31:0] << shamt[4:0];
-						if(rd0 != 5'h00) reg_file[rd0] <= {{32{tmp32[31]}}, tmp32};
+						rf.write32s(rd0, tmp32);
 					end
 					default: ;
 					endcase
@@ -962,11 +1113,11 @@ module RISCV64G_ISS (
 					case (funct7)
 					7'b0000000: begin	// SRLIW
 						tmp32 = rs1_d[31:0] >> shamt[4:0];
-						if(rd0 != 5'h00) reg_file[rd0] <= {{32{tmp32[31]}}, tmp32};
+						rf.write32s(rd0, tmp32);
 					end
 					7'b0100000: begin	// SRAIW
 						tmp32 = $signed(rs1_d[31:0]) >>> shamt[4:0];
-						if(rd0 != 5'h00) reg_file[rd0] <= {{32{tmp32[31]}}, tmp32};
+						rf.write32s(rd0, tmp32);
 					end
 					default: ;
 					endcase
@@ -981,15 +1132,15 @@ module RISCV64G_ISS (
 					case (funct7)
 					7'b0000000: begin	// ADDW
 						tmp32 = rs1_d[31:0] + rs2_d[31:0];
-						if(rd0 != 5'h00) reg_file[rd0] <= {{32{tmp32[31]}}, tmp32};
+						rf.write32s(rd0, tmp32);
 					end
 					7'b0000001: begin	// MULW
 						tmp32 = rs1_d[31:0] * rs2_d[31:0];
-						if(rd0 != 5'h00) reg_file[rd0] <= {{32{tmp32[31]}}, tmp32};
+						rf.write32s(rd0, tmp32);
 					end
 					7'b0100000: begin	// SUBW
 						tmp32 = rs1_d[31:0] - rs2_d[31:0];
-						if(rd0 != 5'h00) reg_file[rd0] <= {{32{tmp32[31]}}, tmp32};
+						rf.write32s(rd0, tmp32);
 					end
 					default: ;
 					endcase
@@ -998,7 +1149,7 @@ module RISCV64G_ISS (
 					case (funct7)
 					7'b0000000: begin	// SLLW
 						tmp32 = rs1_d[31:0] << rs2_d[4:0];
-						if(rd0 != 5'h00) reg_file[rd0] <= {{32{tmp32[31]}}, tmp32};
+						rf.write32s(rd0, tmp32);
 					end
 					default: ;
 					endcase
@@ -1008,7 +1159,7 @@ module RISCV64G_ISS (
 					7'b0000001: begin	// DIVW
 						tmp32 = absXLENh(rs1_d[`XLEN/2-1:0]) / absXLENh(rs2_d[`XLEN/2-1:0]);
 						tmp32 = twoscompXLENh(rs1_d[`XLEN/2-1] ^ rs2_d[`XLEN/2-1], tmp32);
-						if(rd0 != 5'h00) reg_file[rd0] = rs2_d == {`XLEN{1'b0}} ? {`XLEN{1'b1}} : {{32{tmp32[31]}}, tmp32};
+						rf.write32s(rd0, rs2_d == {`XLEN{1'b0}} ? {32{1'b1}} : tmp32);
 					end
 					default: ;
 					endcase
@@ -1017,15 +1168,15 @@ module RISCV64G_ISS (
 					case (funct7)
 					7'b0000000: begin	// SRLW
 						tmp32 = rs1_d[31:0] >> rs2_d[4:0];
-						if(rd0 != 5'h00) reg_file[rd0] <= {{32{tmp32[31]}}, tmp32};
+						rf.write32s(rd0, tmp32);
 					end
 					7'b0000001: begin	// DIVUW
 						tmp32 = rs1_d[31:0] / rs2_d[31:0];
-						if(rd0 != 5'h00) reg_file[rd0] <= rs2_d == {`XLEN{1'b0}} ? {`XLEN{1'b1}} : {{32{tmp32[31]}}, tmp32};
+						rf.write32s(rd0, rs2_d == {`XLEN{1'b0}} ? {32{1'b1}} : tmp32);
 					end
 					7'b0100000: begin	// SRAW
 						tmp32 = $signed(rs1_d[31:0]) >>> rs2_d[4:0];
-						if(rd0 != 5'h00) reg_file[rd0] <= {{32{tmp32[31]}}, tmp32};
+						rf.write32s(rd0, tmp32);
 					end
 					default: ;
 					endcase
@@ -1035,7 +1186,7 @@ module RISCV64G_ISS (
 					7'b0000001: begin	// REMW
 						tmp32 = absXLENh(rs1_d[`XLEN/2-1:0]) % absXLENh(rs2_d[`XLEN/2-1:0]);
 						tmp32 = twoscompXLENh(rs1_d[`XLEN/2-1], tmp32);
-						if(rd0 != 5'h00) reg_file[rd0] = rs2_d == {`XLEN{1'b0}} ? rs1_d : {{32{tmp32[31]}}, tmp32};
+						rf.write32s(rd0, rs2_d == {`XLEN{1'b0}} ? rs1_d[31:0] : tmp32);
 					end
 					default: ;
 					endcase
@@ -1044,7 +1195,7 @@ module RISCV64G_ISS (
 					case (funct7)
 					7'b0000001: begin	// REMUW
 						tmp32 = rs2_d == {`XLEN{1'b0}} ? rs1_d[`XLEN/2-1:0] : rs1_d[31:0] % rs2_d[31:0];
-						if(rd0 != 5'h00) reg_file[rd0] <= {{32{tmp32[31]}}, tmp32};
+						rf.write32s(rd0, tmp32);
 					end
 					default: ;
 					endcase
@@ -1084,8 +1235,8 @@ module RISCV64G_ISS (
 				3'b000: begin
 					case ({funct7, rs2})
 					12'b0000000_00000: begin	// ECALL
-						csr_reg[12'h342] <= 64'h0000_0000_0000_000b;	// mcause
-						pc <= csr_reg[12'h305];	// mtvec
+						csr_c.write(12'h342, 64'h0000_0000_0000_000b);	// mcause
+						pc <= csr_c.read(12'h305);	// mtvec
 
 					end
 					12'b0000000_00001: begin	// EBREAK
@@ -1093,7 +1244,7 @@ module RISCV64G_ISS (
 					12'b0001000_00010: begin	// SRET
 					end
 					12'b0011000_00010: begin	// MRET
-						pc <= csr_reg[12'h341];	// mepc
+						pc <= csr_c.read(12'h341);	// mepc
 					end
 					default: ;
 					endcase
