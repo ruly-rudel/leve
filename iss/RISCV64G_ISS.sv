@@ -126,26 +126,6 @@ class REG_FILE_FP;
 		reg_file[addr] = {{32{1'b0}}, data};
 	endfunction
 
-	function void write32s (input [4:0] addr, input [32-1:0] data);
-		reg_file[addr] = {{32{data[31]}}, data};
-	endfunction
-
-	function void write16u (input [4:0] addr, input [16-1:0] data);
-		reg_file[addr] = {{48{1'b0}}, data};
-	endfunction
-
-	function void write16s (input [4:0] addr, input [16-1:0] data);
-		reg_file[addr] = {{48{data[15]}}, data};
-	endfunction
-
-	function void write8u (input [4:0] addr, input [8-1:0] data);
-		reg_file[addr] = {{56{1'b0}}, data};
-	endfunction
-
-	function void write8s (input [4:0] addr, input [8-1:0] data);
-		reg_file[addr] = {{56{data[7]}}, data};
-	endfunction
-
 	function [`XLEN-1:0] read (input [4:0] addr);
 		return reg_file[addr];
 	endfunction
@@ -251,8 +231,6 @@ module RISCV64G_ISS (
 	output reg		tohost_we,
 	output reg [32-1:0]	tohost
 );
-	//reg [31:0]	mem[0:1024*1024*16-1];
-	//reg  [32-1:0]	mem[0:1024*1024-1];
 	MEMORY			mem = new(init_file);
 
 	// PC
@@ -336,8 +314,9 @@ module RISCV64G_ISS (
 
 
 	// registers
-	REG_FILE rf = new();
-	reg [`FLEN-1:0]		fp_reg_file[0:`FP_NUM_REG-1];
+	REG_FILE	rf = new();
+	REG_FILE_FP	fp = new();
+	CSR		csr_c = new();
 
 	logic [`XLEN-1:0]	rf_1_ra;
 	logic [`XLEN-1:0]	rf_2_sp;
@@ -412,12 +391,10 @@ module RISCV64G_ISS (
 	// 2. register fetch
 	assign	rs1_d    = rf.read(rs1);
 	assign	rs2_d    = rf.read(rs2);
-	assign	fp_rs1_d = fp_reg_file[rs1];
-	assign	fp_rs2_d = fp_reg_file[rs2];
-	assign	fp_rs3_d = fp_reg_file[rs3];
+	assign	fp_rs1_d = fp.read(rs1);
+	assign	fp_rs2_d = fp.read(rs2);
+	assign	fp_rs3_d = fp.read(rs3);
 
-	// CSR
-	CSR	csr_c = new();
 
 	// floating point arithmetics
 	FADD_F	FADD_F
@@ -612,8 +589,7 @@ module RISCV64G_ISS (
 			7'b00_001_11: begin	// LOAD-FP
 				case (funct3)
 				3'b010: begin			// FLW
-						tmp32 = mem.read32(rs1_d + imm_iw);
-						fp_reg_file[rd0] = {{32{1'b0}}, tmp32};
+						fp.write32u(rd0, mem.read32(rs1_d + imm_iw));
 				end
 				default: ;
 				endcase
@@ -928,15 +904,15 @@ module RISCV64G_ISS (
 			7'b10_100_11: begin	// OP-FP: R type
 				case(funct7)
 				7'b00000_00: begin		// FADD.S
-						fp_reg_file[rd0] = {{32{1'b0}}, fadd_f_d};
+						fp.write32u(rd0, fadd_f_d);
 						csr_c.set_fflags({fadd_f_invalid, 3'h0, fadd_f_inexact});
 				end
 				7'b00001_00: begin		// FSUB.S
-						fp_reg_file[rd0] = {{32{1'b0}}, fsub_f_d};
+						fp.write32u(rd0, fsub_f_d);
 						csr_c.set_fflags({fsub_f_invalid, 3'h0, fsub_f_inexact});
 				end
 				7'b00010_00: begin		// FMUL.S
-						fp_reg_file[rd0] = {{32{1'b0}}, fmul_f_d};
+						fp.write32u(rd0, fmul_f_d);
 						csr_c.set_fflags({fmul_f_invalid, 3'h0, fmul_f_inexact});
 				end
 				7'b00011_00: begin		// FDIV.S
@@ -1020,19 +996,19 @@ module RISCV64G_ISS (
 				7'b11010_00: begin
 					case (rs2)
 					5'b00000: begin		// FCVT.S.W
-							fp_reg_file[rd0] <= {{32{1'b0}}, fcvt_s_w_d};
+							fp.write32u(rd0, fcvt_s_w_d);
 							csr_c.set_fflags({4'h0, fcvt_s_w_inexact});
 					end
 					5'b00001: begin		// FCVT.S.WU
-							fp_reg_file[rd0] <= {{32{1'b0}}, fcvt_s_wu_d};
+							fp.write32u(rd0, fcvt_s_wu_d);
 							csr_c.set_fflags({4'h0, fcvt_s_wu_inexact});
 					end
 					5'b00010: begin		// FCVT.S.L
-							fp_reg_file[rd0] <= {{32{1'b0}}, fcvt_s_l_d};
+							fp.write32u(rd0, fcvt_s_l_d);
 							csr_c.set_fflags({4'h0, fcvt_s_l_inexact});
 					end
 					5'b00011: begin		// FCVT.S.LU
-							fp_reg_file[rd0] <= {{32{1'b0}}, fcvt_s_lu_d};
+							fp.write32u(rd0, fcvt_s_lu_d);
 							csr_c.set_fflags({4'h0, fcvt_s_lu_inexact});
 					end
 					default: ;
@@ -1043,7 +1019,7 @@ module RISCV64G_ISS (
 					5'b00000: begin
 						case (funct3)
 						3'b000: begin	// FMV.W.X
-					 		fp_reg_file[rd0] <= rs1_d;
+							fp.write(rd0, rs1_d);
 						end
 						default: ;
 						endcase
