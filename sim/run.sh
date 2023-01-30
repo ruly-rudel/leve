@@ -1,6 +1,7 @@
 #!/bin/bash
 
 if [ $# -eq 0 ]; then
+	#files=(`ls -1 ../tests/rv64ui-p/*.hex ../tests/rv64um-p/*.hex ../tests/rv64ua-p/*.hex ../tests/rv64uf-p/*.hex ../tests/rv64si-p/*.hex`)
 	files=(`ls -1 ../tests/rv64ui-p/*.hex ../tests/rv64um-p/*.hex ../tests/rv64ua-p/*.hex ../tests/rv64uf-p/*.hex`)
 else
 	files=$@

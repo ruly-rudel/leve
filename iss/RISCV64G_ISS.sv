@@ -44,36 +44,235 @@ begin
 end
 endfunction
 
+`define MODE_M	2'b11
+`define MODE_S	2'b01
+`define MODE_U	2'b00
+
+`define MXL_32	2'h1
+`define MXL_64	2'h2
+`define MXL_128	2'h3
+
 class CSR;
 	logic [`XLEN-1:0]		csr_reg[0:`NUM_CSR-1];
+
+	logic [1:0]		mode;
+
+	logic [4:0]		fflags;
+	logic [2:0]		frm;
+	logic [`XLEN-1:0]	cycle;
+	logic [`XLEN-1:0]	csr_time;
+	logic [`XLEN-1:0]	instret;
+	// mstatus
+	logic			sie;
+	logic			mie;
+	logic			spie;
+	logic			ube;
+	logic			mpie;
+	logic			spp;
+	logic [1:0]		vs;
+	logic [1:0]		mpp;
+	logic [1:0]		fs;
+	logic [1:0]		xs;
+	logic			mprv;
+	logic			sum;
+	logic			mxr;
+	logic			tvm;
+	logic			tw;
+	logic			tsr;
+	logic [1:0]		uxl = `MXL_64;
+	logic [1:0]		sxl = `MXL_64;
+	logic			sbe;
+	logic			mbe;
+	logic			sd;
+
+	logic [`MXLEN-1:0]	mepc;
+	logic [`MXLEN-1:0]	mcause;
+	logic [`MXLEN-1:0]	mtvec;
 
 	function void init();
 		for(integer i = 0; i < `NUM_CSR; i = i + 1) begin
 			csr_reg[i] = {`XLEN{1'b0}};
 		end
+		mode		= `MODE_M;
+
+		fflags		= 5'h00;
+		frm		= 3'h0;
+		cycle		= {`XLEN{1'b0}};
+		csr_time	= {`XLEN{1'b0}};
+		instret		= {`XLEN{1'b0}};
+		// mstatus
+		sie		= 1'b0;
+		mie		= 1'b0;
+		spie		= 1'b0;
+		ube		= 1'b0;
+		mpie		= 1'b0;
+		spp		= 1'b0;
+		vs		= 2'h0;
+		mpp		= `MODE_M;
+		fs		= 2'h3;		// ad-hock dirty
+		xs		= 2'h0;
+		mprv		= 1'b0;
+		sum		= 1'b0;
+		mxr		= 1'b0;
+		tvm		= 1'b0;
+		tw		= 1'b0;
+		tsr		= 1'b0;
+		uxl		= `MXL_64;
+		sxl		= `MXL_64;
+		sbe		= 1'b0;
+		mbe		= 1'b0;
+		sd		= 1'b1;		// ad-hock dirty
+
+		mtvec		= {`MXLEN{1'b0}};
+
+		mepc		= {`MXLEN{1'b0}};
+		mcause		= {`MXLEN{1'b0}};
+	endfunction
+
+	function void tick ();
+		cycle = cycle + 'b1;
+		csr_time = csr_time + 'b1;	// real time clock, fix it
+	endfunction
+
+	function void retire ();
+		instret = instret + 'b1;
 	endfunction
 
 	function void write (input [12-1:0] addr, input [`XLEN-1:0] data);
 		case (addr)
-			12'h001: begin	// fflags
-				csr_reg[12'h001] = {csr_reg[12'h001][`XLEN-1:5], data[4:0]};
-				csr_reg[12'h003] = {csr_reg[12'h003][`XLEN-1:5], data[4:0]};
-			end
-			12'h002: begin	// frm
-				csr_reg[12'h002] = {csr_reg[12'h002][`XLEN-1:3], data[2:0]};
-				csr_reg[12'h003] = {csr_reg[12'h003][`XLEN-1:8], data[2:0], csr_reg[12'h003][4:0]};
-			end
+			12'h001: fflags = data[4:0];
+			12'h002: frm = data[2:0];
 			12'h003: begin	// fcsr
-				csr_reg[12'h001] = {csr_reg[12'h001][`XLEN-1:5], data[4:0]};
-				csr_reg[12'h002] = {csr_reg[12'h002][`XLEN-1:3], data[7:5]};
-				csr_reg[12'h003] = {csr_reg[12'h003][`XLEN-1:8], data[7:0]};
+				fflags = data[4:0];
+				frm    = data[7:5];
 			end
+			12'h300: begin			// mstatus
+				sie	= data[1];
+				mie	= data[3];
+				spie	= data[5];
+//				ube	= data[6];
+				mpie	= data[7];
+				spp	= data[8];
+//				vs	= data[10:9];
+				mpp	= data[12:11];
+				fs	= data[14:13];
+//				xs	= data[16:15];
+				mprv	= data[17];
+				sum	= data[18];
+				mxr	= data[19];
+				tvm	= data[20];
+				tw	= data[21];
+				tsr	= data[22];
+//				uxl	= data[33:32];
+//				sxl	= data[35:34];
+//				sbe	= data[36];
+//				mbe	= data[37];
+//				sd	= data[63];
+			end
+			12'h305: mtvec	= data;
+			12'h341: mepc	= {data[`XLEN-1:1], 1'b0};
+			12'h342: mcause	= data;
 			default: csr_reg[addr] = data;
 		endcase
 	endfunction
 
 	function [`XLEN-1:0] read (input [12-1:0] addr);
-		return csr_reg[addr];
+		case (addr)
+			12'h001: return {{`XLEN-5{1'b0}}, fflags};
+			12'h002: return {{`XLEN-3{1'b0}}, frm};
+			12'h003: return {{`XLEN-5-3{1'b0}}, frm, fflags};
+			12'hc00: return cycle;
+			12'hc01: return csr_time;
+			12'hc02: return instret;
+			12'hf11: return {`XLEN{1'b0}};	// mvenderid
+			12'hf12: return {`XLEN{1'b0}};	// marchid
+			12'hf13: return {`XLEN{1'b0}};	// mimpid
+			12'hf14: return {`XLEN{1'b0}};	// mhartid
+			12'hf15: return {`XLEN{1'b0}};	// mconfigptr
+			12'h300: begin			// mstatus
+				return {sd, 25'h00_0000, mbe, sbe, sxl, uxl,
+					9'h000, tsr, tw, tvm, mxr, sum,
+					mprv, xs, fs, mpp, vs, spp, mpie,
+					ube, spie, 1'b0, mie, 1'b0, sie, 1'b0};
+			end
+			12'h305: return mtvec;
+			12'h341: return {mepc[`XLEN-1:2], 2'h0};
+			12'h342: return mcause;
+			default: return csr_reg[addr];
+		endcase
+	endfunction
+
+`define EX_IAMIS	4'h0
+`define EX_IAFAULT	4'h1
+`define EX_ILLEGINST	4'h2
+`define EX_BREAK	4'h3
+`define EX_LAMIS	4'h4
+`define EX_LAFAULT	4'h5
+`define EX_SAMIS	4'h6
+`define EX_SAFAULT	4'h7
+`define EX_ECALL_U	4'h8
+`define EX_ECALL_S	4'h9
+`define EX_ECALL_M	4'hb
+`define EX_IPFAULT	4'hc
+`define EX_LPFAULT	4'hd
+`define EX_SPFAULT	4'hf
+
+	function [`MXLEN-1:0] ecall(input[`XLEN-1:0] epc);
+		case(mode)
+			`MODE_M: return raise_exception(`EX_ECALL_M, epc);
+			`MODE_S: return raise_exception(`EX_ECALL_S, epc);
+			`MODE_U: return raise_exception(`EX_ECALL_U, epc);
+			default: begin
+				$display("[ERROR] mode errror.");
+				$finish();
+			end
+		endcase
+	endfunction
+
+	function [`MXLEN-1:0] raise_exception(input [3:0] cause, input[`XLEN-1:0] epc);
+		$display("[INFO] EXCEPTION cause %d, mode = %d.", cause, mode);
+		if(mode == `MODE_M) begin
+			mpie	= mie;
+			mie     = 1'b0;
+			mpp     = `MODE_M;
+			mepc	= {epc[`XLEN-1:1], 1'b0};
+			mcause	= {1'b0, {`MXLEN-5{1'b0}}, cause};
+
+			return mtvec[1:0] == 2'h1 ? {mtvec[`MXLEN-1:2], 2'h0} + cause * 4 : {mtvec[`MXLEN-1:2], 2'h0};
+		end else if(mode == `MODE_U) begin
+			mpie	= mie;
+			mie     = 1'b0;
+			mpp     = `MODE_U;
+			mode    = `MODE_M;
+			mepc	= {epc[`XLEN-1:1], 1'b0};
+			mcause	= {1'b0, {`MXLEN-5{1'b0}}, cause};
+
+			return mtvec[1:0] == 2'h1 ? {mtvec[`MXLEN-1:2], 2'h0} + cause * 4 : {mtvec[`MXLEN-1:2], 2'h0};
+		end else begin
+			return {`MXLEN{1'b1}};	// do not traped.
+		end
+	endfunction
+
+	function [`MXLEN-1:0] mret();
+		mie = mpie;
+		mpie = 1'b1;
+		mode = mpp;
+		if(mpp != `MODE_M) begin
+		end
+		mpp = `MODE_M;
+		return {mepc[`MXLEN-1:2], 2'h0};
+	endfunction
+
+	function logic [1:0] read_mode();
+		return mode;
+	endfunction
+
+	function logic read_mie();
+		return mie;
+	endfunction
+
+	function logic read_sie();
+		return sie;
 	endfunction
 
 	function void set (input [12-1:0] addr, input [`XLEN-1:0] data);
@@ -84,9 +283,8 @@ class CSR;
 		write(addr, read(addr) & ~data);
 	endfunction
 
-	function void set_fflags(input [4:0] fflags);
-		csr_reg[12'h001] = {csr_reg[12'h001][`XLEN-1:5], fflags};
-		csr_reg[12'h003] = {csr_reg[12'h003][`XLEN-1:5], fflags};
+	function void set_fflags(input [4:0] fflags_in);
+		fflags = fflags_in;
 	endfunction
 
 endclass : CSR;
@@ -598,7 +796,8 @@ module RISCV64G_ISS (
 
 			tohost_we = 1'b0;
 		end else begin
-			// reset csr_we
+			csr_c.tick();
+
 			tohost_we = 1'b0;
 
 			// execute and write back
@@ -1305,8 +1504,12 @@ module RISCV64G_ISS (
 				3'b000: begin
 					case ({funct7, rs2})
 					12'b0000000_00000: begin	// ECALL
-						csr_c.write(12'h342, 64'h0000_0000_0000_000b);	// mcause
-						pc <= csr_c.read(12'h305);	// mtvec
+						tmp = csr_c.ecall(pc);
+						if(tmp == {`XLEN{1'b1}}) begin
+							pc <= pc + 'h4;
+						end else begin
+							pc <= tmp;
+						end
 
 					end
 					12'b0000000_00001: begin	// EBREAK
@@ -1314,7 +1517,7 @@ module RISCV64G_ISS (
 					12'b0001000_00010: begin	// SRET
 					end
 					12'b0011000_00010: begin	// MRET
-						pc <= csr_c.read(12'h341);	// mepc
+						pc <= csr_c.mret();	// mepc
 					end
 					default:pc <= pc + 'h4;
 					endcase
@@ -1325,6 +1528,8 @@ module RISCV64G_ISS (
 			default:	pc <= pc + 'h4;
 			endcase
 
+			// retire
+			csr_c.retire();
 
 			// debug outputs
 			rf_1_ra = rf.read('d1);
