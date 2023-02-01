@@ -63,31 +63,48 @@ class CSR;
 	logic [`XLEN-1:0]	csr_time;
 	logic [`XLEN-1:0]	instret;
 	// mstatus
-	logic			sie;
-	logic			mie;
-	logic			spie;
-	logic			ube;
-	logic			mpie;
-	logic			spp;
-	logic [1:0]		vs;
-	logic [1:0]		mpp;
-	logic [1:0]		fs;
-	logic [1:0]		xs;
-	logic			mprv;
-	logic			sum;
-	logic			mxr;
-	logic			tvm;
-	logic			tw;
-	logic			tsr;
-	logic [1:0]		uxl = `MXL_64;
-	logic [1:0]		sxl = `MXL_64;
-	logic			sbe;
-	logic			mbe;
-	logic			sd;
+	logic			m_sie;
+	logic			m_mie;
+	logic			m_spie;
+	logic			m_ube;
+	logic			m_mpie;
+	logic			m_spp;
+	logic [1:0]		m_vs;
+	logic [1:0]		m_mpp;
+	logic [1:0]		m_fs;
+	logic [1:0]		m_xs;
+	logic			m_mprv;
+	logic			m_sum;
+	logic			m_mxr;
+	logic			m_tvm;
+	logic			m_tw;
+	logic			m_tsr;
+	logic [1:0]		m_uxl = `MXL_64;
+	logic [1:0]		m_sxl = `MXL_64;
+	logic			m_sbe;
+	logic			m_mbe;
+	logic			m_sd;
 
 	logic [`MXLEN-1:0]	mepc;
 	logic [`MXLEN-1:0]	mcause;
 	logic [`MXLEN-1:0]	mtvec;
+
+	// sstatus
+	logic			s_sie;
+	logic			s_spie;
+	logic			s_ube;
+	logic			s_spp;
+	logic [1:0]		s_vs;
+	logic [1:0]		s_fs;
+	logic [1:0]		s_xs;
+	logic			s_sum;
+	logic			s_mxr;
+	logic [1:0]		s_uxl = `MXL_64;
+	logic			s_sd;
+
+	logic [`MXLEN-1:0]	sepc;
+	logic [`MXLEN-1:0]	scause;
+	logic [`MXLEN-1:0]	stvec;
 
 	function void init();
 		for(integer i = 0; i < `NUM_CSR; i = i + 1) begin
@@ -101,32 +118,50 @@ class CSR;
 		csr_time	= {`XLEN{1'b0}};
 		instret		= {`XLEN{1'b0}};
 		// mstatus
-		sie		= 1'b0;
-		mie		= 1'b0;
-		spie		= 1'b0;
-		ube		= 1'b0;
-		mpie		= 1'b0;
-		spp		= 1'b0;
-		vs		= 2'h0;
-		mpp		= `MODE_M;
-		fs		= 2'h3;		// ad-hock dirty
-		xs		= 2'h0;
-		mprv		= 1'b0;
-		sum		= 1'b0;
-		mxr		= 1'b0;
-		tvm		= 1'b0;
-		tw		= 1'b0;
-		tsr		= 1'b0;
-		uxl		= `MXL_64;
-		sxl		= `MXL_64;
-		sbe		= 1'b0;
-		mbe		= 1'b0;
-		sd		= 1'b1;		// ad-hock dirty
+		m_sie		= 1'b0;
+		m_mie		= 1'b0;
+		m_spie		= 1'b0;
+		m_ube		= 1'b0;
+		m_mpie		= 1'b0;
+		m_spp		= 1'b0;
+		m_vs		= 2'h0;
+		m_mpp		= `MODE_M;
+		m_fs		= 2'h0;		// must be fiexd
+		m_xs		= 2'h0;
+		m_mprv		= 1'b0;
+		m_sum		= 1'b0;
+		m_mxr		= 1'b0;
+		m_tvm		= 1'b0;
+		m_tw		= 1'b0;
+		m_tsr		= 1'b0;
+		m_uxl		= `MXL_64;
+		m_sxl		= `MXL_64;
+		m_sbe		= 1'b0;
+		m_mbe		= 1'b0;
+		m_sd		= 1'b0;		// must be fixed
 
 		mtvec		= {`MXLEN{1'b0}};
 
 		mepc		= {`MXLEN{1'b0}};
 		mcause		= {`MXLEN{1'b0}};
+
+		// sstatus
+		s_sie		= 1'b0;
+		s_spie		= 1'b0;
+		s_ube		= 1'b0;
+		s_spp		= 1'b0;
+		s_vs		= 2'h0;
+		s_fs		= 2'h0;
+		s_xs		= 2'h0;
+		s_sum		= 1'b0;
+		s_mxr		= 1'b0;
+		s_uxl		= `MXL_64;
+		s_sd		= 1'b0;
+
+		stvec		= {`MXLEN{1'b0}};
+
+		sepc		= {`MXLEN{1'b0}};
+		scause		= {`MXLEN{1'b0}};
 	endfunction
 
 	function void tick ();
@@ -146,32 +181,48 @@ class CSR;
 				fflags = data[4:0];
 				frm    = data[7:5];
 			end
+			12'h100: begin			// sstatus
+				s_sie		= data[1];
+				s_spie		= data[5];
+				s_ube		= data[6];
+				s_spp		= data[8];
+//				s_vs		= data[10:9];
+				s_fs		= data[14:13];
+//				s_xs		= data[16:15];
+				s_sum		= data[18];
+				s_mxr		= data[19];
+//				s_uxl		= data[33:32];
+//				s_sd		= data[63];
+			end
 			12'h300: begin			// mstatus
-				sie	= data[1];
-				mie	= data[3];
-				spie	= data[5];
-//				ube	= data[6];
-				mpie	= data[7];
-				spp	= data[8];
-//				vs	= data[10:9];
-				mpp	= data[12:11];
-				fs	= data[14:13];
-//				xs	= data[16:15];
-				mprv	= data[17];
-				sum	= data[18];
-				mxr	= data[19];
-				tvm	= data[20];
-				tw	= data[21];
-				tsr	= data[22];
-//				uxl	= data[33:32];
-//				sxl	= data[35:34];
-//				sbe	= data[36];
-//				mbe	= data[37];
-//				sd	= data[63];
+				m_sie	= data[1];
+				m_mie	= data[3];
+				m_spie	= data[5];
+//				m_ube	= data[6];
+				m_mpie	= data[7];
+				m_spp	= data[8];
+//				m_vs	= data[10:9];
+				m_mpp	= data[12:11];
+				m_fs	= data[14:13];
+//				m_xs	= data[16:15];
+				m_mprv	= data[17];
+				m_sum	= data[18];
+				m_mxr	= data[19];
+				m_tvm	= data[20];
+				m_tw	= data[21];
+				m_tsr	= data[22];
+//				m_uxl	= data[33:32];
+//				m_sxl	= data[35:34];
+//				m_sbe	= data[36];
+//				m_mbe	= data[37];
+//				m_sd	= data[63];
 			end
 			12'h305: mtvec	= data;
 			12'h341: mepc	= {data[`XLEN-1:1], 1'b0};
 			12'h342: mcause	= data;
+			12'h105: stvec	= data;
+			12'h141: sepc	= {data[`XLEN-1:1], 1'b0};
+			12'h142: scause	= data;
 			default: csr_reg[addr] = data;
 		endcase
 	endfunction
@@ -190,14 +241,21 @@ class CSR;
 			12'hf14: return {`XLEN{1'b0}};	// mhartid
 			12'hf15: return {`XLEN{1'b0}};	// mconfigptr
 			12'h300: begin			// mstatus
-				return {sd, 25'h00_0000, mbe, sbe, sxl, uxl,
-					9'h000, tsr, tw, tvm, mxr, sum,
-					mprv, xs, fs, mpp, vs, spp, mpie,
-					ube, spie, 1'b0, mie, 1'b0, sie, 1'b0};
+				return {m_sd, 25'h00_0000, m_mbe, m_sbe, m_sxl, m_uxl,
+					9'h000, m_tsr, m_tw, m_tvm, m_mxr, m_sum,
+					m_mprv, m_xs, m_fs, m_mpp, m_vs, m_spp, m_mpie,
+					m_ube, m_spie, 1'b0, m_mie, 1'b0, m_sie, 1'b0};
 			end
 			12'h305: return mtvec;
 			12'h341: return {mepc[`XLEN-1:2], 2'h0};
 			12'h342: return mcause;
+			12'h100: begin
+				return {s_sd, 29'h0000_0000, s_uxl, 12'h000, s_mxr, s_sum, 1'b0,
+					s_xs, s_fs, 2'h0, s_vs, s_spp, 1'b0, s_ube, s_spie, 3'h0, s_sie, 1'b0};
+			end
+			12'h105: return stvec;
+			12'h141: return {sepc[`XLEN-1:2], 2'h0};
+			12'h142: return scause;
 			default: return csr_reg[addr];
 		endcase
 	endfunction
@@ -231,14 +289,16 @@ class CSR;
 
 	function [`MXLEN-1:0] raise_exception(input [3:0] cause, input[`XLEN-1:0] epc);
 		$display("[INFO] EXCEPTION cause %d, mode = %d.", cause, mode);
-		if(mode == `MODE_M) begin
-			mpie	= mie;
-			mie     = 1'b0;
-			mpp     = `MODE_M;
+			m_mpie	= m_mie;
+			m_mie	= 1'b0;
+			m_mpp	= mode;
+			mode    = `MODE_M;
 			mepc	= {epc[`XLEN-1:1], 1'b0};
 			mcause	= {1'b0, {`MXLEN-5{1'b0}}, cause};
 
 			return mtvec[1:0] == 2'h1 ? {mtvec[`MXLEN-1:2], 2'h0} + cause * 4 : {mtvec[`MXLEN-1:2], 2'h0};
+			/*
+		if(mode == `MODE_M) begin
 		end else if(mode == `MODE_U) begin
 			mpie	= mie;
 			mie     = 1'b0;
@@ -251,28 +311,35 @@ class CSR;
 		end else begin
 			return {`MXLEN{1'b1}};	// do not traped.
 		end
+		*/
 	endfunction
 
 	function [`MXLEN-1:0] mret();
-		mie = mpie;
-		mpie = 1'b1;
-		mode = mpp;
-		if(mpp != `MODE_M) begin
-		end
-		mpp = `MODE_M;
+		m_mie = m_mpie;
+		m_mpie = 1'b1;
+		mode = m_mpp;
+		m_mpp = `MODE_U;
 		return {mepc[`MXLEN-1:2], 2'h0};
+	endfunction
+
+	function [`MXLEN-1:0] sret();
+		s_sie = s_spie;
+		s_spie = 1'b1;
+		mode = {1'b0, s_spp};
+		s_spp = 1'b0;	// mode U
+		return {sepc[`MXLEN-1:2], 2'h0};
 	endfunction
 
 	function logic [1:0] read_mode();
 		return mode;
 	endfunction
 
-	function logic read_mie();
-		return mie;
+	function logic read_m_mie();
+		return m_mie;
 	endfunction
 
-	function logic read_sie();
-		return sie;
+	function logic read_m_sie();
+		return m_sie;
 	endfunction
 
 	function void set (input [12-1:0] addr, input [`XLEN-1:0] data);
@@ -435,6 +502,272 @@ class MEMORY;
 endclass : MEMORY;
 
 
+class ELF;
+	string				filename;
+	logic [32-1:0]			mem[] = new [1024*1024*4];
+
+	// elf header
+	logic [7:0]			e_ident[0:15];
+	logic [15:0]			e_type;
+	logic [15:0]			e_machine;
+	logic [31:0]			e_version;
+	logic [63:0]			e_entry;
+	logic [63:0]			e_phoff;
+	logic [63:0]			e_shoff;
+	logic [31:0]			e_flags;
+	logic [15:0]			e_ehsize;
+	logic [15:0]			e_phentsize;
+	logic [15:0]			e_phnum;
+	logic [15:0]			e_shentsize;
+	logic [15:0]			e_shnum;
+	logic [15:0]			e_shstrndx;
+
+	// program header
+	struct packed {
+		logic [31:0]		p_type;
+		logic [31:0]		p_flags;
+		logic [63:0]		p_offset;
+		logic [63:0]		p_vaddr;
+		logic [63:0]		p_paddr;
+		logic [63:0]		p_filesz;
+		logic [63:0]		p_memsz;
+		logic [63:0]		p_align;
+	} phdr[];
+
+	function new(string fn);
+		integer fd;
+		filename = fn;
+		$display("[MEMORY] read %s", filename);
+		fd = $fopen(filename, "r");
+		if(fd == 0) begin
+			$display("[MEMORY] file open fails: %s", filename);
+			$finish;
+		end
+
+		while (!$feof(fd)) begin
+			read_elf_header(fd);
+			read_program_header(fd);
+			load(fd);
+			break;
+		end
+
+		$fclose(fd);
+		$display("[MEMORY] read finish.");
+
+	endfunction
+
+	function void load(input integer fd);
+		integer ret;
+		logic [63:0]	addr;
+
+		for(integer i = 0; i < e_phnum; i = i + 1) begin
+			ret = $fseek(fd, phdr[i].p_offset[31:0], 0);
+			for(integer j = 0; j < phdr[i].p_filesz[31:0]; j = j + 4) begin
+				addr = phdr[i].p_paddr + {32'h0000_0000, j};
+				mem[addr[24-1:2]] = read_w(fd);
+//				$display("%16h: %08h", addr, mem[addr[24-1:2]]);
+			end
+		end
+	endfunction
+
+	function void read_program_header(input integer fd);
+		integer ret;
+		phdr = new [{16'h0000, e_phnum}];
+		ret = $fseek(fd, e_phoff[31:0], 0);
+
+		for(integer i = 0; i < e_phnum; i = i + 1) begin
+			phdr[i].p_type		= read_w(fd);
+			phdr[i].p_flags		= read_w(fd);
+			phdr[i].p_offset	= read_dw(fd);
+			phdr[i].p_vaddr		= read_dw(fd);
+			phdr[i].p_paddr		= read_dw(fd);
+			phdr[i].p_filesz	= read_dw(fd);
+			phdr[i].p_memsz		= read_dw(fd);
+			phdr[i].p_align		= read_dw(fd);
+
+
+			if(phdr[i].p_type == 32'h1) begin
+				$display("phdr[%2d].p_type: PT_LOAD(1)", i);
+			end else begin
+				$display("phdr[%2d].p_type: %2d", i, phdr[i].p_type);
+			end
+			$display("phdr[%2d].p_offset: %2d", i, phdr[i].p_offset);
+			$display("phdr[%2d].p_vaddr:  %h", i, phdr[i].p_vaddr);
+			$display("phdr[%2d].p_paddr:  %h", i, phdr[i].p_paddr);
+			$display("phdr[%2d].p_filesz: %2d", i, phdr[i].p_filesz);
+			$display("phdr[%2d].p_memsz:  %2d", i, phdr[i].p_memsz);
+			$display("phdr[%2d].p_align:  %2d", i, phdr[i].p_align);
+		end
+	endfunction
+
+	function void read_elf_header(input integer fd);
+		integer ret;
+
+		// ELF Header
+		ret = $fread(e_ident, fd);
+		if(ret != 16) begin
+			$display("[MEMORY] file read fails: %s, %d", filename, ret);
+		end
+		e_type		= read_hw(fd);
+		e_machine	= read_hw(fd);
+		e_version	= read_w(fd);
+		e_entry		= read_dw(fd);
+		e_phoff		= read_dw(fd);
+		e_shoff		= read_dw(fd);
+		e_flags		= read_w(fd);
+		e_ehsize	= read_hw(fd);
+		e_phentsize	= read_hw(fd);
+		e_phnum		= read_hw(fd);
+		e_shentsize	= read_hw(fd);
+		e_shnum		= read_hw(fd);
+		e_shstrndx	= read_hw(fd);
+
+
+		if(
+			e_ident[0] == 8'h7f &&		// 0x7f
+			e_ident[1] == 8'h45 &&		// E
+			e_ident[2] == 8'h4C &&		// L
+			e_ident[3] == 8'h46		// F
+		) begin
+			$display("ELF ID found: %02h %c%c%c", e_ident[0], e_ident[1], e_ident[2], e_ident[3]);
+		end
+
+		if(e_ident[4] == 8'h01) begin
+			$display("ELFCLASS32");
+		end else if (e_ident[4] == 8'h02) begin
+			$display("ELFCLASS64");
+		end
+
+		if(e_ident[5] == 8'h01) begin
+			$display("ELFDATA2LSB");
+		end else if (e_ident[4] == 8'h02) begin
+			$display("ELFDATA2MSB");
+		end
+
+
+		if(e_type == 16'h0001) begin
+			$display("ET_REL");
+		end else if (e_type == 16'h0002) begin
+			$display("ET_EXEC");
+		end else if (e_type == 16'h0003) begin
+			$display("ET_DYN");
+		end else if (e_type == 16'h0004) begin
+			$display("ET_CORE");
+		end
+
+		$display("e_machine: %04h", e_machine);
+		$display("e_version: %h", e_version);
+		$display("Entry Point: %016h", e_entry);
+		$display("Program Header Table Offset: %d (bytes into file)", e_phoff);
+		$display("Section Header Table Offset: %d (bytes into file)", e_shoff);
+		$display("e_flags: %h", e_flags);
+		$display("Elf Header Size: %d", e_ehsize);
+		$display("Program Headers Size: %d", e_phentsize);
+		$display("Number of Program Header: %d", e_phnum);
+		$display("Section Headers Size: %d", e_shentsize);
+		$display("Number of Section Header: %d", e_shnum);
+
+		$display("String table index: %d", e_shstrndx);
+	endfunction
+
+	function [15:0] read_hw(integer fd);
+		integer ret;
+		logic [7:0] r_hw[0:1];
+
+		ret = $fread(r_hw, fd);
+		if(ret != 2) begin
+			$display("[MEMORY] file read fails, hw: %s, %d", filename, ret);
+		end
+		return {r_hw[1], r_hw[0]};
+	endfunction
+
+	function [31:0] read_w(integer fd);
+		integer ret;
+		logic [7:0] r_w[0:3];
+
+		ret = $fread(r_w, fd);
+		if(ret != 4) begin
+			$display("[MEMORY] file read fails,  w: %s, %d", filename, ret);
+		end
+		return {r_w[3], r_w[2], r_w[1], r_w[0]};
+	endfunction
+
+	function [63:0] read_dw(integer fd);
+		integer ret;
+		logic [7:0] r_dw[0:7];
+
+		ret = $fread(r_dw, fd);
+		if(ret != 8) begin
+			$display("[MEMORY] file read fails, dw: %s, %d", filename, ret);
+		end
+		return {r_dw[7], r_dw[6], r_dw[5], r_dw[4], r_dw[3], r_dw[2], r_dw[1], r_dw[0]};
+	endfunction
+
+
+
+	function void write (input [`XLEN-1:0] addr, input [`XLEN-1:0] data);
+		mem[addr[24-1:2]] = data[31:0];
+		mem[addr[24-1:2] + 22'h1] = data[63:32];
+	endfunction
+
+	function void write32 (input [`XLEN-1:0] addr, input [32-1:0] data);
+		mem[addr[24-1:2]] = data;
+	endfunction
+
+	function void write16 (input [`XLEN-1:0] addr, input [16-1:0] data);
+		logic [31:0]	tmp32;
+		tmp32 = mem[addr[22-1:2]];
+		case (addr[1])
+			1'b0 : mem[addr[24-1:2]] = {tmp32[31:16], data};
+			1'b1 : mem[addr[24-1:2]] = {data[15:0], tmp32[15:0]};
+		endcase
+	endfunction
+
+	function void write8 (input [`XLEN-1:0] addr, input [8-1:0] data);
+		logic [31:0]	tmp32;
+		tmp32 = mem[addr[24-1:2]];
+		case (addr[1:0])
+			2'h0 : mem[addr[24-1:2]] = {tmp32[31:8], data};
+			2'h1 : mem[addr[24-1:2]] = {tmp32[31:16], data, tmp32[7:0]};
+			2'h2 : mem[addr[24-1:2]] = {tmp32[31:24], data, tmp32[15:0]};
+			2'h3 : mem[addr[24-1:2]] = {data, tmp32[23:0]};
+		endcase
+	endfunction
+
+	function [`XLEN-1:0] read (input [`XLEN-1:0] addr);
+		return {mem[addr[24-1:2] + 22'h1], mem[addr[22-1:2]]};
+	endfunction
+
+	function [32-1:0] read32 (input [`XLEN-1:0] addr);
+		return mem[addr[24-1:2]];
+	endfunction
+
+	function [16-1:0] read16 (input [`XLEN-1:0] addr);
+		case(addr[1])
+			1'h0 : return mem[addr[24-1:2]][15:0];
+			1'h1 : return mem[addr[24-1:2]][31:16];
+		endcase
+	endfunction
+
+	function [8-1:0] read8 (input [`XLEN-1:0] addr);
+		case(addr[1:0])
+			2'h0 : return mem[addr[24-1:2]][7:0];
+			2'h1 : return mem[addr[24-1:2]][15:8];
+			2'h2 : return mem[addr[24-1:2]][23:16];
+			2'h3 : return mem[addr[24-1:2]][31:24];
+		endcase
+	endfunction
+
+	function [63:0] get_entry_point();
+		return e_entry;
+	endfunction
+
+	function [63:0] get_tohost();
+		return phdr[1].p_vaddr;
+	endfunction
+
+endclass : ELF;
+
 
 
 module RISCV64G_ISS (
@@ -445,7 +778,8 @@ module RISCV64G_ISS (
 	output reg		tohost_we,
 	output reg [32-1:0]	tohost
 );
-	MEMORY			mem = new(init_file);
+	//MEMORY			mem = new(init_file);
+	ELF			mem = new(init_file);
 
 	// PC
 	reg  [`XLEN-1:0]	pc;
@@ -790,7 +1124,7 @@ module RISCV64G_ISS (
 			csr_c.init();
 
 			// pc
-			pc <= 64'h0000_0000_8000_0000;
+			pc <= mem.get_entry_point();
 
 			lrsc_valid <= 1'b0;
 
@@ -839,7 +1173,8 @@ module RISCV64G_ISS (
 				end
 				3'b010: begin			// SW
 						mem.write32(rs1_d + imm_sw, rs2_d[31:0]);
-						tohost_we  = pc == 64'h0000_0000_8000_0040 ? 1'b1 : 1'b0;	// for testbench hack
+						//tohost_we  = pc == 64'h0000_0000_8000_0040 ? 1'b1 : 1'b0;	// for testbench hack
+						tohost_we  = rs1_d + imm_sw == mem.get_tohost() ? 1'b1 : 1'b0;	// for testbench hack
 						tohost     = rs2_d[31:0];
 				end
 				3'b011: begin			// SD
@@ -1510,11 +1845,11 @@ module RISCV64G_ISS (
 						end else begin
 							pc <= tmp;
 						end
-
 					end
 					12'b0000000_00001: begin	// EBREAK
 					end
 					12'b0001000_00010: begin	// SRET
+						pc <= csr_c.sret();	// sepc
 					end
 					12'b0011000_00010: begin	// MRET
 						pc <= csr_c.mret();	// mepc

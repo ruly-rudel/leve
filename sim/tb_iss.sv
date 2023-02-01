@@ -15,7 +15,8 @@ module tb_iss
 		.CLK		(CLK),
 		.RSTn		(RSTn),
 
-		.init_file	("rv64ui-p.hex"),
+		//.init_file	("rv64ui-p.hex"),
+		.init_file	("rv64ui-p"),
 		.tohost_we	(tohost_we),
 		.tohost		(tohost)
 	);
