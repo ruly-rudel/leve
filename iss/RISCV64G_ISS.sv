@@ -501,10 +501,130 @@ class MEMORY;
 
 endclass : MEMORY;
 
+class FLAG_MEMORY_ITEM;
+	logic				en;
+	logic [63:0]			start;
+	logic [31:0]			size;
+	logic [24+6-1:0]		offset;
+
+	function new();
+		en = 1'b0;
+	endfunction
+
+	function logic get_en();
+		return en;
+	endfunction
+
+	function [63:0] get_start();
+		return start;
+	endfunction
+
+	function [31:0] get_size();
+		return size;
+	endfunction
+
+	function [24+6-1:0] get_offset();
+		return offset;
+	endfunction
+
+	function void set_en(logic e);
+		en = e;
+	endfunction
+
+	function void set_start(logic [63:0] stat);
+		start = stat;
+	endfunction
+
+	function void set_size(logic [31:0] siz);
+		size = siz;
+	endfunction
+
+	function void set_offset(logic [24+6-1:0] ofs);
+		offset = ofs;
+	endfunction
+endclass : FLAG_MEMORY_ITEM;
+
+`define FLAG_MEM_SIZE	4
+
+class FRAG_MEMORY;
+	FLAG_MEMORY_ITEM		mems[integer];
+	logic [31:0]			mem[]  = new [`FLAG_MEM_SIZE*1024*1024*4];
+
+	function new();
+		for(integer i = 0; i < `FLAG_MEM_SIZE; i = i + 1) begin
+			mems[i] = new;
+			mems[i].set_en(1'b0);
+		end
+	endfunction
+
+	function integer get_idx_or_alloc(logic [63:0] addr);
+		integer idx = find_idx(addr);
+		if(idx >= 0) return idx;
+
+		idx = get_last_idx();
+		if(idx != -1) begin
+			$display("[MEMORY] allocate addr %16h.", addr);
+			mems[idx].set_en(1'b1);
+			mems[idx].set_start({addr[63:24], 24'h00_0000});
+			mems[idx].set_size(1024*1024*4*4);
+			mems[idx].set_offset({idx[5:0], 24'h00_0000});
+		end
+
+		return idx;
+	endfunction
+
+	function integer get_last_idx();
+		for(integer i = 0; i < `FLAG_MEM_SIZE; i = i + 1) begin
+			if(mems[i].get_en() == 1'b0) return i;
+		end
+		return -1;
+	endfunction
+
+	function integer find_idx(logic [63:0] addr);
+		for(integer i = 0; i < `FLAG_MEM_SIZE; i = i + 1) begin
+			if(mems[i].get_en()) begin
+				if(addr >= mems[i].get_start()) begin
+					if(addr < mems[i].get_start() + {{32{1'b0}}, mems[i].get_size()}) begin
+						return i;
+					end
+				end
+			end
+		end
+		return -1;
+	endfunction
+
+	function [31:0] read_idx(integer idx, logic [63:0] addr);
+		logic [63:0] tmp = addr - mems[idx].get_start() + {{34{1'b0}}, mems[idx].get_offset()};
+		return mem[tmp[24+6-1:2]];
+	endfunction
+
+	function void write_idx(integer idx, logic [63:0] addr, logic [31:0] data);
+		logic [63:0] tmp = addr - mems[idx].get_start() + {{34{1'b0}}, mems[idx].get_offset()};
+		mem[tmp[24+6-1:2]] = data;
+	endfunction
+
+	function [31:0] read(logic [63:0] addr);
+		integer idx = find_idx(addr);
+		if(idx == -1) begin
+			return 32'h0;
+		end else begin
+			return read_idx(idx, addr);
+		end
+	endfunction
+
+	function void write(logic [63:0] addr, logic [31:0] data);
+		integer idx = get_idx_or_alloc(addr);
+		if(idx != -1) begin
+			write_idx(idx, addr, data);
+		end
+	endfunction
+
+endclass : FRAG_MEMORY;
+
 
 class ELF;
 	string				filename;
-	logic [32-1:0]			mem[] = new [1024*1024*4];
+	FRAG_MEMORY			mem = new;
 
 	// elf header
 	logic [7:0]			e_ident[0:15];
@@ -563,8 +683,8 @@ class ELF;
 		for(integer i = 0; i < e_phnum; i = i + 1) begin
 			ret = $fseek(fd, phdr[i].p_offset[31:0], 0);
 			for(integer j = 0; j < phdr[i].p_filesz[31:0]; j = j + 4) begin
-				addr = phdr[i].p_paddr + {32'h0000_0000, j};
-				mem[addr[24-1:2]] = read_w(fd);
+				addr = phdr[i].p_vaddr + {32'h0000_0000, j};
+				mem.write(addr, read_w(fd));
 //				$display("%16h: %08h", addr, mem[addr[24-1:2]]);
 			end
 		end
@@ -706,55 +826,57 @@ class ELF;
 
 
 	function void write (input [`XLEN-1:0] addr, input [`XLEN-1:0] data);
-		mem[addr[24-1:2]] = data[31:0];
-		mem[addr[24-1:2] + 22'h1] = data[63:32];
+		mem.write(addr, data[31:0]);
+		mem.write(addr + 'h4, data[63:32]);
 	endfunction
 
 	function void write32 (input [`XLEN-1:0] addr, input [32-1:0] data);
-		mem[addr[24-1:2]] = data;
+		mem.write(addr, data);
 	endfunction
 
 	function void write16 (input [`XLEN-1:0] addr, input [16-1:0] data);
 		logic [31:0]	tmp32;
-		tmp32 = mem[addr[22-1:2]];
+		tmp32 = mem.read(addr);
 		case (addr[1])
-			1'b0 : mem[addr[24-1:2]] = {tmp32[31:16], data};
-			1'b1 : mem[addr[24-1:2]] = {data[15:0], tmp32[15:0]};
+			1'b0 : mem.write(addr, {tmp32[31:16], data});
+			1'b1 : mem.write(addr, {data, tmp32[15:0]});
 		endcase
 	endfunction
 
 	function void write8 (input [`XLEN-1:0] addr, input [8-1:0] data);
 		logic [31:0]	tmp32;
-		tmp32 = mem[addr[24-1:2]];
+		tmp32 = mem.read(addr);
 		case (addr[1:0])
-			2'h0 : mem[addr[24-1:2]] = {tmp32[31:8], data};
-			2'h1 : mem[addr[24-1:2]] = {tmp32[31:16], data, tmp32[7:0]};
-			2'h2 : mem[addr[24-1:2]] = {tmp32[31:24], data, tmp32[15:0]};
-			2'h3 : mem[addr[24-1:2]] = {data, tmp32[23:0]};
+			2'h0 : mem.write(addr, {tmp32[31:8], data});
+			2'h1 : mem.write(addr, {tmp32[31:16], data, tmp32[7:0]});
+			2'h2 : mem.write(addr, {tmp32[31:24], data, tmp32[15:0]});
+			2'h3 : mem.write(addr, {data, tmp32[23:0]});
 		endcase
 	endfunction
 
 	function [`XLEN-1:0] read (input [`XLEN-1:0] addr);
-		return {mem[addr[24-1:2] + 22'h1], mem[addr[22-1:2]]};
+		return {mem.read(addr + 'h4), mem.read(addr)};
 	endfunction
 
 	function [32-1:0] read32 (input [`XLEN-1:0] addr);
-		return mem[addr[24-1:2]];
+		return mem.read(addr);
 	endfunction
 
 	function [16-1:0] read16 (input [`XLEN-1:0] addr);
+		logic [31:0] tmp32 = mem.read(addr);
 		case(addr[1])
-			1'h0 : return mem[addr[24-1:2]][15:0];
-			1'h1 : return mem[addr[24-1:2]][31:16];
+			1'h0 : return tmp32[15:0];
+			1'h1 : return tmp32[31:16];
 		endcase
 	endfunction
 
 	function [8-1:0] read8 (input [`XLEN-1:0] addr);
+		logic [31:0] tmp32 = mem.read(addr);
 		case(addr[1:0])
-			2'h0 : return mem[addr[24-1:2]][7:0];
-			2'h1 : return mem[addr[24-1:2]][15:8];
-			2'h2 : return mem[addr[24-1:2]][23:16];
-			2'h3 : return mem[addr[24-1:2]][31:24];
+			2'h0 : return tmp32[7:0];
+			2'h1 : return tmp32[15:8];
+			2'h2 : return tmp32[23:16];
+			2'h3 : return tmp32[31:24];
 		endcase
 	endfunction
 

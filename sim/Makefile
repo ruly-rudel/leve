@@ -19,10 +19,10 @@ qemu:
 	qemu-system-riscv64 -M virt -nographic -kernel ../../linux/arch/riscv/boot/Image -append "console=ttyS0"
 
 kernel:
-	rm -rf rv64ui-p.dump rv64ui-p vmlinux.dump
+	rm -rf rv64ui-p.dump rv64ui-p
 #	riscv64-unknown-elf-elf2hex --bit-width 32 --input ../../linux/vmlinux --output vmlinux.hex
-	riscv64-unknown-linux-gnu-objdump -D ../../linux/vmlinux > vmlinux.dump
-	ln -s vmlinux.dump rv64ui-p.dump
+#	riscv64-unknown-linux-gnu-objdump -D ../../linux/vmlinux > vmlinux.dump
+#	ln -s vmlinux.dump rv64ui-p.dump
 	ln -s ../../linux/vmlinux rv64ui-p
 
 qemu-busybox:
