@@ -545,6 +545,7 @@ class FLAG_MEMORY_ITEM;
 endclass : FLAG_MEMORY_ITEM;
 
 `define FLAG_MEM_SIZE	4
+`define FLAG_MEM_SIZE_POW	2
 
 class FRAG_MEMORY;
 	FLAG_MEMORY_ITEM		mems[integer];
@@ -595,12 +596,12 @@ class FRAG_MEMORY;
 
 	function [31:0] read_idx(integer idx, logic [63:0] addr);
 		logic [63:0] tmp = addr - mems[idx].get_start() + {{34{1'b0}}, mems[idx].get_offset()};
-		return mem[tmp[24+6-1:2]];
+		return mem[tmp[24+`FLAG_MEM_SIZE_POW-1:2]];
 	endfunction
 
 	function void write_idx(integer idx, logic [63:0] addr, logic [31:0] data);
 		logic [63:0] tmp = addr - mems[idx].get_start() + {{34{1'b0}}, mems[idx].get_offset()};
-		mem[tmp[24+6-1:2]] = data;
+		mem[tmp[24+`FLAG_MEM_SIZE_POW-1:2]] = data;
 	endfunction
 
 	function [31:0] read(logic [63:0] addr);
