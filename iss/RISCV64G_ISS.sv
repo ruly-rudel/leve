@@ -626,6 +626,7 @@ endclass : FRAG_MEMORY;
 class ELF;
 	string				filename;
 	FRAG_MEMORY			mem = new;
+	logic [63:0]			tohost;
 
 	// elf header
 	logic [7:0]			e_ident[0:15];
@@ -655,25 +656,39 @@ class ELF;
 		logic [63:0]		p_align;
 	} phdr[];
 
+	// section header
+	struct packed {
+		logic [31:0]		sh_name;
+		logic [31:0]		sh_type;
+		logic [63:0]		sh_flags;
+		logic [63:0]		sh_addr;
+		logic [63:0]		sh_offset;
+		logic [63:0]		sh_size;
+		logic [31:0]		sh_link;
+		logic [31:0]		sh_info;
+		logic [63:0]		sh_addralign;
+		logic [63:0]		sh_entsize;
+	} shdr[];
+
 	function new(string fn);
 		integer fd;
 		filename = fn;
-		$display("[MEMORY] read %s", filename);
+		$display("[ELF] read %s", filename);
 		fd = $fopen(filename, "r");
 		if(fd == 0) begin
-			$display("[MEMORY] file open fails: %s", filename);
+			$display("[ELF] file open fails: %s", filename);
 			$finish;
 		end
 
-		while (!$feof(fd)) begin
-			read_elf_header(fd);
-			read_program_header(fd);
-			load(fd);
-			break;
-		end
+		read_elf_header(fd);
+		read_program_header(fd);
+		load(fd);
+		read_section_header(fd);
+		print_section_name(fd);
+		set_tohost(fd);
 
 		$fclose(fd);
-		$display("[MEMORY] read finish.");
+		$display("[ELF] read finish.");
 
 	endfunction
 
@@ -689,6 +704,70 @@ class ELF;
 //				$display("%16h: %08h", addr, mem[addr[24-1:2]]);
 			end
 		end
+	endfunction
+
+	function void print_section_name(input integer fd);
+		string s;
+		for(integer i = 0; i < e_shnum; i = i + 1) begin
+			s = get_string(fd, shdr[i].sh_name);
+			$display("[SECTION %02d].sh_name: %s", i, s);
+
+			case(shdr[i].sh_type)
+				32'h0: $display("shdr[%2d].sh_type: SHT_NULL(%2d)", i, shdr[i].sh_type);
+				32'h1: $display("shdr[%2d].sh_type: SHT_PROGBITS(%2d)", i, shdr[i].sh_type);
+				32'h2: $display("shdr[%2d].sh_type: SHT_SYMTAB(%2d)", i, shdr[i].sh_type);
+				32'h3: $display("shdr[%2d].sh_type: SHT_STRTAB(%2d)", i, shdr[i].sh_type);
+				32'h4: $display("shdr[%2d].sh_type: SHT_RELA(%2d)", i, shdr[i].sh_type);
+				32'h5: $display("shdr[%2d].sh_type: SHT_HASH(%2d)", i, shdr[i].sh_type);
+				32'h6: $display("shdr[%2d].sh_type: SHT_DYNAMIC(%2d)", i, shdr[i].sh_type);
+				32'h7: $display("shdr[%2d].sh_type: SHT_NOTE(%2d)", i, shdr[i].sh_type);
+				32'h8: $display("shdr[%2d].sh_type: SHT_NOBITS(%2d)", i, shdr[i].sh_type);
+				32'h9: $display("shdr[%2d].sh_type: SHT_REL(%2d)", i, shdr[i].sh_type);
+				32'h10: $display("shdr[%2d].sh_type: SHT_SHLIB(%2d)", i, shdr[i].sh_type);
+				32'h11: $display("shdr[%2d].sh_type: SHT_DYNSYM(%2d)", i, shdr[i].sh_type);
+				32'h12: $display("shdr[%2d].sh_type: SHT_NUM(%2d)", i, shdr[i].sh_type);
+				default: $display("shdr[%2d].sh_type: ??? (%2d)", i, shdr[i].sh_type);
+			endcase
+			$display("shdr[%2d].sh_addr: %2h", i, shdr[i].sh_addr);
+			$display("shdr[%2d].sh_offset: %2d", i, shdr[i].sh_offset);
+			$display("shdr[%2d].sh_size: %2d", i, shdr[i].sh_size);
+		end
+	endfunction
+
+	function void read_section_header(input integer fd);
+		integer ret;
+		shdr = new [{16'h0000, e_shnum}];
+		ret = $fseek(fd, e_shoff[31:0], 0);
+
+		for(integer i = 0; i < e_shnum; i = i + 1) begin
+			shdr[i].sh_name		= read_w(fd);
+			shdr[i].sh_type		= read_w(fd);
+			shdr[i].sh_flags	= read_dw(fd);
+			shdr[i].sh_addr		= read_dw(fd);
+			shdr[i].sh_offset	= read_dw(fd);
+			shdr[i].sh_size		= read_dw(fd);
+			shdr[i].sh_link		= read_w(fd);
+			shdr[i].sh_info		= read_w(fd);
+			shdr[i].sh_addralign	= read_dw(fd);
+			shdr[i].sh_entsize	= read_dw(fd);
+		end
+	endfunction
+
+	function string get_string(input integer fd, input integer offset);
+		integer ret;
+		bit [7:0] ch;
+		string	rs = "";
+		integer addr = shdr[e_shstrndx].sh_offset[31:0] + offset;
+		ret = $fseek(fd, addr, 0);
+
+		ch = read_c(fd);
+		while(ch != 8'h00) begin
+			rs = {rs, ch};
+			ch = read_c(fd);
+		end
+
+		return rs;
+
 	endfunction
 
 	function void read_program_header(input integer fd);
@@ -791,6 +870,17 @@ class ELF;
 		$display("String table index: %d", e_shstrndx);
 	endfunction
 
+	function [7:0] read_c(integer fd);
+		integer ret;
+		logic [7:0] r_c;
+
+		ret = $fread(r_c, fd);
+		if(ret != 1) begin
+			$display("[MEMORY] file read fails, hw: %s, %d", filename, ret);
+		end
+		return r_c;
+	endfunction
+
 	function [15:0] read_hw(integer fd);
 		integer ret;
 		logic [7:0] r_hw[0:1];
@@ -885,8 +975,23 @@ class ELF;
 		return e_entry;
 	endfunction
 
+	function void set_tohost(input integer fd);
+		for(integer i = 0; i < e_shnum; i = i + 1) begin
+			string s = get_string(fd, shdr[i].sh_name);
+			if(s == ".tohost") begin
+				$display("[ELF] .tohost found at shdr[%2d], address %02h", i, shdr[i].sh_addr);
+				tohost = shdr[i].sh_addr;
+				return ;
+			end
+		end
+
+		$display("[ELF] .tohost does not found. assume phdr[1] is .tohost", phdr[1].p_vaddr);
+		tohost = phdr[1].p_vaddr;
+		return;
+	endfunction
+
 	function [63:0] get_tohost();
-		return phdr[1].p_vaddr;
+		return tohost;
 	endfunction
 
 endclass : ELF;
