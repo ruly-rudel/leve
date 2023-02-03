@@ -896,12 +896,19 @@ module RISCV64G_ISS (
 	input			CLK,
 	input			RSTn,
 
-	input string		init_file,
 	output reg		tohost_we,
 	output reg [32-1:0]	tohost
 );
 	//MEMORY			mem = new(init_file);
-	ELF			mem = new(init_file);
+	ELF			mem;
+	initial begin
+		string		init_file;
+		if($value$plusargs("ELF=%s", init_file))
+		begin
+			$display ("[ARG] +ELF=%s", init_file);
+			mem = new(init_file);
+		end
+	end
 
 	// PC
 	reg  [`XLEN-1:0]	pc;
