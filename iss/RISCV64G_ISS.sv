@@ -997,6 +997,31 @@ class ELF;
 endclass : ELF;
 
 
+class PMA;
+	function logic is_readable(input [`XLEN-1:0] addr);
+		if(addr < 64'h0000_0000_8000_0000) begin
+			return 1'b0;
+		end else begin
+			return 1'b1;
+		end
+	endfunction
+
+	function logic is_writeable(input [`XLEN-1:0] addr);
+		if(addr < 64'h0000_0000_8000_0000) begin
+			return 1'b0;
+		end else begin
+			return 1'b1;
+		end
+	endfunction
+
+	function logic is_executable(input [`XLEN-1:0] addr);
+		if(addr < 64'h0000_0000_8000_0000) begin
+			return 1'b0;
+		end else begin
+			return 1'b1;
+		end
+	endfunction
+endclass : PMA;
 
 module RISCV64G_ISS (
 	input			CLK,
@@ -1015,6 +1040,9 @@ module RISCV64G_ISS (
 			mem = new(init_file);
 		end
 	end
+
+	// PMA
+	PMA			pma = new;
 
 	// PC
 	reg  [`XLEN-1:0]	pc;
@@ -1175,7 +1203,6 @@ module RISCV64G_ISS (
 	reg [`XLEN-1:0]		lrsc_addr;
 
 	// 1. instruction fetch
-	//assign inst   = mem[pc[22-1:2]];
 	assign inst   = mem.read32(pc);
 	
 	assign opcode = inst[6:0];
@@ -1375,24 +1402,31 @@ module RISCV64G_ISS (
 				case (funct3)
 				3'b000: begin			// LB
 						rf.write8s(rd0, mem.read8(rs1_d + imm_iw));
+						pc <= pc + 'h4;
 				end
 				3'b001: begin			// LH
 						rf.write16s(rd0, mem.read16(rs1_d + imm_iw));
+						pc <= pc + 'h4;
 				end
 				3'b010: begin			// LW
 						rf.write32s(rd0, mem.read32(rs1_d + imm_iw));
+						pc <= pc + 'h4;
 				end
 				3'b011: begin			// LD
 						rf.write(rd0, mem.read(rs1_d + imm_iw));
+						pc <= pc + 'h4;
 				end
 				3'b100: begin			// LBU
 						rf.write8u(rd0, mem.read8(rs1_d + imm_iw));
+						pc <= pc + 'h4;
 				end
 				3'b101: begin			// LHU
 						rf.write16u(rd0, mem.read16(rs1_d + imm_iw));
+						pc <= pc + 'h4;
 				end
 				3'b110: begin			// LWU
 						rf.write32u(rd0, mem.read32(rs1_d + imm_iw));
+						pc <= pc + 'h4;
 				end
 				default: ;
 				endcase
@@ -1402,32 +1436,47 @@ module RISCV64G_ISS (
 				case (funct3)
 				3'b000: begin			// SB
 						mem.write8(rs1_d + imm_sw, rs2_d[7:0]);
+						pc <= pc + 'h4;
 				end
 				3'b001: begin			// SH
 						mem.write16(rs1_d + imm_sw, rs2_d[15:0]);
+						pc <= pc + 'h4;
 				end
 				3'b010: begin			// SW
 						mem.write32(rs1_d + imm_sw, rs2_d[31:0]);
-						//tohost_we  = pc == 64'h0000_0000_8000_0040 ? 1'b1 : 1'b0;	// for testbench hack
+						pc <= pc + 'h4;
 						tohost_we  = rs1_d + imm_sw == mem.get_tohost() ? 1'b1 : 1'b0;	// for testbench hack
 						tohost     = rs2_d[31:0];
 				end
 				3'b011: begin			// SD
 						mem.write(rs1_d + imm_sw, rs2_d);
+						pc <= pc + 'h4;
 				end
 				default: ;
 				endcase
 			end
 
 			7'b10_000_11: begin	// MADD
+						pc <= pc + 'h4;
 			end
 
-			// 7'b11_000_11:	// BRANCH
+			7'b11_000_11: begin	// BRANCH
+				case (funct3)
+				3'b000:	pc <= rs1_d == rs2_d ? pc + imm_bw : pc + 'h4;	// BEQ
+				3'b001:	pc <= rs1_d != rs2_d ? pc + imm_bw : pc + 'h4;	// BNE
+				3'b100:	pc <= $signed(rs1_d) <  $signed(rs2_d) ? pc + imm_bw : pc + 'h4;	// BLT
+				3'b101:	pc <= $signed(rs1_d) >= $signed(rs2_d) ? pc + imm_bw : pc + 'h4;	// BGE
+				3'b110:	pc <= rs1_d <  rs2_d ? pc + imm_bw : pc + 'h4;	// BLTU
+				3'b111:	pc <= rs1_d >= rs2_d ? pc + imm_bw : pc + 'h4;	// BGEU
+				default: ;
+				endcase
+			end
 
 			7'b00_001_11: begin	// LOAD-FP
 				case (funct3)
 				3'b010: begin			// FLW
 						fp.write32u(rd0, mem.read32(rs1_d + imm_iw));
+						pc <= pc + 'h4;
 				end
 				default: ;
 				endcase
@@ -1437,27 +1486,41 @@ module RISCV64G_ISS (
 				case (funct3)
 				3'b010: begin			// FSW
 						mem.write32(rs1_d + imm_sw, fp_rs2_d[31:0]);
+						pc <= pc + 'h4;
 				end
 				default: ;
 				endcase
 			end
 
 			7'b10_001_11: begin	// MSUB
+						pc <= pc + 'h4;
 			end
 
 			7'b11_001_11: begin	// JALR
 				case (funct3)
 				3'b000: begin
 						rf.write(rd0, pc + 'h4);
+						pc <= rs1_d + imm_iw;
 				end
 				default: ;
 				endcase
 			end
 
 			7'b01_010_11: begin	// NMSUB
+						pc <= pc + 'h4;
 			end
 
-			// 7'b00_011_11:	// MISC-MEM
+			7'b00_011_11: begin	// MISC-MEM
+				case (funct3)
+				3'b000: begin	// FENCE
+						pc <= pc + 'h4;
+				end
+				3'b001: begin	// FENCE.I
+						pc <= pc + 'h4;
+				end
+				default: ;
+				endcase
+			end
 
 			7'b01_011_11: begin	// AMO
 				case (funct3)
@@ -1467,6 +1530,7 @@ module RISCV64G_ISS (
 						lrsc_valid <= 1'b1;
 						lrsc_addr  <= rs1_d;
 						rf.write32s(rd0, mem.read32(rs1_d));
+						pc <= pc + 'h4;
 					end
 					5'b00011: begin		// SC.W
 						if(lrsc_valid && lrsc_addr == rs1_d) begin
@@ -1477,50 +1541,60 @@ module RISCV64G_ISS (
 						end else begin
 							rf.write(rd0, {{`XLEN-1{1'b0}}, 1'b1});
 						end
+						pc <= pc + 'h4;
 					end
 					5'b00001: begin		// AMOSWAP.W
 						rf.write32s(rd0, mem.read32(rs1_d));
 						mem.write32(rs1_d, rs2_d[31:0]);
+						pc <= pc + 'h4;
 					end
 					5'b00000: begin		// AMOADD.W
 						tmp32 = mem.read32(rs1_d);
 						rf.write32s(rd0, tmp32);
 						mem.write32(rs1_d, rs2_d[31:0] + tmp32);
+						pc <= pc + 'h4;
 					end
 					5'b00100: begin		// AMOXOR.W
 						tmp32 = mem.read32(rs1_d);
 						rf.write32s(rd0, tmp32);
 						mem.write32(rs1_d, rs2_d[31:0] ^ tmp32);
+						pc <= pc + 'h4;
 					end
 					5'b01100: begin		// AMOAND.W
 						tmp32 = mem.read32(rs1_d);
 						rf.write32s(rd0, tmp32);
 						mem.write32(rs1_d, rs2_d[31:0] & tmp32);
+						pc <= pc + 'h4;
 					end
 					5'b01000: begin		// AMOOR.W
 						tmp32 = mem.read32(rs1_d);
 						rf.write32s(rd0, tmp32);
 						mem.write32(rs1_d, rs2_d[31:0] | tmp32);
+						pc <= pc + 'h4;
 					end
 					5'b10000: begin		// AMOMIN.W
 						tmp32 = mem.read32(rs1_d);
 						rf.write32s(rd0, tmp32);
 						mem.write32(rs1_d, $signed(rs2_d[31:0]) < $signed(tmp32) ? rs2_d[31:0] : tmp32);
+						pc <= pc + 'h4;
 					end
 					5'b10100: begin		// AMOMAX.W
 						tmp32 = mem.read32(rs1_d);
 						rf.write32s(rd0, tmp32);
 						mem.write32(rs1_d, $signed(rs2_d[31:0]) > $signed(tmp32) ? rs2_d[31:0] : tmp32);
+						pc <= pc + 'h4;
 					end
 					5'b11000: begin		// AMOMINU.W
 						tmp32 = mem.read32(rs1_d);
 						rf.write32s(rd0, tmp32);
 						mem.write32(rs1_d, rs2_d[31:0] < tmp32 ? rs2_d[31:0] : tmp32);
+						pc <= pc + 'h4;
 					end
 					5'b11100: begin		// AMOMAXU.W
 						tmp32 = mem.read32(rs1_d);
 						rf.write32s(rd0, tmp32);
 						mem.write32(rs1_d, rs2_d[31:0] > tmp32 ? rs2_d[31:0] : tmp32);
+						pc <= pc + 'h4;
 					end
 					default: ;
 					endcase
@@ -1535,53 +1609,62 @@ module RISCV64G_ISS (
 						tmp = mem.read(rs1_d);
 						rf.write(rd0, tmp);
 						mem.write(rs1_d, rs2_d);
+						pc <= pc + 'h4;
 					end
 					5'b00000: begin		// AMOADD.D
 						tmp = mem.read(rs1_d);
 						rf.write(rd0, tmp);
 						mem.write(rs1_d, rs2_d + tmp);
+						pc <= pc + 'h4;
 					end
 					5'b00100: begin		// AMOXOR.D
 						tmp = mem.read(rs1_d);
 						rf.write(rd0, tmp);
 						tmp = rs2_d ^ tmp;
 						mem.write(rs1_d, tmp);
+						pc <= pc + 'h4;
 					end
 					5'b01100: begin		// AMOAND.D
 						tmp = mem.read(rs1_d);
 						rf.write(rd0, tmp);
 						tmp = rs2_d & tmp;
 						mem.write(rs1_d, tmp);
+						pc <= pc + 'h4;
 					end
 					5'b01000: begin		// AMOOR.D
 						tmp = mem.read(rs1_d);
 						rf.write(rd0, tmp);
 						tmp = rs2_d | tmp;
 						mem.write(rs1_d, tmp);
+						pc <= pc + 'h4;
 					end
 					5'b10000: begin		// AMOMIN.D
 						tmp = mem.read(rs1_d);
 						rf.write(rd0, tmp);
 						tmp = $signed(rs2_d) < $signed(tmp) ? rs2_d : tmp;
 						mem.write(rs1_d, tmp);
+						pc <= pc + 'h4;
 					end
 					5'b10100: begin		// AMOMAX.D
 						tmp = mem.read(rs1_d);
 						rf.write(rd0, tmp);
 						tmp = $signed(rs2_d) > $signed(tmp) ? rs2_d : tmp;
 						mem.write(rs1_d, tmp);
+						pc <= pc + 'h4;
 					end
 					5'b11000: begin		// AMOMINU.D
 						tmp = mem.read(rs1_d);
 						rf.write(rd0, tmp);
 						tmp = rs2_d < tmp ? rs2_d : tmp;
 						mem.write(rs1_d, tmp);
+						pc <= pc + 'h4;
 					end
 					5'b11100: begin		// AMOMAXU.D
 						tmp = mem.read(rs1_d);
 						rf.write(rd0, tmp);
 						tmp = rs2_d > tmp ? rs2_d : tmp;
 						mem.write(rs1_d, tmp);
+						pc <= pc + 'h4;
 					end
 					default: ;
 					endcase
@@ -1591,41 +1674,62 @@ module RISCV64G_ISS (
 			end
 
 			7'b10_011_11: begin	// NMADD
+						pc <= pc + 'h4;
 			end
 
 			7'b11_011_11: begin	// JAL
 						rf.write(rd0, pc + 'h4);
+						pc <= pc + imm_jw;
 			end
 
 			7'b00_100_11: begin	// OP-IMM
 				case (funct3)
 				3'b000: begin								// ADDI
 						rf.write(rd0, rs1_d + imm_iw);
+						pc <= pc + 'h4;
 				end
 				3'b001: begin
 					case (funct7[6:1])
 					6'b000000: begin						// SLLI
 						rf.write(rd0, rs1_d << shamt);
+						pc <= pc + 'h4;
 					end
 					default: ;
 					endcase
 				end
-				3'b010: 	rf.write(rd0, $signed(rs1_d) < $signed(imm_iw) ? {{63{1'b0}}, 1'b1} : {64{1'b0}});	// SLTI
-				3'b011: 	rf.write(rd0, rs1_d < imm_iw ? {{63{1'b0}}, 1'b1} : {64{1'b0}});	// SLTIU
-				3'b100: 	rf.write(rd0, rs1_d ^ imm_iw);				// XORI
+				3'b010: begin								// SLTI
+						rf.write(rd0, $signed(rs1_d) < $signed(imm_iw) ? {{63{1'b0}}, 1'b1} : {64{1'b0}});
+						pc <= pc + 'h4;
+				end
+				3'b011: begin								// SLTIU
+						rf.write(rd0, rs1_d < imm_iw ? {{63{1'b0}}, 1'b1} : {64{1'b0}});
+						pc <= pc + 'h4;
+				end
+				3'b100: begin								// XORI
+						rf.write(rd0, rs1_d ^ imm_iw);
+						pc <= pc + 'h4;
+				end
 				3'b101: begin
 					case (funct7[6:1])
 					6'b000000: begin						// SRLI
 						rf.write(rd0, rs1_d >> shamt);
+						pc <= pc + 'h4;
 					end
 					6'b010000: begin						// SRAI
 						rf.write(rd0, $signed(rs1_d) >>> shamt);
+						pc <= pc + 'h4;
 					end
 					default: ;
 					endcase
 				end
-				3'b110: 	rf.write(rd0, rs1_d | imm_iw);				// ORI
-				3'b111: 	rf.write(rd0, rs1_d & imm_iw);				// ANDI
+				3'b110: begin								// ORI
+						rf.write(rd0, rs1_d | imm_iw);
+						pc <= pc + 'h4;
+				end
+				3'b111: begin								// ANDI
+						rf.write(rd0, rs1_d & imm_iw);
+						pc <= pc + 'h4;
+				end
 				default: ;
 				endcase
 			end
@@ -1636,13 +1740,16 @@ module RISCV64G_ISS (
 					case (funct7)
 					7'b0000000: begin	// ADD
 						rf.write(rd0, rs1_d + rs2_d);
+						pc <= pc + 'h4;
 					end
 					7'b0000001: begin	// MUL
 						tmp128 = rs1_d * rs2_d;
 						rf.write(rd0, tmp128[`XLEN-1:0]);
+						pc <= pc + 'h4;
 					end
 					7'b0100000: begin	// SUB
 						rf.write(rd0, rs1_d - rs2_d);
+						pc <= pc + 'h4;
 					end
 					default: ;
 					endcase
@@ -1651,10 +1758,12 @@ module RISCV64G_ISS (
 					case (funct7)
 					7'b0000000: begin	// SLL
 						rf.write(rd0, rs1_d << rs2_d[5:0]);
+						pc <= pc + 'h4;
 					end
 					7'b0000001: begin	// MULH
 						tmp128 = $signed(rs1_d) * $signed(rs2_d);
 						rf.write(rd0, tmp128[`XLEN*2-1:`XLEN]);
+						pc <= pc + 'h4;
 					end
 					default: ;
 					endcase
@@ -1663,11 +1772,13 @@ module RISCV64G_ISS (
 					case (funct7)
 					7'b0000000: begin	// SLT
 						rf.write(rd0, $signed(rs1_d) < $signed(rs2_d) ? {{63{1'b0}}, 1'b1} : {64{1'b0}});
+						pc <= pc + 'h4;
 					end
 					7'b0000001: begin	// MULHSU
 						tmp128 = absXLEN(rs1_d) * rs2_d;
 						tmp128 = twoscompXLENx2(rs1_d[`XLEN-1], tmp128);
 						rf.write(rd0, tmp128[`XLEN*2-1:`XLEN]);
+						pc <= pc + 'h4;
 					end
 					default: ;
 					endcase
@@ -1676,10 +1787,12 @@ module RISCV64G_ISS (
 					case (funct7)
 					7'b0000000: begin	// SLTU
 						rf.write(rd0, rs1_d < rs2_d ? {{63{1'b0}}, 1'b1} : {64{1'b0}});
+						pc <= pc + 'h4;
 					end
 					7'b0000001: begin	// MULHU
 						tmp128 = rs1_d * rs2_d;
 						rf.write(rd0, tmp128[`XLEN*2-1:`XLEN]);
+						pc <= pc + 'h4;
 					end
 					default: ;
 					endcase
@@ -1688,11 +1801,13 @@ module RISCV64G_ISS (
 					case (funct7)
 					7'b0000000: begin	// XOR
 					 	rf.write(rd0, rs1_d ^ rs2_d);
+						pc <= pc + 'h4;
 					end
 					7'b0000001: begin	// DIV
 						tmp = absXLEN(rs1_d) / absXLEN(rs2_d);
 						tmp = twoscompXLEN(rs1_d[`XLEN-1] ^ rs2_d[`XLEN-1], tmp);
 						rf.write(rd0, rs2_d == {`XLEN{1'b0}} ? {`XLEN{1'b1}} : tmp);
+						pc <= pc + 'h4;
 					end
 					default: ;
 					endcase
@@ -1701,12 +1816,15 @@ module RISCV64G_ISS (
 					case (funct7)
 					7'b0000000: begin	// SRL
 						rf.write(rd0, rs1_d >> rs2_d[5:0]);
+						pc <= pc + 'h4;
 					end
 					7'b0000001: begin	// DIVU
 						rf.write(rd0, rs2_d == {`XLEN{1'b0}} ? {`XLEN{1'b1}} : rs1_d / rs2_d);
+						pc <= pc + 'h4;
 					end
 					7'b0100000: begin	// SRA
 						rf.write(rd0, $signed(rs1_d) >>> rs2_d[5:0]);
+						pc <= pc + 'h4;
 					end
 					default: ;
 					endcase
@@ -1715,11 +1833,13 @@ module RISCV64G_ISS (
 					case (funct7)
 					7'b0000000: begin	// OR
 						rf.write(rd0, rs1_d | rs2_d);
+						pc <= pc + 'h4;
 					end
 					7'b0000001: begin	// REM
 						tmp = absXLEN(rs1_d) % absXLEN(rs2_d);
 						tmp = twoscompXLEN(rs1_d[`XLEN/2-1], tmp);
 						rf.write(rd0, rs2_d == {`XLEN{1'b0}} ? rs1_d : tmp);
+						pc <= pc + 'h4;
 					end
 					default: ;
 					endcase
@@ -1728,9 +1848,11 @@ module RISCV64G_ISS (
 					case (funct7)
 					7'b0000000: begin	// AND
 						rf.write(rd0, rs1_d & rs2_d);
+						pc <= pc + 'h4;
 					end
 					7'b0000001: begin	// REMU
 						rf.write(rd0, rs2_d == {`XLEN{1'b0}} ? rs1_d : rs1_d % rs2_d);
+						pc <= pc + 'h4;
 					end
 					default: ;
 					endcase
@@ -1744,20 +1866,25 @@ module RISCV64G_ISS (
 				7'b00000_00: begin		// FADD.S
 						fp.write32u(rd0, fadd_f_d);
 						csr_c.set_fflags({fadd_f_invalid, 3'h0, fadd_f_inexact});
+						pc <= pc + 'h4;
 				end
 				7'b00001_00: begin		// FSUB.S
 						fp.write32u(rd0, fsub_f_d);
 						csr_c.set_fflags({fsub_f_invalid, 3'h0, fsub_f_inexact});
+						pc <= pc + 'h4;
 				end
 				7'b00010_00: begin		// FMUL.S
 						fp.write32u(rd0, fmul_f_d);
 						csr_c.set_fflags({fmul_f_invalid, 3'h0, fmul_f_inexact});
+						pc <= pc + 'h4;
 				end
 				7'b00011_00: begin		// FDIV.S
+						pc <= pc + 'h4;
 				end
 				7'b01011_00: begin
 					case (rs2)
 					5'b00000: begin		// FSQRT.S
+						pc <= pc + 'h4;
 					end
 					default: ;
 					endcase
@@ -1773,6 +1900,7 @@ module RISCV64G_ISS (
 							tmp32 = fp.read32(rs1);
 							fp.write32u(rd0, {1'b0, tmp32[30:0]});
 						end
+						pc <= pc + 'h4;
 					end
 					3'b001: begin		// FSGNJN.S
 						tmp32 = fp.read32(rs2);
@@ -1783,6 +1911,7 @@ module RISCV64G_ISS (
 							tmp32 = fp.read32(rs1);
 							fp.write32u(rd0, {1'b1, tmp32[30:0]});
 						end
+						pc <= pc + 'h4;
 					end
 					3'b010: begin		// FSGNJX.S
 						tmp32 = fp.read32(rs2);
@@ -1793,6 +1922,7 @@ module RISCV64G_ISS (
 							tmp32 = fp.read32(rs1);
 							fp.write32u(rd0, {1'b0 ^ tmp32[31], tmp32[30:0]});
 						end
+						pc <= pc + 'h4;
 					end
 					default: ;
 					endcase
@@ -1802,10 +1932,12 @@ module RISCV64G_ISS (
 					3'b000: begin		// FMIN.S
 						fp.write32u(rd0, fmin_f_d);
 						csr_c.set_fflags({fmin_f_invalid, 4'h0});
+						pc <= pc + 'h4;
 					end
 					3'b001: begin		// FMAX.S
 						fp.write32u(rd0, fmax_f_d);
 						csr_c.set_fflags({fmax_f_invalid, 4'h0});
+						pc <= pc + 'h4;
 					end
 					default: ;
 					endcase
@@ -1815,18 +1947,22 @@ module RISCV64G_ISS (
 					5'b00000: begin		// FCVT.W.S
 							rf.write32s(rd0, fcvt_w_s_d[31:0]);
 							csr_c.set_fflags({fcvt_w_s_invalid, 3'h0, fcvt_w_s_inexact});
+							pc <= pc + 'h4;
 					end
 					5'b00001: begin		// FCVT.WU.S
 							rf.write32s(rd0, fcvt_wu_s_d[31:0]);
 							csr_c.set_fflags({fcvt_wu_s_invalid, 3'h0, fcvt_wu_s_inexact});
+							pc <= pc + 'h4;
 					end
 					5'b00010: begin		// FCVT.L.S
 							rf.write(rd0, fcvt_l_s_d);
 							csr_c.set_fflags({fcvt_l_s_invalid, 3'h0, fcvt_l_s_inexact});
+							pc <= pc + 'h4;
 					end
 					5'b00011: begin		// FCVT.LU.S
 							rf.write(rd0, fcvt_lu_s_d);
 							csr_c.set_fflags({fcvt_lu_s_invalid, 3'h0, fcvt_lu_s_inexact});
+							pc <= pc + 'h4;
 					end
 					default: ;
 					endcase
@@ -1837,9 +1973,11 @@ module RISCV64G_ISS (
 						case (funct3)
 						3'b000: begin	// FMV.X.W
 							rf.write32s(rd0, fp_rs1_d[31:0]);
+							pc <= pc + 'h4;
 						end
 						3'b001: begin	// FCLASS.W
 							rf.write32u(rd0, fclass_f_d);
+							pc <= pc + 'h4;
 						end
 						default: ;
 						endcase
@@ -1852,14 +1990,17 @@ module RISCV64G_ISS (
 					3'b010: begin 		// FEQ.S
 							rf.write(rd0, {{63{1'b0}}, fcmp_f_eq});
 							csr_c.set_fflags({fcmp_f_eq_invalid, 4'h0});
+							pc <= pc + 'h4;
 					end
 					3'b001: begin 		// FLT.S
 							rf.write(rd0, {{63{1'b0}}, fcmp_f_lt});
 							csr_c.set_fflags({fcmp_f_lt_invalid, 4'h0});
+							pc <= pc + 'h4;
 					end
 					3'b000: begin		// FLE.S
 							rf.write(rd0, {{63{1'b0}}, fcmp_f_le});
 							csr_c.set_fflags({fcmp_f_lt_invalid, 4'h0});
+							pc <= pc + 'h4;
 					end
 					default: ;
 					endcase
@@ -1869,18 +2010,22 @@ module RISCV64G_ISS (
 					5'b00000: begin		// FCVT.S.W
 							fp.write32u(rd0, fcvt_s_w_d);
 							csr_c.set_fflags({4'h0, fcvt_s_w_inexact});
+							pc <= pc + 'h4;
 					end
 					5'b00001: begin		// FCVT.S.WU
 							fp.write32u(rd0, fcvt_s_wu_d);
 							csr_c.set_fflags({4'h0, fcvt_s_wu_inexact});
+							pc <= pc + 'h4;
 					end
 					5'b00010: begin		// FCVT.S.L
 							fp.write32u(rd0, fcvt_s_l_d);
 							csr_c.set_fflags({4'h0, fcvt_s_l_inexact});
+							pc <= pc + 'h4;
 					end
 					5'b00011: begin		// FCVT.S.LU
 							fp.write32u(rd0, fcvt_s_lu_d);
 							csr_c.set_fflags({4'h0, fcvt_s_lu_inexact});
+							pc <= pc + 'h4;
 					end
 					default: ;
 					endcase
@@ -1891,6 +2036,7 @@ module RISCV64G_ISS (
 						case (funct3)
 						3'b000: begin	// FMV.W.X
 							fp.write(rd0, rs1_d);
+							pc <= pc + 'h4;
 						end
 						default: ;
 						endcase
@@ -1903,173 +2049,6 @@ module RISCV64G_ISS (
 			end
 
 			7'b11_100_11: begin	// SYSTEM
-				case (funct3)
-				3'b001: begin		// CSRRW
-					rf.write(rd0, csr_c.read(csr));
-					csr_c.write(csr, rs1_d);
-				end
-				3'b010: begin		// CSRRS
-					rf.write(rd0, csr_c.read(csr));
-					if(rs1 != 5'h00) begin
-						csr_c.set(csr, rs1_d);
-					end
-				end
-				3'b011: begin		// CSRRC
-					rf.write(rd0, csr_c.read(csr));
-					if(rs1 != 5'h00) begin
-						csr_c.clear(csr, rs1_d);
-					end
-				end
-				3'b101: begin		// CSRRWI
-					rf.write(rd0, csr_c.read(csr));
-					csr_c.write(csr, uimm_w);
-				end
-				3'b110: begin		// CSRRSI
-					rf.write(rd0, csr_c.read(csr));
-					csr_c.set(csr, uimm_w);
-				end
-				3'b111: begin		// CSRRCI
-					rf.write(rd0, csr_c.read(csr));
-					csr_c.clear(csr, uimm_w);
-				end
-				default: ;
-				endcase
-			end
-
-			7'b00_101_11: begin	// AUIPC
-						rf.write(rd0, pc + imm_uw);
-			end
-
-			7'b01_101_11: begin	// LUI
-						rf.write(rd0, imm_uw);
-			end
-
-			7'b00_110_11: begin	// OP-IMM-32
-				case (funct3)
-				3'b000: begin			// ADDIW
-						rf.write32s(rd0, rs1_d[31:0] + imm_iw[31:0]);
-				end
-				3'b001: begin
-					case (funct7)
-					7'b0000000: begin	// SLLIW
-						rf.write32s(rd0, rs1_d[31:0] << shamt[4:0]);
-					end
-					default: ;
-					endcase
-				end
-				3'b101: begin
-					case (funct7)
-					7'b0000000: begin	// SRLIW
-						rf.write32s(rd0, rs1_d[31:0] >> shamt[4:0]);
-					end
-					7'b0100000: begin	// SRAIW
-						rf.write32s(rd0, $signed(rs1_d[31:0]) >>> shamt[4:0]);
-					end
-					default: ;
-					endcase
-				end
-				default: ;
-				endcase
-			end
-
-			7'b01_110_11: begin	// OP-32
-				case (funct3)
-				3'b000: begin
-					case (funct7)
-					7'b0000000: begin	// ADDW
-						rf.write32s(rd0, rs1_d[31:0] + rs2_d[31:0]);
-					end
-					7'b0000001: begin	// MULW
-						tmp32 = rs1_d[31:0] * rs2_d[31:0];
-						rf.write32s(rd0, tmp32);
-					end
-					7'b0100000: begin	// SUBW
-						rf.write32s(rd0, rs1_d[31:0] - rs2_d[31:0]);
-					end
-					default: ;
-					endcase
-				end
-				3'b001: begin
-					case (funct7)
-					7'b0000000: begin	// SLLW
-						rf.write32s(rd0, rs1_d[31:0] << rs2_d[4:0]);
-					end
-					default: ;
-					endcase
-				end
-				3'b100: begin
-					case (funct7)
-					7'b0000001: begin	// DIVW
-						tmp32 = absXLENh(rs1_d[`XLEN/2-1:0]) / absXLENh(rs2_d[`XLEN/2-1:0]);
-						tmp32 = twoscompXLENh(rs1_d[`XLEN/2-1] ^ rs2_d[`XLEN/2-1], tmp32);
-						rf.write32s(rd0, rs2_d == {`XLEN{1'b0}} ? {32{1'b1}} : tmp32);
-					end
-					default: ;
-					endcase
-				end
-				3'b101: begin
-					case (funct7)
-					7'b0000000: begin	// SRLW
-						rf.write32s(rd0, rs1_d[31:0] >> rs2_d[4:0]);
-					end
-					7'b0000001: begin	// DIVUW
-						rf.write32s(rd0, rs2_d == {`XLEN{1'b0}} ? {32{1'b1}} : rs1_d[31:0] / rs2_d[31:0]);
-					end
-					7'b0100000: begin	// SRAW
-						rf.write32s(rd0, $signed(rs1_d[31:0]) >>> rs2_d[4:0]);
-					end
-					default: ;
-					endcase
-				end
-				3'b110: begin
-					case (funct7)
-					7'b0000001: begin	// REMW
-						tmp32 = absXLENh(rs1_d[`XLEN/2-1:0]) % absXLENh(rs2_d[`XLEN/2-1:0]);
-						tmp32 = twoscompXLENh(rs1_d[`XLEN/2-1], tmp32);
-						rf.write32s(rd0, rs2_d == {`XLEN{1'b0}} ? rs1_d[31:0] : tmp32);
-					end
-					default: ;
-					endcase
-				end
-				3'b111: begin
-					case (funct7)
-					7'b0000001: begin	// REMUW
-						rf.write32s(rd0, rs2_d == {`XLEN{1'b0}} ? rs1_d[`XLEN/2-1:0] : rs1_d[31:0] % rs2_d[31:0]);
-					end
-					default: ;
-					endcase
-				end
-				default: ;
-				endcase
-			end
-			default: ;
-			endcase
-
-			// pc update
-			case (opcode)
-			7'b1101111: begin	// JAL
-					pc <= pc + imm_jw;
-			end
-			7'b1100111: begin	// JALR
-				case (funct3)
-				3'b000: begin
-					pc <= rs1_d + imm_iw;
-				end
-				default:pc <= pc + 'h4;
-				endcase
-			end
-			7'b1100011: begin	// BRANCH
-				case (funct3)
-				3'b000:	pc <= rs1_d == rs2_d ? pc + imm_bw : pc + 'h4;	// BEQ
-				3'b001:	pc <= rs1_d != rs2_d ? pc + imm_bw : pc + 'h4;	// BNE
-				3'b100:	pc <= $signed(rs1_d) <  $signed(rs2_d) ? pc + imm_bw : pc + 'h4;	// BLT
-				3'b101:	pc <= $signed(rs1_d) >= $signed(rs2_d) ? pc + imm_bw : pc + 'h4;	// BGE
-				3'b110:	pc <= rs1_d <  rs2_d ? pc + imm_bw : pc + 'h4;	// BLTU
-				3'b111:	pc <= rs1_d >= rs2_d ? pc + imm_bw : pc + 'h4;	// BGEU
-				default:pc <= pc + 'h4;
-				endcase
-			end
-			7'b1110011: begin	// SYSTEM
 				case (funct3)
 				3'b000: begin
 					case ({funct7, rs2})
@@ -2089,13 +2068,170 @@ module RISCV64G_ISS (
 					12'b0011000_00010: begin	// MRET
 						pc <= csr_c.mret();	// mepc
 					end
-					default:pc <= pc + 'h4;
+					default: ;
 					endcase
 				end
-				default:pc <= pc + 'h4;
+				3'b001: begin		// CSRRW
+					rf.write(rd0, csr_c.read(csr));
+					csr_c.write(csr, rs1_d);
+					pc <= pc + 'h4;
+				end
+				3'b010: begin		// CSRRS
+					rf.write(rd0, csr_c.read(csr));
+					if(rs1 != 5'h00) begin
+						csr_c.set(csr, rs1_d);
+					end
+					pc <= pc + 'h4;
+				end
+				3'b011: begin		// CSRRC
+					rf.write(rd0, csr_c.read(csr));
+					if(rs1 != 5'h00) begin
+						csr_c.clear(csr, rs1_d);
+					end
+					pc <= pc + 'h4;
+				end
+				3'b101: begin		// CSRRWI
+					rf.write(rd0, csr_c.read(csr));
+					csr_c.write(csr, uimm_w);
+					pc <= pc + 'h4;
+				end
+				3'b110: begin		// CSRRSI
+					rf.write(rd0, csr_c.read(csr));
+					csr_c.set(csr, uimm_w);
+					pc <= pc + 'h4;
+				end
+				3'b111: begin		// CSRRCI
+					rf.write(rd0, csr_c.read(csr));
+					csr_c.clear(csr, uimm_w);
+					pc <= pc + 'h4;
+				end
+				default: ;
 				endcase
 			end
-			default:	pc <= pc + 'h4;
+
+			7'b00_101_11: begin	// AUIPC
+						rf.write(rd0, pc + imm_uw);
+						pc <= pc + 'h4;
+			end
+
+			7'b01_101_11: begin	// LUI
+						rf.write(rd0, imm_uw);
+						pc <= pc + 'h4;
+			end
+
+			7'b00_110_11: begin	// OP-IMM-32
+				case (funct3)
+				3'b000: begin			// ADDIW
+						rf.write32s(rd0, rs1_d[31:0] + imm_iw[31:0]);
+						pc <= pc + 'h4;
+				end
+				3'b001: begin
+					case (funct7)
+					7'b0000000: begin	// SLLIW
+						rf.write32s(rd0, rs1_d[31:0] << shamt[4:0]);
+						pc <= pc + 'h4;
+					end
+					default: ;
+					endcase
+				end
+				3'b101: begin
+					case (funct7)
+					7'b0000000: begin	// SRLIW
+						rf.write32s(rd0, rs1_d[31:0] >> shamt[4:0]);
+						pc <= pc + 'h4;
+					end
+					7'b0100000: begin	// SRAIW
+						rf.write32s(rd0, $signed(rs1_d[31:0]) >>> shamt[4:0]);
+						pc <= pc + 'h4;
+					end
+					default: ;
+					endcase
+				end
+				default: ;
+				endcase
+			end
+
+			7'b01_110_11: begin	// OP-32
+				case (funct3)
+				3'b000: begin
+					case (funct7)
+					7'b0000000: begin	// ADDW
+						rf.write32s(rd0, rs1_d[31:0] + rs2_d[31:0]);
+						pc <= pc + 'h4;
+					end
+					7'b0000001: begin	// MULW
+						tmp32 = rs1_d[31:0] * rs2_d[31:0];
+						rf.write32s(rd0, tmp32);
+						pc <= pc + 'h4;
+					end
+					7'b0100000: begin	// SUBW
+						rf.write32s(rd0, rs1_d[31:0] - rs2_d[31:0]);
+						pc <= pc + 'h4;
+					end
+					default: ;
+					endcase
+				end
+				3'b001: begin
+					case (funct7)
+					7'b0000000: begin	// SLLW
+						rf.write32s(rd0, rs1_d[31:0] << rs2_d[4:0]);
+						pc <= pc + 'h4;
+					end
+					default: ;
+					endcase
+				end
+				3'b100: begin
+					case (funct7)
+					7'b0000001: begin	// DIVW
+						tmp32 = absXLENh(rs1_d[`XLEN/2-1:0]) / absXLENh(rs2_d[`XLEN/2-1:0]);
+						tmp32 = twoscompXLENh(rs1_d[`XLEN/2-1] ^ rs2_d[`XLEN/2-1], tmp32);
+						rf.write32s(rd0, rs2_d == {`XLEN{1'b0}} ? {32{1'b1}} : tmp32);
+						pc <= pc + 'h4;
+					end
+					default: ;
+					endcase
+				end
+				3'b101: begin
+					case (funct7)
+					7'b0000000: begin	// SRLW
+						rf.write32s(rd0, rs1_d[31:0] >> rs2_d[4:0]);
+						pc <= pc + 'h4;
+					end
+					7'b0000001: begin	// DIVUW
+						rf.write32s(rd0, rs2_d == {`XLEN{1'b0}} ? {32{1'b1}} : rs1_d[31:0] / rs2_d[31:0]);
+						pc <= pc + 'h4;
+					end
+					7'b0100000: begin	// SRAW
+						rf.write32s(rd0, $signed(rs1_d[31:0]) >>> rs2_d[4:0]);
+						pc <= pc + 'h4;
+					end
+					default: ;
+					endcase
+				end
+				3'b110: begin
+					case (funct7)
+					7'b0000001: begin	// REMW
+						tmp32 = absXLENh(rs1_d[`XLEN/2-1:0]) % absXLENh(rs2_d[`XLEN/2-1:0]);
+						tmp32 = twoscompXLENh(rs1_d[`XLEN/2-1], tmp32);
+						rf.write32s(rd0, rs2_d == {`XLEN{1'b0}} ? rs1_d[31:0] : tmp32);
+						pc <= pc + 'h4;
+					end
+					default: ;
+					endcase
+				end
+				3'b111: begin
+					case (funct7)
+					7'b0000001: begin	// REMUW
+						rf.write32s(rd0, rs2_d == {`XLEN{1'b0}} ? rs1_d[`XLEN/2-1:0] : rs1_d[31:0] % rs2_d[31:0]);
+						pc <= pc + 'h4;
+					end
+					default: ;
+					endcase
+				end
+				default: ;
+				endcase
+			end
+			default: ;
 			endcase
 
 			// retire
@@ -2249,6 +2385,7 @@ module RISCV64G_ISS (
 			7'b00_011_11: begin	// MISC-MEM
 				case (funct3)
 				3'b000: $display("pc=%016H: %08H, opcode = %07B, funct3 = %03B, FENCE,  rd0 = x%d, rs1 = x%d, imm = %08H", pc, inst, opcode, funct3, rd0, rs1, imm_i );
+				3'b001: $display("pc=%016H: %08H, opcode = %07B, funct3 = %03B, FENCE.I,rd0 = x%d, rs1 = x%d, imm = %08H", pc, inst, opcode, funct3, rd0, rs1, imm_i );
 				default: $display("pc=%016H: %08H, opcode = %07B, fucnt3 = %03B, ??? ", pc, inst, opcode, funct3 );
 				endcase
 			end
