@@ -88,6 +88,7 @@ class CSR;
 	logic [`MXLEN-1:0]	mepc;
 	logic [`MXLEN-1:0]	mcause;
 	logic [`MXLEN-1:0]	mtvec;
+	logic [`MXLEN-1:0]	mtval;
 
 	// sstatus
 	logic			s_sie;
@@ -105,6 +106,10 @@ class CSR;
 	logic [`MXLEN-1:0]	sepc;
 	logic [`MXLEN-1:0]	scause;
 	logic [`MXLEN-1:0]	stvec;
+
+	logic [43:0]		satp_ppn;
+	logic [15:0]		satp_asid;
+	logic [3:0]		satp_mode;
 
 	function void init();
 		for(integer i = 0; i < `NUM_CSR; i = i + 1) begin
@@ -144,6 +149,7 @@ class CSR;
 
 		mepc		= {`MXLEN{1'b0}};
 		mcause		= {`MXLEN{1'b0}};
+		mtval		= {`MXLEN{1'b0}};
 
 		// sstatus
 		s_sie		= 1'b0;
@@ -162,6 +168,10 @@ class CSR;
 
 		sepc		= {`MXLEN{1'b0}};
 		scause		= {`MXLEN{1'b0}};
+
+		satp_ppn	= {44{1'b0}};
+		satp_asid	= {16{1'b0}};
+		satp_mode	= {4{1'b0}};
 	endfunction
 
 	function void tick ();
@@ -193,6 +203,20 @@ class CSR;
 				s_mxr		= data[19];
 //				s_uxl		= data[33:32];
 //				s_sd		= data[63];
+				$display("[INFO] set sstatus, sie:%b, spie:%b, ube:%b, spp:%b, fs:%02b, sum:%b, mxr:%b",
+					s_sie, s_spie, s_ube, s_spp, s_fs, s_sum, s_mxr);
+			end
+			12'h180: begin			// satp
+				satp_ppn	= data[43:0];
+				satp_asid	= data[59:44];
+				satp_mode	= data[63:60];
+				if(satp_mode == 8) begin
+					$display("[INFO] set satp, MODE:Sv39(%d), ASID:%d, PPN:%08h",
+						satp_mode, satp_asid, satp_ppn);
+				end else begin
+					$display("[INFO] set satp, MODE:%d, ASID:%d, PPN:%08h",
+						satp_mode, satp_asid, satp_ppn);
+				end
 			end
 			12'h300: begin			// mstatus
 				m_sie	= data[1];
@@ -216,10 +240,13 @@ class CSR;
 //				m_sbe	= data[36];
 //				m_mbe	= data[37];
 //				m_sd	= data[63];
+				$display("[INFO] set mstatus, sie:%b, mie:%b, spie:%b, mpie:%b, spp:%b, mpp:%02b, fs:%02b, mprv:%b, sum:%b, mxr:%b, tvm:%b, tw:%b, tsr:%b",
+					 m_sie, m_mie, m_spie, m_mpie, m_spp, m_mpp, m_fs, m_mprv, m_sum, m_mxr, m_tvm, m_tw, m_tsr);
 			end
 			12'h305: mtvec	= data;
 			12'h341: mepc	= {data[`XLEN-1:1], 1'b0};
 			12'h342: mcause	= data;
+			12'h343: mtval	= data;
 			12'h105: stvec	= data;
 			12'h141: sepc	= {data[`XLEN-1:1], 1'b0};
 			12'h142: scause	= data;
@@ -240,6 +267,9 @@ class CSR;
 			12'hf13: return {`XLEN{1'b0}};	// mimpid
 			12'hf14: return {`XLEN{1'b0}};	// mhartid
 			12'hf15: return {`XLEN{1'b0}};	// mconfigptr
+			12'h180: begin			// satp
+				return {satp_mode, satp_asid, satp_ppn};
+			end
 			12'h300: begin			// mstatus
 				return {m_sd, 25'h00_0000, m_mbe, m_sbe, m_sxl, m_uxl,
 					9'h000, m_tsr, m_tw, m_tvm, m_mxr, m_sum,
@@ -249,6 +279,7 @@ class CSR;
 			12'h305: return mtvec;
 			12'h341: return {mepc[`XLEN-1:2], 2'h0};
 			12'h342: return mcause;
+			12'h343: return mtval;
 			12'h100: begin
 				return {s_sd, 29'h0000_0000, s_uxl, 12'h000, s_mxr, s_sum, 1'b0,
 					s_xs, s_fs, 2'h0, s_vs, s_spp, 1'b0, s_ube, s_spie, 3'h0, s_sie, 1'b0};
@@ -277,9 +308,9 @@ class CSR;
 
 	function [`MXLEN-1:0] ecall(input[`XLEN-1:0] epc);
 		case(mode)
-			`MODE_M: return raise_exception(`EX_ECALL_M, epc);
-			`MODE_S: return raise_exception(`EX_ECALL_S, epc);
-			`MODE_U: return raise_exception(`EX_ECALL_U, epc);
+			`MODE_M: return raise_exception(`EX_ECALL_M, epc, {`XLEN{1'b0}});
+			`MODE_S: return raise_exception(`EX_ECALL_S, epc, {`XLEN{1'b0}});
+			`MODE_U: return raise_exception(`EX_ECALL_U, epc, {`XLEN{1'b0}});
 			default: begin
 				$display("[ERROR] mode errror.");
 				$finish();
@@ -287,7 +318,7 @@ class CSR;
 		endcase
 	endfunction
 
-	function [`MXLEN-1:0] raise_exception(input [3:0] cause, input[`XLEN-1:0] epc);
+	function [`MXLEN-1:0] raise_exception(input [3:0] cause, input[`XLEN-1:0] epc, input[`XLEN-1:0] tval);
 		$display("[INFO] EXCEPTION cause %d, mode = %d.", cause, mode);
 			m_mpie	= m_mie;
 			m_mie	= 1'b0;
@@ -295,8 +326,10 @@ class CSR;
 			mode    = `MODE_M;
 			mepc	= {epc[`XLEN-1:1], 1'b0};
 			mcause	= {1'b0, {`MXLEN-5{1'b0}}, cause};
+			mtval	= tval;
 
 			return mtvec[1:0] == 2'h1 ? {mtvec[`MXLEN-1:2], 2'h0} + cause * 4 : {mtvec[`MXLEN-1:2], 2'h0};
+			$display("[INFO] entering M-MODE.");
 			/*
 		if(mode == `MODE_M) begin
 		end else if(mode == `MODE_U) begin
@@ -319,6 +352,7 @@ class CSR;
 		m_mpie = 1'b1;
 		mode = m_mpp;
 		m_mpp = `MODE_U;
+		print_mode();
 		return {mepc[`MXLEN-1:2], 2'h0};
 	endfunction
 
@@ -327,7 +361,20 @@ class CSR;
 		s_spie = 1'b1;
 		mode = {1'b0, s_spp};
 		s_spp = 1'b0;	// mode U
+		print_mode();
 		return {sepc[`MXLEN-1:2], 2'h0};
+	endfunction
+
+	function void print_mode();
+		case(mode)
+			`MODE_M: $display("[INFO] Entering M-MODE");
+			`MODE_S: $display("[INFO] Entering S-MODE");
+			`MODE_U: $display("[INFO] Entering U-MODE");
+			default: begin
+				$display("[ERROR] mode errror.");
+				$finish();
+			end
+		endcase
 	endfunction
 
 	function logic [1:0] read_mode();
@@ -999,27 +1046,15 @@ endclass : ELF;
 
 class PMA;
 	function logic is_readable(input [`XLEN-1:0] addr);
-		if(addr < 64'h0000_0000_8000_0000) begin
-			return 1'b0;
-		end else begin
 			return 1'b1;
-		end
 	endfunction
 
 	function logic is_writeable(input [`XLEN-1:0] addr);
-		if(addr < 64'h0000_0000_8000_0000) begin
-			return 1'b0;
-		end else begin
 			return 1'b1;
-		end
 	endfunction
 
 	function logic is_executable(input [`XLEN-1:0] addr);
-		if(addr < 64'h0000_0000_8000_0000) begin
-			return 1'b0;
-		end else begin
 			return 1'b1;
-		end
 	endfunction
 endclass : PMA;
 
@@ -1401,32 +1436,67 @@ module RISCV64G_ISS (
 			7'b00_000_11: begin	// LOAD: I type
 				case (funct3)
 				3'b000: begin			// LB
-						rf.write8s(rd0, mem.read8(rs1_d + imm_iw));
+					tmp = rs1_d + imm_iw;
+					if(pma.is_readable(tmp)) begin
+						rf.write8s(rd0, mem.read8(tmp));
 						pc <= pc + 'h4;
+					end else begin
+						pc <= csr_c.raise_exception(`EX_LAFAULT, pc, tmp);
+					end
 				end
 				3'b001: begin			// LH
-						rf.write16s(rd0, mem.read16(rs1_d + imm_iw));
+					tmp = rs1_d + imm_iw;
+					if(pma.is_readable(tmp)) begin
+						rf.write16s(rd0, mem.read16(tmp));
 						pc <= pc + 'h4;
+					end else begin
+						pc <= csr_c.raise_exception(`EX_LAFAULT, pc, tmp);
+					end
 				end
 				3'b010: begin			// LW
-						rf.write32s(rd0, mem.read32(rs1_d + imm_iw));
+					tmp = rs1_d + imm_iw;
+					if(pma.is_readable(tmp)) begin
+						rf.write32s(rd0, mem.read32(tmp));
 						pc <= pc + 'h4;
+					end else begin
+						pc <= csr_c.raise_exception(`EX_LAFAULT, pc, tmp);
+					end
 				end
 				3'b011: begin			// LD
-						rf.write(rd0, mem.read(rs1_d + imm_iw));
+					tmp = rs1_d + imm_iw;
+					if(pma.is_readable(tmp)) begin
+						rf.write(rd0, mem.read(tmp));
 						pc <= pc + 'h4;
+					end else begin
+						pc <= csr_c.raise_exception(`EX_LAFAULT, pc, tmp);
+					end
 				end
 				3'b100: begin			// LBU
-						rf.write8u(rd0, mem.read8(rs1_d + imm_iw));
+					tmp = rs1_d + imm_iw;
+					if(pma.is_readable(tmp)) begin
+						rf.write8u(rd0, mem.read8(tmp));
 						pc <= pc + 'h4;
+					end else begin
+						pc <= csr_c.raise_exception(`EX_LAFAULT, pc, tmp);
+					end
 				end
 				3'b101: begin			// LHU
-						rf.write16u(rd0, mem.read16(rs1_d + imm_iw));
+					tmp = rs1_d + imm_iw;
+					if(pma.is_readable(tmp)) begin
+						rf.write16u(rd0, mem.read16(tmp));
 						pc <= pc + 'h4;
+					end else begin
+						pc <= csr_c.raise_exception(`EX_LAFAULT, pc, tmp);
+					end
 				end
 				3'b110: begin			// LWU
-						rf.write32u(rd0, mem.read32(rs1_d + imm_iw));
+					tmp = rs1_d + imm_iw;
+					if(pma.is_readable(tmp)) begin
+						rf.write32u(rd0, mem.read32(tmp));
 						pc <= pc + 'h4;
+					end else begin
+						pc <= csr_c.raise_exception(`EX_LAFAULT, pc, tmp);
+					end
 				end
 				default: ;
 				endcase
@@ -1435,22 +1505,42 @@ module RISCV64G_ISS (
 			7'b01_000_11: begin	// STORE: S type
 				case (funct3)
 				3'b000: begin			// SB
+					tmp = rs1_d + imm_sw;
+					if(pma.is_writeable(tmp)) begin
 						mem.write8(rs1_d + imm_sw, rs2_d[7:0]);
 						pc <= pc + 'h4;
+					end else begin
+						pc <= csr_c.raise_exception(`EX_SAFAULT, pc, tmp);
+					end
 				end
 				3'b001: begin			// SH
-						mem.write16(rs1_d + imm_sw, rs2_d[15:0]);
+					tmp = rs1_d + imm_sw;
+					if(pma.is_writeable(tmp)) begin
+						mem.write16(tmp, rs2_d[15:0]);
 						pc <= pc + 'h4;
+					end else begin
+						pc <= csr_c.raise_exception(`EX_SAFAULT, pc, tmp);
+					end
 				end
 				3'b010: begin			// SW
-						mem.write32(rs1_d + imm_sw, rs2_d[31:0]);
+					tmp = rs1_d + imm_sw;
+					if(pma.is_writeable(tmp)) begin
+						mem.write32(tmp, rs2_d[31:0]);
 						pc <= pc + 'h4;
 						tohost_we  = rs1_d + imm_sw == mem.get_tohost() ? 1'b1 : 1'b0;	// for testbench hack
 						tohost     = rs2_d[31:0];
+					end else begin
+						pc <= csr_c.raise_exception(`EX_SAFAULT, pc, tmp);
+					end
 				end
 				3'b011: begin			// SD
-						mem.write(rs1_d + imm_sw, rs2_d);
+					tmp = rs1_d + imm_sw;
+					if(pma.is_writeable(tmp)) begin
+						mem.write(tmp, rs2_d);
 						pc <= pc + 'h4;
+					end else begin
+						pc <= csr_c.raise_exception(`EX_SAFAULT, pc, tmp);
+					end
 				end
 				default: ;
 				endcase
@@ -1475,8 +1565,13 @@ module RISCV64G_ISS (
 			7'b00_001_11: begin	// LOAD-FP
 				case (funct3)
 				3'b010: begin			// FLW
-						fp.write32u(rd0, mem.read32(rs1_d + imm_iw));
+					tmp = rs1_d + imm_iw;
+					if(pma.is_readable(tmp)) begin
+						fp.write32u(rd0, mem.read32(tmp));
 						pc <= pc + 'h4;
+					end else begin
+						pc <= csr_c.raise_exception(`EX_LAFAULT, pc, tmp);
+					end
 				end
 				default: ;
 				endcase
@@ -1485,8 +1580,13 @@ module RISCV64G_ISS (
 			7'b01_001_11: begin	// STORE-FP
 				case (funct3)
 				3'b010: begin			// FSW
-						mem.write32(rs1_d + imm_sw, fp_rs2_d[31:0]);
+					tmp = rs1_d + imm_sw;
+					if(pma.is_writeable(tmp)) begin
+						mem.write32(tmp, fp_rs2_d[31:0]);
 						pc <= pc + 'h4;
+					end else begin
+						pc <= csr_c.raise_exception(`EX_SAFAULT, pc, tmp);
+					end
 				end
 				default: ;
 				endcase
@@ -2051,22 +2151,70 @@ module RISCV64G_ISS (
 			7'b11_100_11: begin	// SYSTEM
 				case (funct3)
 				3'b000: begin
-					case ({funct7, rs2})
-					12'b0000000_00000: begin	// ECALL
-						tmp = csr_c.ecall(pc);
-						if(tmp == {`XLEN{1'b1}}) begin
-							pc <= pc + 'h4;
-						end else begin
-							pc <= tmp;
+					case (funct7)
+					7'b0000000: begin
+						case(rs2)
+						5'b00000: begin		// ECALL
+							tmp = csr_c.ecall(pc);
+							if(tmp == {`XLEN{1'b1}}) begin
+								pc <= pc + 'h4;
+							end else begin
+								pc <= tmp;
+							end
 						end
+						5'b00001: begin		// EBREAK
+								pc <= pc + 'h4;
+						end
+						default: ;
+						endcase
 					end
-					12'b0000000_00001: begin	// EBREAK
+					7'b0001000: begin
+						case(rs2)
+						5'b00010: begin		// SRET
+								pc <= csr_c.sret();	// sepc
+						end
+						default: ;
+						endcase
 					end
-					12'b0001000_00010: begin	// SRET
-						pc <= csr_c.sret();	// sepc
+					7'b0011000: begin
+						case(rs2)
+						5'b00010: begin		// MRET
+								pc <= csr_c.mret();	// mepc
+						end
+						default: ;
+						endcase
 					end
-					12'b0011000_00010: begin	// MRET
-						pc <= csr_c.mret();	// mepc
+					7'b0001001: begin
+						case(rd0)
+						5'h00: begin		// SFENCE.VMA
+								pc <= pc + 'h4;
+						end
+						default: ;
+						endcase
+					end
+					7'b0001011: begin
+						case(rd0)
+						5'b00000: begin		// SINVAL.VMA
+								pc <= pc + 'h4;
+						end
+						default: ;
+						endcase
+					end
+					7'b0001100: begin
+						case(rd0)
+						5'b00000: begin
+							case (rs2)
+							5'b00000: begin	// SFENCE.W.INVAL
+								pc <= pc + 'h4;
+							end
+							5'b00001: begin	// SFENCE.INVAL.IR
+								pc <= pc + 'h4;
+							end
+							default: ;
+							endcase
+						end
+						default: ;
+						endcase
 					end
 					default: ;
 					endcase
