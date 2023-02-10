@@ -24,7 +24,11 @@ module tb_iss
 		if(RSTn)
 		begin
 			if(tohost_we) begin
-				$display ("[TESTBENCH] exit code %08H.", tohost);
+				if(tohost == 32'h0000_0001) begin
+					$display ("[TESTBENCH] [PASS] exit code %08H.", tohost);
+				end else begin
+					$display ("[TESTBENCH] [FAIL] exit code %08H, test number %2d fails", tohost, tohost >> 1);
+				end
 				$finish;
 			end
 		end
