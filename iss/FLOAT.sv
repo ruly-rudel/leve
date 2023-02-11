@@ -93,12 +93,12 @@ class FLOAT
 		is_sub_2  = exp_2 == {F_EXP{1'b0}} &&  |flac_2 ? 1'b1 : 1'b0;
 	endfunction
 
-	function T fadd
+	task fadd
 	(
 		input [F_WIDTH-1:0]		in1,
-		input [F_WIDTH-1:0]		in2
+		input [F_WIDTH-1:0]		in2,
+		output T			out
 	);
-		T			out;
 
 		logic 			mm_swap;
 		logic			mm_is_zero_1, mm_is_zero_2;
@@ -203,26 +203,23 @@ class FLOAT
 		out.invalid = is_inf_1  && is_inf_2 && (sign_1 ^ sign_2) ||
 			  is_nan_1  || is_nan_2 ? 1'b1 : 1'b0;
 
-		return out;
+	endtask
 
-	endfunction
-
-	function T fsub
+	task fsub
 	(
 		input [F_WIDTH-1:0]		in1,
-		input [F_WIDTH-1:0]		in2
+		input [F_WIDTH-1:0]		in2,
+		output T			out
 	);
-		return fadd(in1, {~in2[F_WIDTH-1], in2[F_WIDTH-2:0]});
+		fadd(in1, {~in2[F_WIDTH-1], in2[F_WIDTH-2:0]}, out);
+	endtask
 
-	endfunction
-
-	function T fmul
+	task fmul
 	(
 		input [F_WIDTH-1:0]		in1,
-		input [F_WIDTH-1:0]		in2
+		input [F_WIDTH-1:0]		in2,
+		output T			out
 	);
-		T				out;
-
 		logic				mul_sign;
 		logic [F_EXP+1:0]		mul_exp;
 		logic [(F_FLAC+1)*2-1:0]	mul_flac;
@@ -274,10 +271,7 @@ class FLOAT
 		              is_inf_2  && is_zero_1	? 1'b0 :
 			      is_nan_1  || is_nan_2	? 1'b1 : 1'b0;
 		out.inexact = |norm_flac[F_FLAC:0];
-
-		return out;
-
-	endfunction
+	endtask
 
 
 	function [31:0] fclass
@@ -314,13 +308,12 @@ class FLOAT
 		return {{22{1'b0}}, out_w2};
 	endfunction
 
-	function T feq
+	task feq
 	(
 		input [F_WIDTH-1:0]		in1,
-		input [F_WIDTH-1:0]		in2
+		input [F_WIDTH-1:0]		in2,
+		output T			out
 	);
-		T				out;
-
 		// parse
 		parse(in1, in2);
 
@@ -332,21 +325,18 @@ class FLOAT
 
 		out.invalid = is_snan_1 | is_snan_2;
 		out.inexact = 1'b0;
+	endtask
 
-		return out;
-	endfunction
-
-	function T flt
+	task flt
 	(
 		input [F_WIDTH-1:0]		in1,
-		input [F_WIDTH-1:0]		in2
+		input [F_WIDTH-1:0]		in2,
+		output T			out
 	);
-		T				out;
-
 		logic		less_than;
 		T		sub;
 
-		sub = fsub(in1, in2);
+		fsub(in1, in2, sub);
 		less_than = sub.val[F_WIDTH-1];
 
 		// parse
@@ -366,40 +356,35 @@ class FLOAT
 
 		out.invalid = is_nan_1 | is_nan_2;
 		out.inexact = 1'b0;
+	endtask
 
-		return out;
-	endfunction
-
-	function T fle
+	task fle
 	(
 		input [F_WIDTH-1:0]		in1,
-		input [F_WIDTH-1:0]		in2
+		input [F_WIDTH-1:0]		in2,
+		output T			out
 	);
 		T				out1;
 		T				out2;
-		T				out;
 
-		out1 = feq(in1, in2);
-		out2 = flt(in1, in2);
+		feq(in1, in2, out1);
+		flt(in1, in2, out2);
 		out.val = out1.val | out2.val;
 		out.invalid = out2.invalid;
 		out.inexact = 1'b0;
+	endtask
 
-		return out;
-	endfunction
-
-	function T fmax
+	task fmax
 	(
 		input [F_WIDTH-1:0]		in1,
-		input [F_WIDTH-1:0]		in2
+		input [F_WIDTH-1:0]		in2,
+		output T			out
 	);
-		T				out;
-
 		T				sub;
 		logic				less_than;
 		logic [F_WIDTH-1:0]		max;
 
-		sub = fsub(in1, in2);
+		fsub(in1, in2, sub);
 		less_than = sub.val[F_WIDTH-1];
 
 		if(is_nan_1) begin			// in1 = NaN
@@ -441,22 +426,19 @@ class FLOAT
 		out.val = max;
 		out.invalid = is_snan_1  | is_snan_2;
 		out.inexact = 1'b0;
+	endtask
 
-		return out;
-	endfunction
-
-	function T fmin
+	task fmin
 	(
 		input [F_WIDTH-1:0]		in1,
-		input [F_WIDTH-1:0]		in2
+		input [F_WIDTH-1:0]		in2,
+		output T			out
 	);
-		T				out;
-
 		T				sub;
 		logic				less_than;
 		logic [F_WIDTH-1:0]		min;
 
-		sub = fsub(in1, in2);
+		fsub(in1, in2, sub);
 		less_than = sub.val[F_WIDTH-1];
 
 		if(is_nan_1) begin			// in1 = NaN
@@ -498,9 +480,7 @@ class FLOAT
 		out.val = min;
 		out.invalid = is_snan_1  | is_snan_2;
 		out.inexact = 1'b0;
-
-		return out;
-	endfunction
+	endtask
 
 endclass: FLOAT;
 

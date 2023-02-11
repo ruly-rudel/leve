@@ -79,50 +79,6 @@ module RISCV64G_ISS (
 	logic [`FLEN-1:0]	fp_rs2_d;
 	logic [`FLEN-1:0]	fp_rs3_d;
 
-	wire [31:0]		fadd_f_d;
-	wire [31:0]		fsub_f_d;
-	wire [31:0]		fmul_f_d;
-	wire [31:0]		fclass_f_d;
-	wire [31:0]		fcvt_w_s_d;
-	wire [31:0]		fcvt_wu_s_d;
-	wire [63:0]		fcvt_l_s_d;
-	wire [63:0]		fcvt_lu_s_d;
-	wire [31:0]		fcvt_s_w_d;
-	wire [31:0]		fcvt_s_wu_d;
-	wire [31:0]		fcvt_s_l_d;
-	wire [31:0]		fcvt_s_lu_d;
-	wire [31:0]		fmin_f_d;
-	wire [31:0]		fmax_f_d;
-
-	wire			fcmp_f_eq;
-	wire			fcmp_f_lt;
-	wire			fcmp_f_le;
-
-	wire			fadd_f_inexact;
-	wire			fsub_f_inexact;
-	wire			fmul_f_inexact;
-	wire			fcvt_w_s_inexact;
-	wire			fcvt_wu_s_inexact;
-	wire			fcvt_l_s_inexact;
-	wire			fcvt_lu_s_inexact;
-	wire			fcvt_s_w_inexact;
-	wire			fcvt_s_wu_inexact;
-	wire			fcvt_s_l_inexact;
-	wire			fcvt_s_lu_inexact;
-
-	wire			fadd_f_invalid;
-	wire			fsub_f_invalid;
-	wire			fmul_f_invalid;
-	wire			fcmp_f_eq_invalid;
-	wire			fcmp_f_lt_invalid;
-	wire			fcvt_w_s_invalid;
-	wire			fcvt_wu_s_invalid;
-	wire			fcvt_l_s_invalid;
-	wire			fcvt_lu_s_invalid;
-	wire			fmin_f_invalid;
-	wire			fmax_f_invalid;
-
-
 
 	// registers
 	REG_FILE	rf = new();
@@ -406,75 +362,6 @@ module RISCV64G_ISS (
 			pc = csr_c.raise_exception(`EX_IPFAULT, pc, va);
 		end
 	endfunction
-
-	// floating point arithmetics
-	FCVT_W_S	FCVT_W_S
-	(
-		.in1		(fp_rs1_d[31:0]),
-		.out1		(fcvt_w_s_d),
-		.inexact	(fcvt_w_s_inexact),
-		.invalid	(fcvt_w_s_invalid)
-	);
-
-	FCVT_WU_S	FCVT_WU_S
-	(
-		.in1		(fp_rs1_d[31:0]),
-		.out1		(fcvt_wu_s_d),
-		.inexact	(fcvt_wu_s_inexact),
-		.invalid	(fcvt_wu_s_invalid)
-	);
-
-	FCVT_W_S
-	#(
-		.I_WIDTH	(64)
-	)
-	FCVT_L_S
-	(
-		.in1		(fp_rs1_d[31:0]),
-		.out1		(fcvt_l_s_d),
-		.inexact	(fcvt_l_s_inexact),
-		.invalid	(fcvt_l_s_invalid)
-	);
-
-	FCVT_WU_S
-	#(
-		.I_WIDTH	(64)
-	)
-	FCVT_LU_S
-	(
-		.in1		(fp_rs1_d[31:0]),
-		.out1		(fcvt_lu_s_d),
-		.inexact	(fcvt_lu_s_inexact),
-		.invalid	(fcvt_lu_s_invalid)
-	);
-
-	FCVT_S_W	FCVT_S_W
-	(
-		.in1		(rs1_d[31:0]),
-		.out1		(fcvt_s_w_d),
-		.inexact	(fcvt_s_w_inexact)
-	);
-
-	FCVT_S_WU	FCVT_S_WU
-	(
-		.in1		(rs1_d[31:0]),
-		.out1		(fcvt_s_wu_d),
-		.inexact	(fcvt_s_wu_inexact)
-	);
-
-	FCVT_S_L	FCVT_S_L
-	(
-		.in1		(rs1_d),
-		.out1		(fcvt_s_l_d),
-		.inexact	(fcvt_s_l_inexact)
-	);
-
-	FCVT_S_LU	FCVT_S_LU
-	(
-		.in1		(rs1_d),
-		.out1		(fcvt_s_lu_d),
-		.inexact	(fcvt_s_lu_inexact)
-	);
 
 
 	// main loop
@@ -1107,19 +994,19 @@ module RISCV64G_ISS (
 
 				case(funct7)
 				7'b00000_00: begin		// FADD.S
-						out = flt.fadd(fp_rs1_d[31:0], fp_rs2_d[31:0]);
+						flt.fadd(fp_rs1_d[31:0], fp_rs2_d[31:0], out);
 						fp.write32u(rd0, out.val);
 						csr_c.set_fflags({out.invalid, 3'h0, out.inexact});
 						pc = pc + 'h4;
 				end
 				7'b00001_00: begin		// FSUB.S
-						out = flt.fsub(fp_rs1_d[31:0], fp_rs2_d[31:0]);
+						flt.fsub(fp_rs1_d[31:0], fp_rs2_d[31:0], out);
 						fp.write32u(rd0, out.val);
 						csr_c.set_fflags({out.invalid, 3'h0, out.inexact});
 						pc = pc + 'h4;
 				end
 				7'b00010_00: begin		// FMUL.S
-						out = flt.fmul(fp_rs1_d[31:0], fp_rs2_d[31:0]);
+						flt.fmul(fp_rs1_d[31:0], fp_rs2_d[31:0], out);
 						fp.write32u(rd0, out.val);
 						csr_c.set_fflags({out.invalid, 3'h0, out.inexact});
 						pc = pc + 'h4;
@@ -1176,13 +1063,13 @@ module RISCV64G_ISS (
 				7'b00101_00: begin
 					case (funct3)
 					3'b000: begin		// FMIN.S
-						out = flt.fmin(fp_rs1_d[31:0], fp_rs2_d[31:0]);
+						flt.fmin(fp_rs1_d[31:0], fp_rs2_d[31:0], out);
 						fp.write32u(rd0, out.val);
 						csr_c.set_fflags({out.invalid, 3'h0, out.inexact});
 						pc = pc + 'h4;
 					end
 					3'b001: begin		// FMAX.S
-						out = flt.fmax(fp_rs1_d[31:0], fp_rs2_d[31:0]);
+						flt.fmax(fp_rs1_d[31:0], fp_rs2_d[31:0], out);
 						fp.write32u(rd0, out.val);
 						csr_c.set_fflags({out.invalid, 3'h0, out.inexact});
 						pc = pc + 'h4;
@@ -1193,13 +1080,13 @@ module RISCV64G_ISS (
 				7'b11000_00: begin
 					case (rs2)
 					5'b00000: begin		// FCVT.W.S
-							wout = fcvt.word_from_real(fp_rs1_d[31:0]);
+							fcvt.word_from_real(fp_rs1_d[31:0], wout);
 							rf.write32s(rd0, wout.val);
 							csr_c.set_fflags({wout.invalid, 3'h0, wout.inexact});
 							pc = pc + 'h4;
 					end
 					5'b00001: begin		// FCVT.WU.S
-							wout = fcvt.uword_from_real(fp_rs1_d[31:0]);
+							fcvt.uword_from_real(fp_rs1_d[31:0], wout);
 							rf.write32s(rd0, wout.val);
 							csr_c.set_fflags({wout.invalid, 3'h0, wout.inexact});
 							pc = pc + 'h4;
@@ -1240,19 +1127,19 @@ module RISCV64G_ISS (
 				7'b10100_00: begin
 					case (funct3)
 					3'b010: begin 		// FEQ.S
-							out = flt.feq(fp_rs1_d[31:0], fp_rs2_d[31:0]);
+							flt.feq(fp_rs1_d[31:0], fp_rs2_d[31:0], out);
 							rf.write(rd0, {{32{1'b0}}, out.val});
 							csr_c.set_fflags({out.invalid, 3'h0, out.inexact});
 							pc = pc + 'h4;
 					end
 					3'b001: begin 		// FLT.S
-							out = flt.flt(fp_rs1_d[31:0], fp_rs2_d[31:0]);
+							flt.flt(fp_rs1_d[31:0], fp_rs2_d[31:0], out);
 							rf.write(rd0, {{32{1'b0}}, out.val});
 							csr_c.set_fflags({out.invalid, 3'h0, out.inexact});
 							pc = pc + 'h4;
 					end
 					3'b000: begin		// FLE.S
-							out = flt.fle(fp_rs1_d[31:0], fp_rs2_d[31:0]);
+							flt.fle(fp_rs1_d[31:0], fp_rs2_d[31:0], out);
 							rf.write(rd0, {{32{1'b0}}, out.val});
 							csr_c.set_fflags({out.invalid, 3'h0, out.inexact});
 							pc = pc + 'h4;
@@ -1263,26 +1150,25 @@ module RISCV64G_ISS (
 				7'b11010_00: begin
 					case (rs2)
 					5'b00000: begin		// FCVT.S.W
-							out = fcvt.real_from_word(rs1_d[31:0]);
+							fcvt.real_from_word(rs1_d[31:0], out);
 							fp.write32u(rd0, out.val);
-							$display("[INFO] fcvt.s.w rd0 = x%d <- %08h from %d", rd0, out.val, $signed(rs1_d[31:0]));
 							csr_c.set_fflags({out.invalid, 3'h0, out.inexact});
 							pc = pc + 'h4;
 					end
 					5'b00001: begin		// FCVT.S.WU
-							out = fcvt.real_from_uword(rs1_d[31:0]);
+							fcvt.real_from_uword(rs1_d[31:0], out);
 							fp.write32u(rd0, out.val);
 							csr_c.set_fflags({out.invalid, 3'h0, out.inexact});
 							pc = pc + 'h4;
 					end
 					5'b00010: begin		// FCVT.S.L
-							out = fcvt.real_from_long(rs1_d);
+							fcvt.real_from_long(rs1_d, out);
 							fp.write32u(rd0, out.val);
 							csr_c.set_fflags({out.invalid, 3'h0, out.inexact});
 							pc = pc + 'h4;
 					end
 					5'b00011: begin		// FCVT.S.LU
-							out = fcvt.real_from_ulong(rs1_d);
+							fcvt.real_from_ulong(rs1_d, out);
 							fp.write32u(rd0, out.val);
 							csr_c.set_fflags({out.invalid, 3'h0, out.inexact});
 							pc = pc + 'h4;

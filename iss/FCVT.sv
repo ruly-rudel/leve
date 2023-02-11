@@ -169,12 +169,11 @@ class FCVT
 		else                            first_1_32 = 5'h00;     // zero
 	endfunction
 
-	function T real_from_long
+	task real_from_long
 	(
-		input [I_WIDTH-1:0]		in1
+		input [I_WIDTH-1:0]		in1,
+		output T			out
 	);
-		T				out;
-
 		logic [I_WIDTH-1:0]		abs_1;
 	
 		logic [5:0]			sft_amt_1;
@@ -206,16 +205,13 @@ class FCVT
 		out.inexact = is_zero_1         ? 1'b0 :
 			 |sft_flac_1[I_WIDTH-F_FLAC-2:0] ? 1'b1 : 1'b0;
 		out.invalid = 1'b0;
+	endtask
 
-		return out;
-	endfunction
-
-	function T real_from_ulong
+	task real_from_ulong
 	(
-		input [I_WIDTH-1:0]		in1
+		input [I_WIDTH-1:0]		in1,
+		output T			out
 	);
-		T				out;
-
 		logic [5:0]			sft_amt_1;
 		logic [I_WIDTH-1:0]		sft_flac_1;
 	
@@ -244,17 +240,14 @@ class FCVT
 		out.inexact = is_zero_1         ? 1'b0 :
 			 |sft_flac_1[I_WIDTH-F_FLAC-2:0] ? 1'b1 : 1'b0;
 		out.invalid = 1'b0;
+	endtask
 
-		return out;
-	endfunction
-
-	function T real_from_word
+	task real_from_word
 	(
-		input [I_WIDTH/2-1:0]		in1
+		input [I_WIDTH/2-1:0]		in1,
+		output T			out
 	);
-		T				out;
 		logic [I_WIDTH/2-1:0]		abs_1;
-	
 	
 		logic [4:0]			sft_amt_1;
 		logic [I_WIDTH/2-1:0]		sft_flac_1;
@@ -285,16 +278,13 @@ class FCVT
 		out.inexact = is_zero_1         ? 1'b0 :
 			 |sft_flac_1[I_WIDTH/2-F_FLAC-2:0] ? 1'b1 : 1'b0;
 
-		return out;
+	endtask
 
-	endfunction
-
-	function T real_from_uword
+	task real_from_uword
 	(
-		input [I_WIDTH/2-1:0]		in1
+		input [I_WIDTH/2-1:0]		in1,
+		output T			out
 	);
-		T				out;
-
 		logic [4:0]			sft_amt_1;
 		logic [I_WIDTH/2-1:0]		sft_flac_1;
 	
@@ -323,9 +313,7 @@ class FCVT
 		out.inexact = is_zero_1         ? 1'b0 :
 			 |sft_flac_1[I_WIDTH/2-F_FLAC-2:0] ? 1'b1 : 1'b0;
 		out.invalid = 1'b0;
-
-		return out;
-	endfunction
+	endtask
 
 	task long_from_real
 	(
@@ -427,12 +415,11 @@ class FCVT
 
 	endtask
 
-	function word_t word_from_real
+	task  word_from_real
 	(
-		input [F_WIDTH-1:0]		in1
+		input [F_WIDTH-1:0]		in1,
+		output word_t			out
 	);
-		word_t				out;
-	
 		logic				is_oor_1;
 		logic				is_min_1;
 	
@@ -473,16 +460,14 @@ class FCVT
 			 is_min_1          ? 1'b1 :
 			 is_oor_1          ? 1'b0 :
 			 |sft_flac_1[F_FLAC-1:0] ? 1'b1 : 1'b0;
-	
-		return out;
-	endfunction 
+	endtask
 
 
-	function word_t uword_from_real
+	task uword_from_real
 	(
-		input [F_WIDTH-1:0]		in1
+		input [F_WIDTH-1:0]		in1,
+		output word_t			out
 	);
-		word_t				out;
 		logic				is_oor_1;
 		logic				is_min_1;
 	
@@ -525,9 +510,7 @@ class FCVT
 			 is_oor_1          ? 1'b0 :
 			 sign_1            ? 1'b0 :
 			 |sft_flac_1[F_FLAC-1:0] ? 1'b1 : 1'b0;
-
-		return out;
-	endfunction
+	endtask
 endclass : FCVT;
 
 `endif	// _fcvt_sv_
