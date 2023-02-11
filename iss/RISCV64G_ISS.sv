@@ -37,8 +37,47 @@ module RISCV64G_ISS (
 	PMA			pma = new;
 
 	// FLOAT
-	FLOAT			flt = new;
-	FCVT			fcvt = new;
+	FLOAT #(
+		.T		(float_t),
+		.F_WIDTH	(32),
+		.F_EXP		(8),
+		.F_FLAC		(23)
+		)
+				float = new;
+	FLOAT #(
+		.T		(double_t),
+		.F_WIDTH	(64),
+		.F_EXP		(11),
+		.F_FLAC		(52)
+		)
+				double = new;
+	FCVT #(
+		.T		(float_t),
+		.F_WIDTH	(32),
+		.F_EXP		(8),
+		.F_FLAC		(23),
+		.S		(long_t),
+		.I_WIDTH	(64)
+		)
+				fcvt_l_s = new;
+	FCVT #(
+		.T		(float_t),
+		.F_WIDTH	(32),
+		.F_EXP		(8),
+		.F_FLAC		(23),
+		.S		(word_t),
+		.I_WIDTH	(32)
+		)
+				fcvt_w_s = new;
+	FCVT #(
+		.T		(double_t),
+		.F_WIDTH	(64),
+		.F_EXP		(11),
+		.F_FLAC		(52),
+		.S		(long_t),
+		.I_WIDTH	(64)
+		)
+				fcvt_l_d = new;
 
 	// PC
 	reg  [`XLEN-1:0]	pc;
@@ -994,19 +1033,19 @@ module RISCV64G_ISS (
 
 				case(funct7)
 				7'b00000_00: begin		// FADD.S
-						flt.fadd(fp_rs1_d[31:0], fp_rs2_d[31:0], out);
+						float.fadd(fp_rs1_d[31:0], fp_rs2_d[31:0], out);
 						fp.write32u(rd0, out.val);
 						csr_c.set_fflags({out.invalid, 3'h0, out.inexact});
 						pc = pc + 'h4;
 				end
 				7'b00001_00: begin		// FSUB.S
-						flt.fsub(fp_rs1_d[31:0], fp_rs2_d[31:0], out);
+						float.fsub(fp_rs1_d[31:0], fp_rs2_d[31:0], out);
 						fp.write32u(rd0, out.val);
 						csr_c.set_fflags({out.invalid, 3'h0, out.inexact});
 						pc = pc + 'h4;
 				end
 				7'b00010_00: begin		// FMUL.S
-						flt.fmul(fp_rs1_d[31:0], fp_rs2_d[31:0], out);
+						float.fmul(fp_rs1_d[31:0], fp_rs2_d[31:0], out);
 						fp.write32u(rd0, out.val);
 						csr_c.set_fflags({out.invalid, 3'h0, out.inexact});
 						pc = pc + 'h4;
@@ -1063,13 +1102,13 @@ module RISCV64G_ISS (
 				7'b00101_00: begin
 					case (funct3)
 					3'b000: begin		// FMIN.S
-						flt.fmin(fp_rs1_d[31:0], fp_rs2_d[31:0], out);
+						float.fmin(fp_rs1_d[31:0], fp_rs2_d[31:0], out);
 						fp.write32u(rd0, out.val);
 						csr_c.set_fflags({out.invalid, 3'h0, out.inexact});
 						pc = pc + 'h4;
 					end
 					3'b001: begin		// FMAX.S
-						flt.fmax(fp_rs1_d[31:0], fp_rs2_d[31:0], out);
+						float.fmax(fp_rs1_d[31:0], fp_rs2_d[31:0], out);
 						fp.write32u(rd0, out.val);
 						csr_c.set_fflags({out.invalid, 3'h0, out.inexact});
 						pc = pc + 'h4;
@@ -1080,25 +1119,25 @@ module RISCV64G_ISS (
 				7'b11000_00: begin
 					case (rs2)
 					5'b00000: begin		// FCVT.W.S
-							fcvt.word_from_real(fp_rs1_d[31:0], wout);
+							fcvt_w_s.int_from_real(fp_rs1_d[31:0], wout);
 							rf.write32s(rd0, wout.val);
 							csr_c.set_fflags({wout.invalid, 3'h0, wout.inexact});
 							pc = pc + 'h4;
 					end
 					5'b00001: begin		// FCVT.WU.S
-							fcvt.uword_from_real(fp_rs1_d[31:0], wout);
+							fcvt_w_s.uint_from_real(fp_rs1_d[31:0], wout);
 							rf.write32s(rd0, wout.val);
 							csr_c.set_fflags({wout.invalid, 3'h0, wout.inexact});
 							pc = pc + 'h4;
 					end
 					5'b00010: begin		// FCVT.L.S
-							fcvt.long_from_real(fp_rs1_d[31:0], lout);
+							fcvt_l_s.int_from_real(fp_rs1_d[31:0], lout);
 							rf.write(rd0, lout.val);
 							csr_c.set_fflags({lout.invalid, 3'h0, lout.inexact});
 							pc = pc + 'h4;
 					end
 					5'b00011: begin		// FCVT.LU.S
-							fcvt.ulong_from_real(fp_rs1_d[31:0], lout);
+							fcvt_l_s.uint_from_real(fp_rs1_d[31:0], lout);
 							rf.write(rd0, lout.val);
 							csr_c.set_fflags({lout.invalid, 3'h0, lout.inexact});
 							pc = pc + 'h4;
@@ -1115,7 +1154,7 @@ module RISCV64G_ISS (
 							pc = pc + 'h4;
 						end
 						3'b001: begin	// FCLASS.W
-							rf.write32u(rd0, flt.fclass(fp_rs1_d[31:0]));
+							rf.write32u(rd0, float.fclass(fp_rs1_d[31:0]));
 							pc = pc + 'h4;
 						end
 						default: ;
@@ -1127,19 +1166,19 @@ module RISCV64G_ISS (
 				7'b10100_00: begin
 					case (funct3)
 					3'b010: begin 		// FEQ.S
-							flt.feq(fp_rs1_d[31:0], fp_rs2_d[31:0], out);
+							float.feq(fp_rs1_d[31:0], fp_rs2_d[31:0], out);
 							rf.write(rd0, {{32{1'b0}}, out.val});
 							csr_c.set_fflags({out.invalid, 3'h0, out.inexact});
 							pc = pc + 'h4;
 					end
 					3'b001: begin 		// FLT.S
-							flt.flt(fp_rs1_d[31:0], fp_rs2_d[31:0], out);
+							float.flt(fp_rs1_d[31:0], fp_rs2_d[31:0], out);
 							rf.write(rd0, {{32{1'b0}}, out.val});
 							csr_c.set_fflags({out.invalid, 3'h0, out.inexact});
 							pc = pc + 'h4;
 					end
 					3'b000: begin		// FLE.S
-							flt.fle(fp_rs1_d[31:0], fp_rs2_d[31:0], out);
+							float.fle(fp_rs1_d[31:0], fp_rs2_d[31:0], out);
 							rf.write(rd0, {{32{1'b0}}, out.val});
 							csr_c.set_fflags({out.invalid, 3'h0, out.inexact});
 							pc = pc + 'h4;
@@ -1150,25 +1189,25 @@ module RISCV64G_ISS (
 				7'b11010_00: begin
 					case (rs2)
 					5'b00000: begin		// FCVT.S.W
-							fcvt.real_from_word(rs1_d[31:0], out);
+							fcvt_w_s.real_from_int(rs1_d[31:0], out);
 							fp.write32u(rd0, out.val);
 							csr_c.set_fflags({out.invalid, 3'h0, out.inexact});
 							pc = pc + 'h4;
 					end
 					5'b00001: begin		// FCVT.S.WU
-							fcvt.real_from_uword(rs1_d[31:0], out);
+							fcvt_w_s.real_from_uint(rs1_d[31:0], out);
 							fp.write32u(rd0, out.val);
 							csr_c.set_fflags({out.invalid, 3'h0, out.inexact});
 							pc = pc + 'h4;
 					end
 					5'b00010: begin		// FCVT.S.L
-							fcvt.real_from_long(rs1_d, out);
+							fcvt_l_s.real_from_int(rs1_d, out);
 							fp.write32u(rd0, out.val);
 							csr_c.set_fflags({out.invalid, 3'h0, out.inexact});
 							pc = pc + 'h4;
 					end
 					5'b00011: begin		// FCVT.S.LU
-							fcvt.real_from_ulong(rs1_d, out);
+							fcvt_l_s.real_from_uint(rs1_d, out);
 							fp.write32u(rd0, out.val);
 							csr_c.set_fflags({out.invalid, 3'h0, out.inexact});
 							pc = pc + 'h4;

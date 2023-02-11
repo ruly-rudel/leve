@@ -9,6 +9,24 @@ typedef struct packed {
 	logic		invalid;
 } float_t;
 
+typedef struct packed {
+	logic [63:0]	val;
+	logic		inexact;
+	logic		invalid;
+} double_t;
+
+typedef struct packed {
+	logic [31:0]	val;
+	logic		inexact;
+	logic		invalid;
+} word_t;
+
+typedef struct packed {
+	logic [63:0]	val;
+	logic		inexact;
+	logic		invalid;
+} long_t;
+
 class FLOAT
 #(
 	parameter type	T = float_t,
@@ -29,39 +47,18 @@ class FLOAT
 	logic			is_sub_1, is_sub_2;
 	
 
-	function [4:0] first_1_25(input [24:0] in);
-		if(in[24])                      first_1_25 = 5'h00;
-		else if (~in[24] && in[23])     first_1_25 = 5'h01;
-		else if (~|in[24:23] && in[22]) first_1_25 = 5'h02;
-		else if (~|in[24:22] && in[21]) first_1_25 = 5'h03;
-		else if (~|in[24:21] && in[20]) first_1_25 = 5'h04;
-		else if (~|in[24:20] && in[19]) first_1_25 = 5'h05;
-		else if (~|in[24:19] && in[18]) first_1_25 = 5'h06;
-		else if (~|in[24:18] && in[17]) first_1_25 = 5'h07;
-		else if (~|in[24:17] && in[16]) first_1_25 = 5'h08;
-		else if (~|in[24:16] && in[15]) first_1_25 = 5'h09;
-		else if (~|in[24:15] && in[14]) first_1_25 = 5'h0a;
-		else if (~|in[24:14] && in[13]) first_1_25 = 5'h0b;
-		else if (~|in[24:13] && in[12]) first_1_25 = 5'h0c;
-		else if (~|in[24:12] && in[11]) first_1_25 = 5'h0d;
-		else if (~|in[24:11] && in[10]) first_1_25 = 5'h0e;
-		else if (~|in[24:10] && in[ 9]) first_1_25 = 5'h0f;
-		else if (~|in[24: 9] && in[ 8]) first_1_25 = 5'h10;
-		else if (~|in[24: 8] && in[ 7]) first_1_25 = 5'h11;
-		else if (~|in[24: 7] && in[ 6]) first_1_25 = 5'h12;
-		else if (~|in[24: 6] && in[ 5]) first_1_25 = 5'h13;
-		else if (~|in[24: 5] && in[ 4]) first_1_25 = 5'h14;
-		else if (~|in[24: 4] && in[ 3]) first_1_25 = 5'h15;
-		else if (~|in[24: 3] && in[ 2]) first_1_25 = 5'h16;
-		else if (~|in[24: 2] && in[ 1]) first_1_25 = 5'h17;
-		else if (~|in[24: 1] && in[ 0]) first_1_25 = 5'h18;
-		else                            first_1_25 = 5'h1f;
+	function [F_EXP-1:0] first_1(input [F_FLAC+1:0] in);
+		for(integer i = 0; i < F_FLAC + 1; i = i + 1) begin
+			if(|(1 << (F_FLAC + 1 - i) & in)) begin
+				return i[F_EXP-1:0];
+			end
+		end
+		return {F_EXP{1'b1}};
 	endfunction
-	
-	function last_n_dirty_23(input [22:0] in, input [7:0] mag_shift);
-		logic [22:0]	mask;
-		mask = ('b1 << mag_shift) - 'b1;
-		last_n_dirty_23 = |(in & mask);
+
+	function last_n_dirty(input [F_FLAC-1:0] in, input [F_EXP-1:0] mag_shift);
+		logic [F_FLAC-1:0]	mask = ('b1 << mag_shift) - 'b1;
+		return |(in & mask);
 	endfunction
 
 
@@ -121,7 +118,7 @@ class FLOAT
 		logic [F_EXP-1:0]	abs_exp;
 		logic [F_FLAC+1:0]	abs_flac;
 	
-		logic [4:0]		norm_shift;
+		logic [F_EXP-1:0]	norm_shift;
 		logic			norm_is_zero;
 		logic			norm_sign;
 		logic [F_EXP-1:0]	norm_exp;
@@ -175,10 +172,10 @@ class FLOAT
 		abs_flac   = abs_sign ? ~add_flac[F_FLAC+1:0] + 'b1 : add_flac[F_FLAC+1:0];
 
 		// normalize
-		norm_shift = first_1_25(abs_flac);
-		norm_is_zero = norm_shift == 5'h1f ? 1'b1 : 1'b0;
+		norm_shift = first_1(abs_flac);
+		norm_is_zero = norm_shift == {F_EXP{1'b1}} ? 1'b1 : 1'b0;
 		norm_sign  = abs_sign;
-		norm_exp   = abs_exp - {3'h0, norm_shift} + 'h1;
+		norm_exp   = abs_exp - norm_shift + 'h1;
 		norm_flac  = abs_flac << norm_shift;
 
 		// round
@@ -199,7 +196,7 @@ class FLOAT
 		      is_zero_2 && is_num_1  ? in1 :						// num   + +-0   = num
 		      norm_is_zero           ? {F_WIDTH{1'b0}} :				// flac is zero
 						add_f;
-		out.inexact = norm_flac[0] | (mag_shift > 0 ? last_n_dirty_23(mm_flac_2, mag_shift) : 1'b0);
+		out.inexact = norm_flac[0] | (mag_shift > 0 ? last_n_dirty(mm_flac_2, mag_shift) : 1'b0);
 		out.invalid = is_inf_1  && is_inf_2 && (sign_1 ^ sign_2) ||
 			  is_nan_1  || is_nan_2 ? 1'b1 : 1'b0;
 
@@ -237,7 +234,8 @@ class FLOAT
 	
 		// multiply
 		mul_sign  = sign_1 ^ sign_2;
-		mul_exp   = {1'h0, exp_1} + {1'h0, exp_2} - 10'd127;
+		//mul_exp   = {1'h0, exp_1} + {1'h0, exp_2} - 10'd127;
+		mul_exp   = {1'h0, exp_1} + {1'h0, exp_2} - ((1 << (F_EXP -1)) - 1);
 		mul_flac  = {1'b1, flac_1} * {1'b1, flac_2};
 	
 		// normalize
@@ -254,13 +252,13 @@ class FLOAT
 	
 		// round
 		round_exp  = norm_exp;
-		round_flac = norm_flac[(F_FLAC+1)*2-1:(F_FLAC+1)*2-24];
+		round_flac = norm_flac[(F_FLAC+1)*2-1:(F_FLAC+1)*2-F_FLAC-1];
 	
 		// result
 		mul_f = is_nan_1  || is_nan_2       ? {1'b0, {F_EXP+1{1'b1}}, {F_FLAC-1{1'b0}}} :		// NaN   * any   = NaN, any * NaN = NaN
 			is_zero_1 && is_inf_2       ? {1'b0, {F_EXP+1{1'b1}}, {F_FLAC-1{1'b0}}} :			// +-0   * +-inf = NaN
 			is_zero_2 && is_inf_1       ? {1'b0, {F_EXP+1{1'b1}}, {F_FLAC-1{1'b0}}} :			// +-inf * +-0   = NaN
-			is_zero_1 && is_zero_2      ? {mul_sign, {F_EXP{1'b0}}, {F_FLAC{1'b0}}} :		// +-0   * +-0   = +-0
+			is_zero_1 || is_zero_2      ? {mul_sign, {F_EXP{1'b0}}, {F_FLAC{1'b0}}} :		// +-0   * +-0   = +-0
 			is_inf_1  && is_inf_2       ? {mul_sign, {F_EXP{1'b1}}, {F_FLAC{1'b0}}} :		// +-inf * +-inf = +-inf
 			$signed(round_exp) >= 'd255 ? {mul_sign, {F_EXP{1'b1}}, {F_FLAC{1'b0}}} :			// inf
 			round_exp[9]                ? {mul_sign, {F_EXP{1'b0}}, round_flac[F_FLAC:1]} :		// subnormal number
@@ -312,7 +310,7 @@ class FLOAT
 	(
 		input [F_WIDTH-1:0]		in1,
 		input [F_WIDTH-1:0]		in2,
-		output T			out
+		output word_t			out
 	);
 		// parse
 		parse(in1, in2);
@@ -331,7 +329,7 @@ class FLOAT
 	(
 		input [F_WIDTH-1:0]		in1,
 		input [F_WIDTH-1:0]		in2,
-		output T			out
+		output word_t			out
 	);
 		logic		less_than;
 		T		sub;
@@ -362,10 +360,10 @@ class FLOAT
 	(
 		input [F_WIDTH-1:0]		in1,
 		input [F_WIDTH-1:0]		in2,
-		output T			out
+		output word_t			out
 	);
-		T				out1;
-		T				out2;
+		word_t				out1;
+		word_t				out2;
 
 		feq(in1, in2, out1);
 		flt(in1, in2, out2);
@@ -389,7 +387,7 @@ class FLOAT
 
 		if(is_nan_1) begin			// in1 = NaN
 			if(is_nan_2) begin
-					max = {1'b0, {8{1'b1}}, 1'b1, {22{1'b0}}};	// qNaN
+					max = {1'b0, {F_EXP{1'b1}}, 1'b1, {F_FLAC-1{1'b0}}};	// qNaN
 			end else begin
 					max = in2;
 			end
@@ -443,7 +441,7 @@ class FLOAT
 
 		if(is_nan_1) begin			// in1 = NaN
 			if(is_nan_2) begin
-					min = {1'b0, {8{1'b1}}, 1'b1, {22{1'b0}}};	// qNaN
+					min = {1'b0, {F_EXP{1'b1}}, 1'b1, {F_FLAC-1{1'b0}}};	// qNaN
 			end else begin
 					min = in2;
 			end
