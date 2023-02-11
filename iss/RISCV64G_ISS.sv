@@ -9,6 +9,7 @@
 `include "PMA.sv"
 `include "FLOAT.sv"
 `include "FCVT.sv"
+`include "FCVT_W_D.sv"
 
 `include "TRACE.sv"
 
@@ -78,6 +79,15 @@ module RISCV64G_ISS (
 		.I_WIDTH	(64)
 		)
 				fcvt_l_d = new;
+	FCVT_W_D #(
+		.T		(double_t),
+		.F_WIDTH	(64),
+		.F_EXP		(11),
+		.F_FLAC		(52),
+		.S		(word_t),
+		.I_WIDTH	(32)
+		)
+				fcvt_w_d = new;
 
 	// PC
 	reg  [`XLEN-1:0]	pc;
