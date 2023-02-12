@@ -11,7 +11,7 @@ class REG_FILE_FP;
 	endfunction
 
 	function void write32u (input [4:0] addr, input [32-1:0] data);
-		reg_file[addr] = {{32{1'b0}}, data};
+		reg_file[addr] = {{32{1'b1}}, data};
 	endfunction
 
 	function [`XLEN-1:0] read (input [4:0] addr);
