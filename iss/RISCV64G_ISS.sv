@@ -10,6 +10,7 @@
 `include "FLOAT.sv"
 `include "FCVT.sv"
 `include "FCVT_W_D.sv"
+`include "FCVT_S_D.sv"
 
 `include "TRACE.sv"
 
@@ -88,6 +89,7 @@ module RISCV64G_ISS (
 		.I_WIDTH	(32)
 		)
 				fcvt_w_d = new;
+	FCVT_S_D 		fcvt_s_d = new;
 
 	// PC
 	reg  [`XLEN-1:0]	pc;
@@ -1155,6 +1157,9 @@ module RISCV64G_ISS (
 				7'b01000_00: begin
 					case (rs2)
 					5'b00001: begin		// FCVT.S.D
+							fcvt_s_d.float_from_double(fp_rs1_d, out);
+							fp.write32u(rd0, out.val);
+							csr_c.set_fflags({out.invalid, 3'h0, out.inexact});
 							pc = pc + 'h4;
 					end
 					default: ;
@@ -1362,6 +1367,9 @@ module RISCV64G_ISS (
 				7'b01000_01: begin
 					case (rs2)
 					5'b00000: begin		// FCVT.D.S
+							fcvt_s_d.double_from_float(fp_rs1_d[31:0], dout);
+							fp.write(rd0, dout.val);
+							csr_c.set_fflags({dout.invalid, 3'h0, dout.inexact});
 							pc = pc + 'h4;
 					end
 					default: ;
