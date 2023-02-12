@@ -164,7 +164,7 @@ class FLOAT
 	
 		// add
 		add_exp   = cm_exp_1;
-		add_flac  = {cm_flac_1[F_FLAC+1], cm_flac_1} + {cm_flac_2[24], cm_flac_2};
+		add_flac  = {cm_flac_1[F_FLAC+1], cm_flac_1} + {cm_flac_2[F_FLAC+1], cm_flac_2};
 
 		// abs
 		abs_sign   = add_flac[F_FLAC+2];
@@ -234,7 +234,6 @@ class FLOAT
 	
 		// multiply
 		mul_sign  = sign_1 ^ sign_2;
-		//mul_exp   = {1'h0, exp_1} + {1'h0, exp_2} - 10'd127;
 		mul_exp   = {1'h0, exp_1} + {1'h0, exp_2} - ((1 << (F_EXP -1)) - 1);
 		mul_flac  = {1'b1, flac_1} * {1'b1, flac_2};
 	
@@ -253,15 +252,16 @@ class FLOAT
 		// round
 		round_exp  = norm_exp;
 		round_flac = norm_flac[(F_FLAC+1)*2-1:(F_FLAC+1)*2-F_FLAC-1];
-	
+
 		// result
 		mul_f = is_nan_1  || is_nan_2       ? {1'b0, {F_EXP+1{1'b1}}, {F_FLAC-1{1'b0}}} :		// NaN   * any   = NaN, any * NaN = NaN
 			is_zero_1 && is_inf_2       ? {1'b0, {F_EXP+1{1'b1}}, {F_FLAC-1{1'b0}}} :			// +-0   * +-inf = NaN
 			is_zero_2 && is_inf_1       ? {1'b0, {F_EXP+1{1'b1}}, {F_FLAC-1{1'b0}}} :			// +-inf * +-0   = NaN
 			is_zero_1 || is_zero_2      ? {mul_sign, {F_EXP{1'b0}}, {F_FLAC{1'b0}}} :		// +-0   * +-0   = +-0
 			is_inf_1  && is_inf_2       ? {mul_sign, {F_EXP{1'b1}}, {F_FLAC{1'b0}}} :		// +-inf * +-inf = +-inf
-			$signed(round_exp) >= 'd255 ? {mul_sign, {F_EXP{1'b1}}, {F_FLAC{1'b0}}} :			// inf
-			round_exp[9]                ? {mul_sign, {F_EXP{1'b0}}, round_flac[F_FLAC:1]} :		// subnormal number
+			$signed(round_exp) >= ((1<<F_EXP) - 1)							// inf
+						    ? {mul_sign, {F_EXP{1'b1}}, {F_FLAC{1'b0}}} :
+			round_exp[F_EXP+1]          ? {mul_sign, {F_EXP{1'b0}}, round_flac[F_FLAC:1]} :		// subnormal number
 						      {mul_sign, round_exp[F_EXP-1:0], round_flac[F_FLAC-1:0]};
 	
 		out.val = mul_f;

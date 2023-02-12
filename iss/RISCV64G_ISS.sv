@@ -624,7 +624,10 @@ module RISCV64G_ISS (
 			7'b11_000_11: begin	// BRANCH
 				case (funct3)
 				3'b000:	pc = rs1_d == rs2_d ? pc + imm_bw : pc + 'h4;	// BEQ
-				3'b001:	pc = rs1_d != rs2_d ? pc + imm_bw : pc + 'h4;	// BNE
+				3'b001:	begin 			// BNE
+					$display("[INFO] BNE %16h == %16h or not.", rs1_d, rs2_d);
+					pc = rs1_d != rs2_d ? pc + imm_bw : pc + 'h4;
+				end
 				3'b100:	pc = $signed(rs1_d) <  $signed(rs2_d) ? pc + imm_bw : pc + 'h4;	// BLT
 				3'b101:	pc = $signed(rs1_d) >= $signed(rs2_d) ? pc + imm_bw : pc + 'h4;	// BGE
 				3'b110:	pc = rs1_d <  rs2_d ? pc + imm_bw : pc + 'h4;	// BLTU
@@ -646,6 +649,17 @@ module RISCV64G_ISS (
 						end
 					end
 				end
+				3'b011: begin			// FLD
+					tmp = virtual_address_translation(rs1_d + imm_iw, `PTE_R);
+					if(tmp != {64{1'b0}}) begin
+						if(pma.is_readable(tmp)) begin
+							fp.write(rd0, mem.read(tmp));
+							pc = pc + 'h4;
+						end else begin
+							pc = csr_c.raise_exception(`EX_LAFAULT, pc, tmp);
+						end
+					end
+				end
 				default: ;
 				endcase
 			end
@@ -657,6 +671,17 @@ module RISCV64G_ISS (
 					if(tmp != {64{1'b0}}) begin
 						if(pma.is_writeable(tmp)) begin
 							mem.write32(tmp, fp_rs2_d[31:0]);
+							pc = pc + 'h4;
+						end else begin
+							pc = csr_c.raise_exception(`EX_SAFAULT, pc, tmp);
+						end
+					end
+				end
+				3'b011: begin			// FSD
+					tmp = virtual_address_translation(rs1_d + imm_sw, `PTE_W);
+					if(tmp != {64{1'b0}}) begin
+						if(pma.is_writeable(tmp)) begin
+							mem.write(tmp, fp_rs2_d);
 							pc = pc + 'h4;
 						end else begin
 							pc = csr_c.raise_exception(`EX_SAFAULT, pc, tmp);
@@ -1038,6 +1063,7 @@ module RISCV64G_ISS (
 
 			7'b10_100_11: begin	// OP-FP: R type
 				float_t out;
+				double_t dout;
 				word_t wout;
 				long_t lout;
 
@@ -1122,6 +1148,14 @@ module RISCV64G_ISS (
 						fp.write32u(rd0, out.val);
 						csr_c.set_fflags({out.invalid, 3'h0, out.inexact});
 						pc = pc + 'h4;
+					end
+					default: ;
+					endcase
+				end
+				7'b01000_00: begin
+					case (rs2)
+					5'b00001: begin		// FCVT.S.D
+							pc = pc + 'h4;
 					end
 					default: ;
 					endcase
@@ -1230,6 +1264,213 @@ module RISCV64G_ISS (
 					5'b00000: begin
 						case (funct3)
 						3'b000: begin	// FMV.W.X
+							fp.write(rd0, rs1_d);
+							pc = pc + 'h4;
+						end
+						default: ;
+						endcase
+					end
+					default: ;
+					endcase
+				end
+
+
+				7'b00000_01: begin		// FADD.D
+						double.fadd(fp_rs1_d, fp_rs2_d, dout);
+						fp.write(rd0, dout.val);
+						csr_c.set_fflags({dout.invalid, 3'h0, dout.inexact});
+						pc = pc + 'h4;
+				end
+				7'b00001_01: begin		// FSUB.D
+						double.fsub(fp_rs1_d, fp_rs2_d, dout);
+						fp.write(rd0, dout.val);
+						csr_c.set_fflags({dout.invalid, 3'h0, dout.inexact});
+						pc = pc + 'h4;
+				end
+				7'b00010_01: begin		// FMUL.D
+						double.fmul(fp_rs1_d, fp_rs2_d, dout);
+						fp.write(rd0, dout.val);
+						csr_c.set_fflags({dout.invalid, 3'h0, dout.inexact});
+						pc = pc + 'h4;
+				end
+				7'b00011_01: begin		// FDIV.D
+						pc = pc + 'h4;
+				end
+				7'b01011_01: begin
+					case (rs2)
+					5'b00000: begin		// FSQRT.D
+						pc = pc + 'h4;
+					end
+					default: ;
+					endcase
+				end
+				7'b00100_01: begin
+					case (funct3)
+					3'b000: begin		// FSGNJ.D
+						tmp = fp.read(rs2);
+						if(tmp[63]) begin
+							tmp = fp.read(rs1);
+							fp.write(rd0, {1'b1, tmp[62:0]});
+						end else begin
+							tmp = fp.read(rs1);
+							fp.write(rd0, {1'b0, tmp[62:0]});
+						end
+						pc = pc + 'h4;
+					end
+					3'b001: begin		// FSGNJN.D
+						tmp = fp.read(rs2);
+						if(tmp[63]) begin
+							tmp = fp.read(rs1);
+							fp.write(rd0, {1'b0, tmp[62:0]});
+						end else begin
+							tmp = fp.read(rs1);
+							fp.write(rd0, {1'b1, tmp[62:0]});
+						end
+						pc = pc + 'h4;
+					end
+					3'b010: begin		// FSGNJX.D
+						tmp = fp.read(rs2);
+						if(tmp[63]) begin
+							tmp = fp.read(rs1);
+							fp.write(rd0, {1'b1 ^ tmp[63], tmp[62:0]});
+						end else begin
+							tmp = fp.read(rs1);
+							fp.write(rd0, {1'b0 ^ tmp[63], tmp[62:0]});
+						end
+						pc = pc + 'h4;
+					end
+					default: ;
+					endcase
+				end
+				7'b00101_01: begin
+					case (funct3)
+					3'b000: begin		// FMIN.D
+						double.fmin(fp_rs1_d, fp_rs2_d, dout);
+						fp.write(rd0, dout.val);
+						csr_c.set_fflags({dout.invalid, 3'h0, dout.inexact});
+						pc = pc + 'h4;
+					end
+					3'b001: begin		// FMAX.D
+						double.fmax(fp_rs1_d, fp_rs2_d, dout);
+						fp.write(rd0, dout.val);
+						csr_c.set_fflags({dout.invalid, 3'h0, dout.inexact});
+						pc = pc + 'h4;
+					end
+					default: ;
+					endcase
+				end
+				7'b01000_01: begin
+					case (rs2)
+					5'b00000: begin		// FCVT.D.S
+							pc = pc + 'h4;
+					end
+					default: ;
+					endcase
+				end
+				7'b11000_01: begin
+					case (rs2)
+					5'b00000: begin		// FCVT.W.D
+							fcvt_w_d.int_from_real(fp_rs1_d, wout);
+							rf.write32s(rd0, wout.val);
+							csr_c.set_fflags({wout.invalid, 3'h0, wout.inexact});
+							pc = pc + 'h4;
+					end
+					5'b00001: begin		// FCVT.WU.D
+							fcvt_w_d.uint_from_real(fp_rs1_d, wout);
+							rf.write32s(rd0, wout.val);
+							csr_c.set_fflags({wout.invalid, 3'h0, wout.inexact});
+							pc = pc + 'h4;
+					end
+					5'b00010: begin		// FCVT.L.D
+							fcvt_l_d.int_from_real(fp_rs1_d, lout);
+							rf.write(rd0, lout.val);
+							csr_c.set_fflags({lout.invalid, 3'h0, lout.inexact});
+							pc = pc + 'h4;
+					end
+					5'b00011: begin		// FCVT.LU.D
+							fcvt_l_d.uint_from_real(fp_rs1_d, lout);
+							rf.write(rd0, lout.val);
+							csr_c.set_fflags({lout.invalid, 3'h0, lout.inexact});
+							pc = pc + 'h4;
+					end
+					default: ;
+					endcase
+				end
+				7'b11100_01: begin
+					case (rs2)
+					5'b00000: begin
+						case (funct3)
+						3'b000: begin	// FMV.X.D
+							rf.write(rd0, fp_rs1_d);
+							pc = pc + 'h4;
+						end
+						3'b001: begin	// FCLASS.D
+							rf.write32u(rd0, double.fclass(fp_rs1_d));
+							pc = pc + 'h4;
+						end
+						default: ;
+						endcase
+					end
+					default: ;
+					endcase
+				end
+				7'b10100_01: begin
+					case (funct3)
+					3'b010: begin 		// FEQ.D
+							double.feq(fp_rs1_d, fp_rs2_d, wout);
+							rf.write32u(rd0, wout.val);
+							csr_c.set_fflags({wout.invalid, 3'h0, wout.inexact});
+							pc = pc + 'h4;
+					end
+					3'b001: begin 		// FLT.D
+							double.flt(fp_rs1_d, fp_rs2_d, wout);
+							rf.write32u(rd0, wout.val);
+							csr_c.set_fflags({wout.invalid, 3'h0, wout.inexact});
+							pc = pc + 'h4;
+					end
+					3'b000: begin		// FLE.D
+							double.fle(fp_rs1_d, fp_rs2_d, wout);
+							rf.write32u(rd0, wout.val);
+							csr_c.set_fflags({wout.invalid, 3'h0, wout.inexact});
+							pc = pc + 'h4;
+					end
+					default: ;
+					endcase
+				end
+				7'b11010_01: begin
+					case (rs2)
+					5'b00000: begin		// FCVT.D.W
+							fcvt_w_d.real_from_int(rs1_d[31:0], dout);
+							fp.write(rd0, dout.val);
+							csr_c.set_fflags({dout.invalid, 3'h0, dout.inexact});
+							pc = pc + 'h4;
+					end
+					5'b00001: begin		// FCVT.D.WU
+							fcvt_w_d.real_from_uint(rs1_d[31:0], dout);
+							fp.write(rd0, dout.val);
+							csr_c.set_fflags({dout.invalid, 3'h0, dout.inexact});
+							pc = pc + 'h4;
+					end
+					5'b00010: begin		// FCVT.D.L
+							fcvt_l_d.real_from_int(rs1_d, dout);
+							fp.write(rd0, dout.val);
+							csr_c.set_fflags({dout.invalid, 3'h0, dout.inexact});
+							pc = pc + 'h4;
+					end
+					5'b00011: begin		// FCVT.D.LU
+							fcvt_l_d.real_from_uint(rs1_d, dout);
+							fp.write(rd0, dout.val);
+							csr_c.set_fflags({dout.invalid, 3'h0, dout.inexact});
+							pc = pc + 'h4;
+					end
+					default: ;
+					endcase
+				end
+				7'b11110_01: begin
+					case (rs2)
+					5'b00000: begin
+						case (funct3)
+						3'b000: begin	// FMV.D.X
 							fp.write(rd0, rs1_d);
 							pc = pc + 'h4;
 						end

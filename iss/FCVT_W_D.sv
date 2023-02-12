@@ -94,7 +94,7 @@ class FCVT_W_D
 		// round
 		rnd_flac_1 = {sft_flac_1[I_WIDTH-2:0], {F_FLAC-I_WIDTH+1{1'b0}}};
 
-		exp_1      = 'd127 + I_WIDTH - 1 - sft_amt_1;
+		exp_1      = (1 << (F_EXP - 1)) - 1 + I_WIDTH - 1 - sft_amt_1;
 		flac_1     = rnd_flac_1;
 
 		out.val = is_zero_1 ? {F_WIDTH{1'b0}} : {sign_1, exp_1, flac_1};
@@ -126,10 +126,10 @@ class FCVT_W_D
 		// round
 		rnd_flac_1 = {sft_flac_1[I_WIDTH-2:0], {F_FLAC-I_WIDTH+1{1'b0}}};
 
-		exp_1      = 'd127 + I_WIDTH - 1 - sft_amt_1;
+		exp_1      = (1 << (F_EXP - 1)) - 1 + I_WIDTH - 1 - sft_amt_1;
 		flac_1     = rnd_flac_1;
 
-		out.val = is_zero_1 ? {F_WIDTH{1'b0}} : {sign_1, exp_1, flac_1};
+		out.val = is_zero_1 ? {F_WIDTH{1'b0}} : {1'b0, exp_1, flac_1};
 
 		out.inexact = 1'b0;
 		out.invalid = 1'b0;
@@ -150,10 +150,10 @@ class FCVT_W_D
 
 		// parse
 		parse_float(in1);
-		is_oor_1   = exp_1 >= ('d127 + I_WIDTH - 1) ? 1'b1 : 1'b0;
-		is_min_1   = exp_1 < 'd127;
+		is_oor_1   = exp_1 >= ((1 << (F_EXP - 1)) - 1 + I_WIDTH - 1) ? 1'b1 : 1'b0;
+		is_min_1   = exp_1 < ((1 << (F_EXP - 1)) - 1);
 	
-		sft_flac_1 = {{I_WIDTH{1'b0}}, 1'b1, flac_1} << (exp_1 - 'd127);
+		sft_flac_1 = {{I_WIDTH{1'b0}}, 1'b1, flac_1} << (exp_1 - ((1<<(F_EXP-1))-1));
 
 		rnd_flac_1 = sft_flac_1[F_FLAC + I_WIDTH - 1:F_FLAC];
 
@@ -199,10 +199,10 @@ class FCVT_W_D
 
 		// parse
 		parse_float(in1);
-		is_oor_1   = exp_1 >= ('d127 + I_WIDTH) ? 1'b1 : 1'b0;
-		is_min_1   = exp_1 < 'd127;
+		is_oor_1   = exp_1 >= ((1 << (F_EXP - 1)) - 1 + I_WIDTH) ? 1'b1 : 1'b0;
+		is_min_1   = exp_1 < ((1 << (F_EXP - 1)) - 1);
 	
-		sft_flac_1 = {{I_WIDTH{1'b0}}, 1'b1, flac_1} << (exp_1 - 'd127);
+		sft_flac_1 = {{I_WIDTH{1'b0}}, 1'b1, flac_1} << (exp_1 - ((1<<(F_EXP-1))-1));
 
 		rnd_flac_1 = sft_flac_1[F_FLAC + I_WIDTH - 1:F_FLAC];
 
