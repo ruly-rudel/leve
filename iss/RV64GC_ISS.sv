@@ -8,6 +8,8 @@ module RV64GC_ISS (
 	input			CLK,
 	input			RSTn,
 
+	input string		init_file,
+
 	output reg		tohost_we,
 	output reg [32-1:0]	tohost
 );
@@ -19,7 +21,6 @@ module RV64GC_ISS (
 	logic  [`XLEN-1:0]	pc;
 	logic  [`XLEN-1:0]	next_pc;
 
-
 	// main loop
 	always_ff @(posedge CLK or negedge RSTn)
 	begin
@@ -29,7 +30,7 @@ module RV64GC_ISS (
 		logic [32-1:0]		inst;
 
 		if(!RSTn) begin
-			iss.init();
+			iss.init(init_file);
 			pc = iss.get_entry_point();
 			tohost_we = 1'b0;
 		end else begin

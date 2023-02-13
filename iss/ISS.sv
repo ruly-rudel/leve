@@ -17,14 +17,6 @@
 class ISS;
 	// memory
 	ELF			mem;
-	function new;
-		string		init_file;
-		if($value$plusargs("ELF=%s", init_file))
-		begin
-			$display ("[ARG] +ELF=%s", init_file);
-			mem = new(init_file);
-		end
-	endfunction
 
 	// PMA
 	PMA			pma = new;
@@ -87,71 +79,6 @@ class ISS;
 	REG_FILE	rf = new();
 	REG_FILE_FP	fp = new();
 	CSR		csr_c = new();
-
-	logic [`XLEN-1:0]	rf_1_ra;
-	logic [`XLEN-1:0]	rf_2_sp;
-	logic [`XLEN-1:0]	rf_3_gp;
-	logic [`XLEN-1:0]	rf_4_tp;
-	logic [`XLEN-1:0]	rf_5_t0;
-	logic [`XLEN-1:0]	rf_6_t1;
-	logic [`XLEN-1:0]	rf_7_t2;
-	logic [`XLEN-1:0]	rf_8_s0;
-	logic [`XLEN-1:0]	rf_9_s1;
-	logic [`XLEN-1:0]	rf_10_a0;
-	logic [`XLEN-1:0]	rf_11_a1;
-	logic [`XLEN-1:0]	rf_12_a2;
-	logic [`XLEN-1:0]	rf_13_a3;
-	logic [`XLEN-1:0]	rf_14_a4;
-	logic [`XLEN-1:0]	rf_15_a5;
-	logic [`XLEN-1:0]	rf_16_a6;
-	logic [`XLEN-1:0]	rf_17_a7;
-	logic [`XLEN-1:0]	rf_18_s2;
-	logic [`XLEN-1:0]	rf_19_s3;
-	logic [`XLEN-1:0]	rf_20_s4;
-	logic [`XLEN-1:0]	rf_21_s5;
-	logic [`XLEN-1:0]	rf_22_s6;
-	logic [`XLEN-1:0]	rf_23_s7;
-	logic [`XLEN-1:0]	rf_24_s8;
-	logic [`XLEN-1:0]	rf_25_s9;
-	logic [`XLEN-1:0]	rf_26_s10;
-	logic [`XLEN-1:0]	rf_27_s11;
-	logic [`XLEN-1:0]	rf_28_t3;
-	logic [`XLEN-1:0]	rf_29_t4;
-	logic [`XLEN-1:0]	rf_30_t5;
-	logic [`XLEN-1:0]	rf_31_t6;
-
-	logic [`FLEN-1:0]	fp_0;
-	logic [`FLEN-1:0]	fp_1;
-	logic [`FLEN-1:0]	fp_2;
-	logic [`FLEN-1:0]	fp_3;
-	logic [`FLEN-1:0]	fp_4;
-	logic [`FLEN-1:0]	fp_5;
-	logic [`FLEN-1:0]	fp_6;
-	logic [`FLEN-1:0]	fp_7;
-	logic [`FLEN-1:0]	fp_8;
-	logic [`FLEN-1:0]	fp_9;
-	logic [`FLEN-1:0]	fp_10;
-	logic [`FLEN-1:0]	fp_11;
-	logic [`FLEN-1:0]	fp_12;
-	logic [`FLEN-1:0]	fp_13;
-	logic [`FLEN-1:0]	fp_14;
-	logic [`FLEN-1:0]	fp_15;
-	logic [`FLEN-1:0]	fp_16;
-	logic [`FLEN-1:0]	fp_17;
-	logic [`FLEN-1:0]	fp_18;
-	logic [`FLEN-1:0]	fp_19;
-	logic [`FLEN-1:0]	fp_20;
-	logic [`FLEN-1:0]	fp_21;
-	logic [`FLEN-1:0]	fp_22;
-	logic [`FLEN-1:0]	fp_23;
-	logic [`FLEN-1:0]	fp_24;
-	logic [`FLEN-1:0]	fp_25;
-	logic [`FLEN-1:0]	fp_26;
-	logic [`FLEN-1:0]	fp_27;
-	logic [`FLEN-1:0]	fp_28;
-	logic [`FLEN-1:0]	fp_29;
-	logic [`FLEN-1:0]	fp_30;
-	logic [`FLEN-1:0]	fp_31;
 
 	// LR/WC register
 	reg 			lrsc_valid;
@@ -402,7 +329,8 @@ class ISS;
 		end
 	endfunction
 
-	function void init();
+	function void init(string init_file);
+			mem = new(init_file);
 			csr_c.init();
 			lrsc_valid = 1'b0;
 	endfunction
@@ -1779,71 +1707,6 @@ class ISS;
 		// retire
 		csr_c.retire();
 
-		// debug outputs
-		rf_1_ra = rf.read('d1);
-		rf_2_sp = rf.read('d2);
-		rf_3_gp = rf.read('d3);
-		rf_4_tp = rf.read('d4);
-		rf_5_t0 = rf.read('d5);
-		rf_6_t1 = rf.read('d6);
-		rf_7_t2 = rf.read('d7);
-		rf_8_s0 = rf.read('d8);
-		rf_9_s1 = rf.read('d9);
-		rf_10_a0 = rf.read('d10);
-		rf_11_a1 = rf.read('d11);
-		rf_12_a2 = rf.read('d12);
-		rf_13_a3 = rf.read('d13);
-		rf_14_a4 = rf.read('d14);
-		rf_15_a5 = rf.read('d15);
-		rf_16_a6 = rf.read('d16);
-		rf_17_a7 = rf.read('d17);
-		rf_18_s2 = rf.read('d18);
-		rf_19_s3 = rf.read('d19);
-		rf_20_s4 = rf.read('d20);
-		rf_21_s5 = rf.read('d21);
-		rf_22_s6 = rf.read('d22);
-		rf_23_s7 = rf.read('d23);
-		rf_24_s8 = rf.read('d24);
-		rf_25_s9 = rf.read('d25);
-		rf_26_s10 = rf.read('d26);
-		rf_27_s11 = rf.read('d27);
-		rf_28_t3 = rf.read('d28);
-		rf_29_t4 = rf.read('d29);
-		rf_30_t5 = rf.read('d30);
-		rf_31_t6 = rf.read('d31);
-
-		fp_0 = fp.read('d0);
-		fp_1 = fp.read('d1);
-		fp_2 = fp.read('d2);
-		fp_3 = fp.read('d3);
-		fp_4 = fp.read('d4);
-		fp_5 = fp.read('d5);
-		fp_6 = fp.read('d6);
-		fp_7 = fp.read('d7);
-		fp_8 = fp.read('d8);
-		fp_9 = fp.read('d9);
-		fp_10 = fp.read('d10);
-		fp_11 = fp.read('d11);
-		fp_12 = fp.read('d12);
-		fp_13 = fp.read('d13);
-		fp_14 = fp.read('d14);
-		fp_15 = fp.read('d15);
-		fp_16 = fp.read('d16);
-		fp_17 = fp.read('d17);
-		fp_18 = fp.read('d18);
-		fp_19 = fp.read('d19);
-		fp_20 = fp.read('d20);
-		fp_21 = fp.read('d21);
-		fp_22 = fp.read('d22);
-		fp_23 = fp.read('d23);
-		fp_24 = fp.read('d24);
-		fp_25 = fp.read('d25);
-		fp_26 = fp.read('d26);
-		fp_27 = fp.read('d27);
-		fp_28 = fp.read('d28);
-		fp_29 = fp.read('d29);
-		fp_30 = fp.read('d30);
-		fp_31 = fp.read('d31);
 	endtask
 
 endclass: ISS;
