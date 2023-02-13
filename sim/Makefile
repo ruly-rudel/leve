@@ -1,9 +1,10 @@
 
+SRC = sc_main.cpp tb_iss.sv $(wildcard ../iss/*.sv)
 
-obj_dir/Vtb_iss:
+obj_dir/Vtb_iss:	$(SRC)
 	verilator --sc --exe --build -I../conf -I../iss sc_main.cpp tb_iss.sv ../iss/RV64GC_ISS.sv
 
-sc-trace:
+sc-trace:	$(SRC)
 	verilator --sc --trace --exe --build -I../conf -I../iss sc_main.cpp tb_iss.sv ../iss/RV64GC_ISS.sv
 
 test:	obj_dir/Vtb_iss

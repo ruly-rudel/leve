@@ -313,6 +313,10 @@ class ISS;
 		end
 	endfunction
 
+	function [`XLEN-1:0] raise_illegal_instruction(input [`XLEN-1:0] pc, input [31:0] inst);
+		return csr_c.raise_exception(`EX_ILLEGINST, pc, {{32{1'b0}}, inst});
+	endfunction
+
 
 	function [`XLEN-1:0] get_entry_point();
 		return mem.get_entry_point();
@@ -525,7 +529,7 @@ class ISS;
 					next_pc = trap_pc;
 				end
 			end
-			default: ;
+			default: next_pc = raise_illegal_instruction(pc, inst);
 			endcase
 		end
 
@@ -585,7 +589,7 @@ class ISS;
 					next_pc = trap_pc;
 				end
 			end
-			default: ;
+			default: next_pc = raise_illegal_instruction(pc, inst);
 			endcase
 		end
 
@@ -604,7 +608,7 @@ class ISS;
 			3'b101:	next_pc = $signed(rs1_d) >= $signed(rs2_d) ? pc + imm_bw : pc + 'h4;	// BGE
 			3'b110:	next_pc = rs1_d <  rs2_d ? pc + imm_bw : pc + 'h4;	// BLTU
 			3'b111:	next_pc = rs1_d >= rs2_d ? pc + imm_bw : pc + 'h4;	// BGEU
-			default: ;
+			default: next_pc = raise_illegal_instruction(pc, inst);
 			endcase
 		end
 
@@ -636,7 +640,7 @@ class ISS;
 					next_pc = trap_pc;
 				end
 			end
-			default: ;
+			default: next_pc = raise_illegal_instruction(pc, inst);
 			endcase
 		end
 
@@ -668,7 +672,7 @@ class ISS;
 					next_pc = trap_pc;
 				end
 			end
-			default: ;
+			default: next_pc = raise_illegal_instruction(pc, inst);
 			endcase
 		end
 
@@ -682,7 +686,7 @@ class ISS;
 					rf.write(rd0, pc + 'h4);
 					next_pc = rs1_d + imm_iw;
 			end
-			default: ;
+			default: next_pc = raise_illegal_instruction(pc, inst);
 			endcase
 		end
 
@@ -698,7 +702,7 @@ class ISS;
 			3'b001: begin	// FENCE.I
 					next_pc = pc + 'h4;
 			end
-			default: ;
+			default: next_pc = raise_illegal_instruction(pc, inst);
 			endcase
 		end
 
@@ -776,7 +780,7 @@ class ISS;
 					mem.write32(rs1_d, rs2_d[31:0] > tmp32 ? rs2_d[31:0] : tmp32);
 					next_pc = pc + 'h4;
 				end
-				default: ;
+				default: next_pc = raise_illegal_instruction(pc, inst);
 				endcase
 			end
 			3'b011: begin
@@ -846,10 +850,10 @@ class ISS;
 					mem.write(rs1_d, tmp);
 					next_pc = pc + 'h4;
 				end
-				default: ;
+				default: next_pc = raise_illegal_instruction(pc, inst);
 				endcase
 			end
-			default: ;
+			default: next_pc = raise_illegal_instruction(pc, inst);
 			endcase
 		end
 
@@ -874,7 +878,7 @@ class ISS;
 					rf.write(rd0, rs1_d << shamt);
 					next_pc = pc + 'h4;
 				end
-				default: ;
+				default: next_pc = raise_illegal_instruction(pc, inst);
 				endcase
 			end
 			3'b010: begin								// SLTI
@@ -899,7 +903,7 @@ class ISS;
 					rf.write(rd0, $signed(rs1_d) >>> shamt);
 					next_pc = pc + 'h4;
 				end
-				default: ;
+				default: next_pc = raise_illegal_instruction(pc, inst);
 				endcase
 			end
 			3'b110: begin								// ORI
@@ -910,7 +914,7 @@ class ISS;
 					rf.write(rd0, rs1_d & imm_iw);
 					next_pc = pc + 'h4;
 			end
-			default: ;
+			default: next_pc = raise_illegal_instruction(pc, inst);
 			endcase
 		end
 
@@ -931,7 +935,7 @@ class ISS;
 					rf.write(rd0, rs1_d - rs2_d);
 					next_pc = pc + 'h4;
 				end
-				default: ;
+				default: next_pc = raise_illegal_instruction(pc, inst);
 				endcase
 			end
 			3'b001: begin
@@ -945,7 +949,7 @@ class ISS;
 					rf.write(rd0, tmp128[`XLEN*2-1:`XLEN]);
 					next_pc = pc + 'h4;
 				end
-				default: ;
+				default: next_pc = raise_illegal_instruction(pc, inst);
 				endcase
 			end
 			3'b010: begin
@@ -960,7 +964,7 @@ class ISS;
 					rf.write(rd0, tmp128[`XLEN*2-1:`XLEN]);
 					next_pc = pc + 'h4;
 				end
-				default: ;
+				default: next_pc = raise_illegal_instruction(pc, inst);
 				endcase
 			end
 			3'b011: begin
@@ -974,7 +978,7 @@ class ISS;
 					rf.write(rd0, tmp128[`XLEN*2-1:`XLEN]);
 					next_pc = pc + 'h4;
 				end
-				default: ;
+				default: next_pc = raise_illegal_instruction(pc, inst);
 				endcase
 			end
 			3'b100: begin
@@ -989,7 +993,7 @@ class ISS;
 					rf.write(rd0, rs2_d == {`XLEN{1'b0}} ? {`XLEN{1'b1}} : tmp);
 					next_pc = pc + 'h4;
 				end
-				default: ;
+				default: next_pc = raise_illegal_instruction(pc, inst);
 				endcase
 			end
 			3'b101: begin
@@ -1006,7 +1010,7 @@ class ISS;
 					rf.write(rd0, $signed(rs1_d) >>> rs2_d[5:0]);
 					next_pc = pc + 'h4;
 				end
-				default: ;
+				default: next_pc = raise_illegal_instruction(pc, inst);
 				endcase
 			end
 			3'b110: begin
@@ -1021,7 +1025,7 @@ class ISS;
 					rf.write(rd0, rs2_d == {`XLEN{1'b0}} ? rs1_d : tmp);
 					next_pc = pc + 'h4;
 				end
-				default: ;
+				default: next_pc = raise_illegal_instruction(pc, inst);
 				endcase
 			end
 			3'b111: begin
@@ -1034,10 +1038,10 @@ class ISS;
 					rf.write(rd0, rs2_d == {`XLEN{1'b0}} ? rs1_d : rs1_d % rs2_d);
 					next_pc = pc + 'h4;
 				end
-				default: ;
+				default: next_pc = raise_illegal_instruction(pc, inst);
 				endcase
 			end
-			default: ;
+			default: next_pc = raise_illegal_instruction(pc, inst);
 			endcase
 		end
 
@@ -1074,7 +1078,7 @@ class ISS;
 				5'b00000: begin		// FSQRT.S
 					next_pc = pc + 'h4;
 				end
-				default: ;
+				default: next_pc = raise_illegal_instruction(pc, inst);
 				endcase
 			end
 			7'b00100_00: begin
@@ -1112,7 +1116,7 @@ class ISS;
 					end
 					next_pc = pc + 'h4;
 				end
-				default: ;
+				default: next_pc = raise_illegal_instruction(pc, inst);
 				endcase
 			end
 			7'b00101_00: begin
@@ -1129,7 +1133,7 @@ class ISS;
 					csr_c.set_fflags({out.invalid, 3'h0, out.inexact});
 					next_pc = pc + 'h4;
 				end
-				default: ;
+				default: next_pc = raise_illegal_instruction(pc, inst);
 				endcase
 			end
 			7'b01000_00: begin
@@ -1140,7 +1144,7 @@ class ISS;
 						csr_c.set_fflags({out.invalid, 3'h0, out.inexact});
 						next_pc = pc + 'h4;
 				end
-				default: ;
+				default: next_pc = raise_illegal_instruction(pc, inst);
 				endcase
 			end
 			7'b11000_00: begin
@@ -1169,7 +1173,7 @@ class ISS;
 						csr_c.set_fflags({lout.invalid, 3'h0, lout.inexact});
 						next_pc = pc + 'h4;
 				end
-				default: ;
+				default: next_pc = raise_illegal_instruction(pc, inst);
 				endcase
 			end
 			7'b11100_00: begin
@@ -1184,10 +1188,10 @@ class ISS;
 						rf.write32u(rd0, float.fclass(fp_rs1_d[31:0]));
 						next_pc = pc + 'h4;
 					end
-					default: ;
+					default: next_pc = raise_illegal_instruction(pc, inst);
 					endcase
 				end
-				default: ;
+				default: next_pc = raise_illegal_instruction(pc, inst);
 				endcase
 			end
 			7'b10100_00: begin
@@ -1210,7 +1214,7 @@ class ISS;
 						csr_c.set_fflags({out.invalid, 3'h0, out.inexact});
 						next_pc = pc + 'h4;
 				end
-				default: ;
+				default: next_pc = raise_illegal_instruction(pc, inst);
 				endcase
 			end
 			7'b11010_00: begin
@@ -1239,7 +1243,7 @@ class ISS;
 						csr_c.set_fflags({out.invalid, 3'h0, out.inexact});
 						next_pc = pc + 'h4;
 				end
-				default: ;
+				default: next_pc = raise_illegal_instruction(pc, inst);
 				endcase
 			end
 			7'b11110_00: begin
@@ -1250,10 +1254,10 @@ class ISS;
 						fp.write(rd0, rs1_d);
 						next_pc = pc + 'h4;
 					end
-					default: ;
+					default: next_pc = raise_illegal_instruction(pc, inst);
 					endcase
 				end
-				default: ;
+				default: next_pc = raise_illegal_instruction(pc, inst);
 				endcase
 			end
 
@@ -1284,7 +1288,7 @@ class ISS;
 				5'b00000: begin		// FSQRT.D
 					next_pc = pc + 'h4;
 				end
-				default: ;
+				default: next_pc = raise_illegal_instruction(pc, inst);
 				endcase
 			end
 			7'b00100_01: begin
@@ -1322,7 +1326,7 @@ class ISS;
 					end
 					next_pc = pc + 'h4;
 				end
-				default: ;
+				default: next_pc = raise_illegal_instruction(pc, inst);
 				endcase
 			end
 			7'b00101_01: begin
@@ -1339,7 +1343,7 @@ class ISS;
 					csr_c.set_fflags({dout.invalid, 3'h0, dout.inexact});
 					next_pc = pc + 'h4;
 				end
-				default: ;
+				default: next_pc = raise_illegal_instruction(pc, inst);
 				endcase
 			end
 			7'b01000_01: begin
@@ -1350,7 +1354,7 @@ class ISS;
 						csr_c.set_fflags({dout.invalid, 3'h0, dout.inexact});
 						next_pc = pc + 'h4;
 				end
-				default: ;
+				default: next_pc = raise_illegal_instruction(pc, inst);
 				endcase
 			end
 			7'b11000_01: begin
@@ -1379,7 +1383,7 @@ class ISS;
 						csr_c.set_fflags({lout.invalid, 3'h0, lout.inexact});
 						next_pc = pc + 'h4;
 				end
-				default: ;
+				default: next_pc = raise_illegal_instruction(pc, inst);
 				endcase
 			end
 			7'b11100_01: begin
@@ -1394,10 +1398,10 @@ class ISS;
 						rf.write32u(rd0, double.fclass(fp_rs1_d));
 						next_pc = pc + 'h4;
 					end
-					default: ;
+					default: next_pc = raise_illegal_instruction(pc, inst);
 					endcase
 				end
-				default: ;
+				default: next_pc = raise_illegal_instruction(pc, inst);
 				endcase
 			end
 			7'b10100_01: begin
@@ -1420,7 +1424,7 @@ class ISS;
 						csr_c.set_fflags({wout.invalid, 3'h0, wout.inexact});
 						next_pc = pc + 'h4;
 				end
-				default: ;
+				default: next_pc = raise_illegal_instruction(pc, inst);
 				endcase
 			end
 			7'b11010_01: begin
@@ -1449,7 +1453,7 @@ class ISS;
 						csr_c.set_fflags({dout.invalid, 3'h0, dout.inexact});
 						next_pc = pc + 'h4;
 				end
-				default: ;
+				default: next_pc = raise_illegal_instruction(pc, inst);
 				endcase
 			end
 			7'b11110_01: begin
@@ -1460,13 +1464,13 @@ class ISS;
 						fp.write(rd0, rs1_d);
 						next_pc = pc + 'h4;
 					end
-					default: ;
+					default: next_pc = raise_illegal_instruction(pc, inst);
 					endcase
 				end
-				default: ;
+				default: next_pc = raise_illegal_instruction(pc, inst);
 				endcase
 			end
-			default: ;
+			default: next_pc = raise_illegal_instruction(pc, inst);
 			endcase
 		end
 
@@ -1487,7 +1491,7 @@ class ISS;
 					5'b00001: begin		// EBREAK
 							next_pc = pc + 'h4;
 					end
-					default: ;
+					default: next_pc = raise_illegal_instruction(pc, inst);
 					endcase
 				end
 				7'b0001000: begin
@@ -1495,7 +1499,7 @@ class ISS;
 					5'b00010: begin		// SRET
 							next_pc = csr_c.sret();	// sepc
 					end
-					default: ;
+					default: next_pc = raise_illegal_instruction(pc, inst);
 					endcase
 				end
 				7'b0011000: begin
@@ -1503,7 +1507,7 @@ class ISS;
 					5'b00010: begin		// MRET
 							next_pc = csr_c.mret();	// mepc
 					end
-					default: ;
+					default: next_pc = raise_illegal_instruction(pc, inst);
 					endcase
 				end
 				7'b0001001: begin
@@ -1511,7 +1515,7 @@ class ISS;
 					5'h00: begin		// SFENCE.VMA
 							next_pc = pc + 'h4;
 					end
-					default: ;
+					default: next_pc = raise_illegal_instruction(pc, inst);
 					endcase
 				end
 				7'b0001011: begin
@@ -1519,7 +1523,7 @@ class ISS;
 					5'b00000: begin		// SINVAL.VMA
 							next_pc = pc + 'h4;
 					end
-					default: ;
+					default: next_pc = raise_illegal_instruction(pc, inst);
 					endcase
 				end
 				7'b0001100: begin
@@ -1532,13 +1536,13 @@ class ISS;
 						5'b00001: begin	// SFENCE.INVAL.IR
 							next_pc = pc + 'h4;
 						end
-						default: ;
+						default: next_pc = raise_illegal_instruction(pc, inst);
 						endcase
 					end
-					default: ;
+					default: next_pc = raise_illegal_instruction(pc, inst);
 					endcase
 				end
-				default: ;
+				default: next_pc = raise_illegal_instruction(pc, inst);
 				endcase
 			end
 			3'b001: begin		// CSRRW
@@ -1575,7 +1579,7 @@ class ISS;
 				csr_c.clear(csr, uimm_w);
 				next_pc = pc + 'h4;
 			end
-			default: ;
+			default: next_pc = raise_illegal_instruction(pc, inst);
 			endcase
 		end
 
@@ -1601,7 +1605,7 @@ class ISS;
 					rf.write32s(rd0, rs1_d[31:0] << shamt[4:0]);
 					next_pc = pc + 'h4;
 				end
-				default: ;
+				default: next_pc = raise_illegal_instruction(pc, inst);
 				endcase
 			end
 			3'b101: begin
@@ -1614,10 +1618,10 @@ class ISS;
 					rf.write32s(rd0, $signed(rs1_d[31:0]) >>> shamt[4:0]);
 					next_pc = pc + 'h4;
 				end
-				default: ;
+				default: next_pc = raise_illegal_instruction(pc, inst);
 				endcase
 			end
-			default: ;
+			default: next_pc = raise_illegal_instruction(pc, inst);
 			endcase
 		end
 
@@ -1638,7 +1642,7 @@ class ISS;
 					rf.write32s(rd0, rs1_d[31:0] - rs2_d[31:0]);
 					next_pc = pc + 'h4;
 				end
-				default: ;
+				default: next_pc = raise_illegal_instruction(pc, inst);
 				endcase
 			end
 			3'b001: begin
@@ -1647,7 +1651,7 @@ class ISS;
 					rf.write32s(rd0, rs1_d[31:0] << rs2_d[4:0]);
 					next_pc = pc + 'h4;
 				end
-				default: ;
+				default: next_pc = raise_illegal_instruction(pc, inst);
 				endcase
 			end
 			3'b100: begin
@@ -1658,7 +1662,7 @@ class ISS;
 					rf.write32s(rd0, rs2_d == {`XLEN{1'b0}} ? {32{1'b1}} : tmp32);
 					next_pc = pc + 'h4;
 				end
-				default: ;
+				default: next_pc = raise_illegal_instruction(pc, inst);
 				endcase
 			end
 			3'b101: begin
@@ -1675,7 +1679,7 @@ class ISS;
 					rf.write32s(rd0, $signed(rs1_d[31:0]) >>> rs2_d[4:0]);
 					next_pc = pc + 'h4;
 				end
-				default: ;
+				default: next_pc = raise_illegal_instruction(pc, inst);
 				endcase
 			end
 			3'b110: begin
@@ -1686,7 +1690,7 @@ class ISS;
 					rf.write32s(rd0, rs2_d == {`XLEN{1'b0}} ? rs1_d[31:0] : tmp32);
 					next_pc = pc + 'h4;
 				end
-				default: ;
+				default: next_pc = raise_illegal_instruction(pc, inst);
 				endcase
 			end
 			3'b111: begin
@@ -1695,13 +1699,13 @@ class ISS;
 					rf.write32s(rd0, rs2_d == {`XLEN{1'b0}} ? rs1_d[`XLEN/2-1:0] : rs1_d[31:0] % rs2_d[31:0]);
 					next_pc = pc + 'h4;
 				end
-				default: ;
+				default: next_pc = raise_illegal_instruction(pc, inst);
 				endcase
 			end
-			default: ;
+			default: next_pc = raise_illegal_instruction(pc, inst);
 			endcase
 		end
-		default: ;
+		default: next_pc = raise_illegal_instruction(pc, inst);
 		endcase
 
 		// retire
