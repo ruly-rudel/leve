@@ -226,9 +226,11 @@ module RISCV64G_ISS (
 `define PTE_A	8'h40
 `define PTE_D	8'h80
 
-	function [`XLEN-1:0] virtual_address_translation(input [`XLEN-1:0] va, input [3:0] acc);
+	task virtual_address_translation(input [`XLEN-1:0] va, input [3:0] acc, output [`XLEN-1:0] pa, output [`XLEN-1:0] trap_pc);
+		trap_pc = {`XLEN{1'b0}};
 		if(csr_c.get_satp_mode() == 4'h00) begin
-			return va;
+			pa = va;
+			return;
 		end else if(csr_c.get_satp_mode() == 4'd08) begin	// Sv39
 			if(csr_c.get_mode() == `MODE_M && csr_c.get_m_sum() && csr_c.get_mprv() && csr_c.get_mpp() == `MODE_S && (acc[`PTE_RB] || acc[`PTE_WB])
 				|| csr_c.get_mode() == `MODE_S && csr_c.get_s_sum()
@@ -256,16 +258,18 @@ module RISCV64G_ISS (
 
 				// virtual address check
 				if((~va[38] | ~&va[63:39]) & (va[38] | |va[63:39])) begin
-					raise_page_fault(va, acc);
-					return {64{1'b0}};
+					trap_pc = raise_page_fault(va, acc);
+					pa = {64{1'b0}};
+					return;
 				end
 				$display("[INFO] a: %16h", a);
 
 				// 2. 1st page table entry address
 				pte_a = a + va_vpn2 * 8;
 				if(~pma.is_readable(pte_a)) begin
-					raise_page_fault(va, `PTE_R);
-					return {64{1'b0}};
+					trap_pc = raise_page_fault(va, `PTE_R);
+					pa = {64{1'b0}};
+					return;
 				end
 				$display("[INFO] pte_a: %16h", pte_a);
 
@@ -273,8 +277,9 @@ module RISCV64G_ISS (
 				pte = mem.read(pte_a);
 				// 3. pte check
 				if(~pte[`PTE_VB] || ~pte[`PTE_RB] & pte[`PTE_WB] || pte[9:8] != 2'h0 || |pte[63:54]) begin
-					raise_page_fault(va, acc);
-					return {64{1'b0}};
+					trap_pc = raise_page_fault(va, acc);
+					pa = {64{1'b0}};
+					return;
 				end
 				$display("[INFO] 1st pte: %16h", pte);
 
@@ -285,16 +290,18 @@ module RISCV64G_ISS (
 					// 2. 1st page table entry address
 					pte_a = a + va_vpn1 * 8;
 					if(~pma.is_readable(pte_a)) begin
-						raise_page_fault(va, `PTE_R);
-						return {64{1'b0}};
+						trap_pc = raise_page_fault(va, `PTE_R);
+						pa = {64{1'b0}};
+						return;
 					end
 
 					// 2nd page table entry
 					pte = mem.read(pte_a);
 					// 3. pte check
 					if(~pte[`PTE_VB] || ~pte[`PTE_RB] & pte[`PTE_WB] || pte[9:8] != 2'h0 || |pte[63:54]) begin
-						raise_page_fault(va, acc);
-						return {64{1'b0}};
+						trap_pc = raise_page_fault(va, acc);
+						pa = {64{1'b0}};
+						return;
 					end
 					$display("[INFO] 2nd pte: %16h", pte);
 					// 4. leaf check
@@ -304,22 +311,25 @@ module RISCV64G_ISS (
 						// 2. 1st page table entry address
 						pte_a = a + va_vpn0 * 8;
 						if(~pma.is_readable(pte_a)) begin
-							raise_page_fault(va, `PTE_R);
-							return {64{1'b0}};
+							trap_pc = raise_page_fault(va, `PTE_R);
+							pa = {64{1'b0}};
+							return;
 						end
 
 						// 3rd page table entry
 						pte = mem.read(pte_a);
 						// 3. pte check
 						if(~pte[`PTE_VB] || ~pte[`PTE_RB] & pte[`PTE_WB] || pte[9:8] != 2'h0 || |pte[63:54]) begin
-							raise_page_fault(va, acc);
-							return {64{1'b0}};
+							trap_pc = raise_page_fault(va, acc);
+							pa = {64{1'b0}};
+							return;
 						end
 						$display("[INFO] 3rd pte: %16h", pte);
 						// 4. leaf check
 						if(~pte[`PTE_RB] && ~pte[`PTE_WB]) begin	// not leaf
-							raise_page_fault(va, acc);
-							return {64{1'b0}};
+							trap_pc = raise_page_fault(va, acc);
+							pa = {64{1'b0}};
+							return;
 						end
 					end
 				end 
@@ -335,28 +345,32 @@ module RISCV64G_ISS (
 					acc[`PTE_WB] && ~pte[`PTE_WB] ||
 					acc[`PTE_XB] && ~pte[`PTE_XB] 
 				) begin
-					raise_page_fault(va, acc);
-					return {64{1'b0}};
+					trap_pc = raise_page_fault(va, acc);
+					pa = {64{1'b0}};
+					return ;
 				end
 
 				// current privilege mode check
 				if(csr_c.get_mode() == `MODE_U && ~pte[`PTE_UB] ||
 				   csr_c.get_mode() == `MODE_S &&  pte[`PTE_UB] && csr_c.get_m_sum()) begin
-					raise_page_fault(va, acc);
-					return {64{1'b0}};
+					trap_pc = raise_page_fault(va, acc);
+					pa = {64{1'b0}};
+					return ;
 				end
 
 				// 6. misaligned sperpage
 				if(i == 2 && (|pte_ppn1 || |pte_ppn0) ||
 				   i == 1 &&               |pte_ppn0) begin
-					raise_page_fault(va, acc);
-					return {64{1'b0}};
+					trap_pc = raise_page_fault(va, acc);
+					pa = {64{1'b0}};
+					return ;
 				end
 
 				// 7. pte.a == 0, or store access and pte.d ==0
 				if(~pte[`PTE_AB] || acc[`PTE_WB] && ~pte[`PTE_DB]) begin
-					raise_page_fault(va, acc);
-					return {64{1'b0}};
+					trap_pc = raise_page_fault(va, acc);
+					pa = {64{1'b0}};
+					return ;
 				end
 
 				va_vpn = i == 2 ? va_vpn2 : i == 1 ? va_vpn1 : va_vpn0;
@@ -368,8 +382,9 @@ module RISCV64G_ISS (
 						pte = pte | {{56{1'b0}}, `PTE_D};
 					end
 					if(!pma.is_writeable(pte_a)) begin
-						raise_page_fault(pte_a, `PTE_W);
-						return {64{1'b0}};
+						trap_pc = raise_page_fault(pte_a, `PTE_W);
+						pa = {64{1'b0}};
+						return ;
 					end else begin
 						mem.write(pte_a, pte);
 					end
@@ -394,23 +409,28 @@ module RISCV64G_ISS (
 				end
 
 				$display("[INFO] va -> pa: %16h -> %16h", va, {8'h00, pa_ppn2, pa_ppn1, pa_ppn0, va_ofs});
-				return {8'h00, pa_ppn2, pa_ppn1, pa_ppn0, va_ofs};
+				pa = {8'h00, pa_ppn2, pa_ppn1, pa_ppn0, va_ofs};
+				return ;
 
 			end else begin	// no addresds translation
-				return va;
+				pa = va;
+				return ;
 			end
 		end else begin	// not implemented yet.
-			return va;
+			pa = va;
+			return;
 		end
-	endfunction
+	endtask
 
-	function void raise_page_fault(input [`XLEN-1:0] va, input [3:0] acc);
+	function [`XLEN-1:0] raise_page_fault(input [`XLEN-1:0] va, input [3:0] acc);
 		if(acc[`PTE_RB]) begin
-			pc = csr_c.raise_exception(`EX_LPFAULT, pc, va);
-		end else if(acc[`PTE_WB])begin
-			pc = csr_c.raise_exception(`EX_SPFAULT, pc, va);
-		end else if(acc[`PTE_XB])begin
-			pc = csr_c.raise_exception(`EX_IPFAULT, pc, va);
+			return csr_c.raise_exception(`EX_LPFAULT, pc, va);
+		end else if(acc[`PTE_WB]) begin
+			return csr_c.raise_exception(`EX_SPFAULT, pc, va);
+		end else if(acc[`PTE_XB]) begin
+			return csr_c.raise_exception(`EX_IPFAULT, pc, va);
+		end else begin
+			return {`XLEN{1'b0}};
 		end
 	endfunction
 
@@ -419,6 +439,8 @@ module RISCV64G_ISS (
 	always_ff @(posedge CLK or negedge RSTn)
 	begin
 		logic [`XLEN-1:0]	tmp;
+		logic [`XLEN-1:0]	trap_pc;
+		logic [`XLEN-1:0]	next_pc;
 		logic [32-1:0]		tmp32;
 		logic [`XLEN*2-1:0]	tmp128;
 
@@ -440,7 +462,13 @@ module RISCV64G_ISS (
 
 
 			// 1. instruction fetch
-			inst   = mem.read32(virtual_address_translation(pc, `PTE_X));
+			virtual_address_translation(pc, `PTE_X, tmp, trap_pc);
+			if(tmp != {64{1'b0}}) begin
+				inst   = mem.read32(tmp);
+			end else begin
+				inst   = 32'h0000_0000;
+			end
+
 			trace.print(pc, inst);	// trace output
 
 			opcode = inst[6:0];
@@ -487,80 +515,94 @@ module RISCV64G_ISS (
 			7'b00_000_11: begin	// LOAD: I type
 				case (funct3)
 				3'b000: begin			// LB
-					tmp = virtual_address_translation(rs1_d + imm_iw, `PTE_R);
+					virtual_address_translation(rs1_d + imm_iw, `PTE_R, tmp, trap_pc);
 					if(tmp != {64{1'b0}}) begin
 						if(pma.is_readable(tmp)) begin
 							rf.write8s(rd0, mem.read8(tmp));
-							pc = pc + 'h4;
+							next_pc = pc + 'h4;
 						end else begin
-							pc = csr_c.raise_exception(`EX_LAFAULT, pc, tmp);
+							next_pc = csr_c.raise_exception(`EX_LAFAULT, pc, tmp);
 						end
+					end else begin
+						next_pc = trap_pc;
 					end
 				end
 				3'b001: begin			// LH
-					tmp = virtual_address_translation(rs1_d + imm_iw, `PTE_R);
+					virtual_address_translation(rs1_d + imm_iw, `PTE_R, tmp, trap_pc);
 					if(tmp != {64{1'b0}}) begin
 						if(pma.is_readable(tmp)) begin
 							rf.write16s(rd0, mem.read16(tmp));
-							pc = pc + 'h4;
+							next_pc = pc + 'h4;
 						end else begin
-							pc = csr_c.raise_exception(`EX_LAFAULT, pc, tmp);
+							next_pc = csr_c.raise_exception(`EX_LAFAULT, pc, tmp);
 						end
+					end else begin
+						next_pc = trap_pc;
 					end
 				end
 				3'b010: begin			// LW
-					tmp = virtual_address_translation(rs1_d + imm_iw, `PTE_R);
+					virtual_address_translation(rs1_d + imm_iw, `PTE_R, tmp, trap_pc);
 					if(tmp != {64{1'b0}}) begin
 						if(pma.is_readable(tmp)) begin
 							rf.write32s(rd0, mem.read32(tmp));
-							pc = pc + 'h4;
+							next_pc = pc + 'h4;
 						end else begin
-							pc = csr_c.raise_exception(`EX_LAFAULT, pc, tmp);
+							next_pc = csr_c.raise_exception(`EX_LAFAULT, pc, tmp);
 						end
+					end else begin
+						next_pc = trap_pc;
 					end
 				end
 				3'b011: begin			// LD
-					tmp = virtual_address_translation(rs1_d + imm_iw, `PTE_R);
+					virtual_address_translation(rs1_d + imm_iw, `PTE_R, tmp, trap_pc);
 					if(tmp != {64{1'b0}}) begin
 						if(pma.is_readable(tmp)) begin
 							rf.write(rd0, mem.read(tmp));
-							pc = pc + 'h4;
+							next_pc = pc + 'h4;
 						end else begin
-							pc = csr_c.raise_exception(`EX_LAFAULT, pc, tmp);
+							next_pc = csr_c.raise_exception(`EX_LAFAULT, pc, tmp);
 						end
+					end else begin
+						next_pc = trap_pc;
 					end
 				end
 				3'b100: begin			// LBU
-					tmp = virtual_address_translation(rs1_d + imm_iw, `PTE_R);
+					virtual_address_translation(rs1_d + imm_iw, `PTE_R, tmp, trap_pc);
 					if(tmp != {64{1'b0}}) begin
 						if(pma.is_readable(tmp)) begin
 							rf.write8u(rd0, mem.read8(tmp));
-							pc = pc + 'h4;
+							next_pc = pc + 'h4;
 						end else begin
-							pc = csr_c.raise_exception(`EX_LAFAULT, pc, tmp);
+							next_pc = csr_c.raise_exception(`EX_LAFAULT, pc, tmp);
 						end
+					end else begin
+						next_pc = trap_pc;
 					end
 				end
 				3'b101: begin			// LHU
-					tmp = virtual_address_translation(rs1_d + imm_iw, `PTE_R);
+					virtual_address_translation(rs1_d + imm_iw, `PTE_R, tmp, trap_pc);
 					if(tmp != {64{1'b0}}) begin
 						if(pma.is_readable(tmp)) begin
 							rf.write16u(rd0, mem.read16(tmp));
-							pc = pc + 'h4;
+							next_pc = pc + 'h4;
 						end else begin
-							pc = csr_c.raise_exception(`EX_LAFAULT, pc, tmp);
+							next_pc = csr_c.raise_exception(`EX_LAFAULT, pc, tmp);
 						end
+					end else begin
+						next_pc = trap_pc;
 					end
 				end
 				3'b110: begin			// LWU
-					tmp = virtual_address_translation(rs1_d + imm_iw, `PTE_R);
+					virtual_address_translation(rs1_d + imm_iw, `PTE_R, tmp, trap_pc);
 					if(tmp != {64{1'b0}}) begin
 						if(pma.is_readable(tmp)) begin
 							rf.write32u(rd0, mem.read32(tmp));
-							pc = pc + 'h4;
+							next_pc = pc + 'h4;
 						end else begin
-							pc = csr_c.raise_exception(`EX_LAFAULT, pc, tmp);
+							next_pc = csr_c.raise_exception(`EX_LAFAULT, pc, tmp);
 						end
+					end else begin
+						next_pc = trap_pc;
 					end
 				end
 				default: ;
@@ -570,49 +612,57 @@ module RISCV64G_ISS (
 			7'b01_000_11: begin	// STORE: S type
 				case (funct3)
 				3'b000: begin			// SB
-					tmp = virtual_address_translation(rs1_d + imm_sw, `PTE_W);
+					virtual_address_translation(rs1_d + imm_sw, `PTE_W, tmp, trap_pc);
 					if(tmp != {64{1'b0}}) begin
 						if(pma.is_writeable(tmp)) begin
 							mem.write8(rs1_d + imm_sw, rs2_d[7:0]);
-							pc = pc + 'h4;
+							next_pc = pc + 'h4;
 						end else begin
-							pc = csr_c.raise_exception(`EX_SAFAULT, pc, tmp);
+							next_pc = csr_c.raise_exception(`EX_SAFAULT, pc, tmp);
 						end
+					end else begin
+						next_pc = trap_pc;
 					end
 				end
 				3'b001: begin			// SH
-					tmp = virtual_address_translation(rs1_d + imm_sw, `PTE_W);
+					virtual_address_translation(rs1_d + imm_sw, `PTE_W, tmp, trap_pc);
 					if(tmp != {64{1'b0}}) begin
 						if(pma.is_writeable(tmp)) begin
 							mem.write16(tmp, rs2_d[15:0]);
-							pc = pc + 'h4;
+							next_pc = pc + 'h4;
 						end else begin
-							pc = csr_c.raise_exception(`EX_SAFAULT, pc, tmp);
+							next_pc = csr_c.raise_exception(`EX_SAFAULT, pc, tmp);
 						end
+					end else begin
+						next_pc = trap_pc;
 					end
 				end
 				3'b010: begin			// SW
-					tmp = virtual_address_translation(rs1_d + imm_sw, `PTE_W);
+					virtual_address_translation(rs1_d + imm_sw, `PTE_W, tmp, trap_pc);
 					if(tmp != {64{1'b0}}) begin
 						if(pma.is_writeable(tmp)) begin
 							mem.write32(tmp, rs2_d[31:0]);
-							pc = pc + 'h4;
+							next_pc = pc + 'h4;
 							tohost_we  = rs1_d + imm_sw == mem.get_tohost() ? 1'b1 : 1'b0;	// for testbench hack
 							tohost     = rs2_d[31:0];
 						end else begin
-							pc = csr_c.raise_exception(`EX_SAFAULT, pc, tmp);
+							next_pc = csr_c.raise_exception(`EX_SAFAULT, pc, tmp);
 						end
+					end else begin
+						next_pc = trap_pc;
 					end
 				end
 				3'b011: begin			// SD
-					tmp = virtual_address_translation(rs1_d + imm_sw, `PTE_W);
+					virtual_address_translation(rs1_d + imm_sw, `PTE_W, tmp, trap_pc);
 					if(tmp != {64{1'b0}}) begin
 						if(pma.is_writeable(tmp)) begin
 							mem.write(tmp, rs2_d);
-							pc = pc + 'h4;
+							next_pc = pc + 'h4;
 						end else begin
-							pc = csr_c.raise_exception(`EX_SAFAULT, pc, tmp);
+							next_pc = csr_c.raise_exception(`EX_SAFAULT, pc, tmp);
 						end
+					end else begin
+						next_pc = trap_pc;
 					end
 				end
 				default: ;
@@ -620,20 +670,20 @@ module RISCV64G_ISS (
 			end
 
 			7'b10_000_11: begin	// MADD
-						pc = pc + 'h4;
+						next_pc = pc + 'h4;
 			end
 
 			7'b11_000_11: begin	// BRANCH
 				case (funct3)
-				3'b000:	pc = rs1_d == rs2_d ? pc + imm_bw : pc + 'h4;	// BEQ
+				3'b000:	next_pc = rs1_d == rs2_d ? pc + imm_bw : pc + 'h4;	// BEQ
 				3'b001:	begin 			// BNE
 					$display("[INFO] BNE %16h == %16h or not.", rs1_d, rs2_d);
-					pc = rs1_d != rs2_d ? pc + imm_bw : pc + 'h4;
+					next_pc = rs1_d != rs2_d ? pc + imm_bw : pc + 'h4;
 				end
-				3'b100:	pc = $signed(rs1_d) <  $signed(rs2_d) ? pc + imm_bw : pc + 'h4;	// BLT
-				3'b101:	pc = $signed(rs1_d) >= $signed(rs2_d) ? pc + imm_bw : pc + 'h4;	// BGE
-				3'b110:	pc = rs1_d <  rs2_d ? pc + imm_bw : pc + 'h4;	// BLTU
-				3'b111:	pc = rs1_d >= rs2_d ? pc + imm_bw : pc + 'h4;	// BGEU
+				3'b100:	next_pc = $signed(rs1_d) <  $signed(rs2_d) ? pc + imm_bw : pc + 'h4;	// BLT
+				3'b101:	next_pc = $signed(rs1_d) >= $signed(rs2_d) ? pc + imm_bw : pc + 'h4;	// BGE
+				3'b110:	next_pc = rs1_d <  rs2_d ? pc + imm_bw : pc + 'h4;	// BLTU
+				3'b111:	next_pc = rs1_d >= rs2_d ? pc + imm_bw : pc + 'h4;	// BGEU
 				default: ;
 				endcase
 			end
@@ -641,25 +691,29 @@ module RISCV64G_ISS (
 			7'b00_001_11: begin	// LOAD-FP
 				case (funct3)
 				3'b010: begin			// FLW
-					tmp = virtual_address_translation(rs1_d + imm_iw, `PTE_R);
+					virtual_address_translation(rs1_d + imm_iw, `PTE_R, tmp, trap_pc);
 					if(tmp != {64{1'b0}}) begin
 						if(pma.is_readable(tmp)) begin
 							fp.write32u(rd0, mem.read32(tmp));
-							pc = pc + 'h4;
+							next_pc = pc + 'h4;
 						end else begin
-							pc = csr_c.raise_exception(`EX_LAFAULT, pc, tmp);
+							next_pc = csr_c.raise_exception(`EX_LAFAULT, pc, tmp);
 						end
+					end else begin
+						next_pc = trap_pc;
 					end
 				end
 				3'b011: begin			// FLD
-					tmp = virtual_address_translation(rs1_d + imm_iw, `PTE_R);
+					virtual_address_translation(rs1_d + imm_iw, `PTE_R, tmp, trap_pc);
 					if(tmp != {64{1'b0}}) begin
 						if(pma.is_readable(tmp)) begin
 							fp.write(rd0, mem.read(tmp));
-							pc = pc + 'h4;
+							next_pc = pc + 'h4;
 						end else begin
-							pc = csr_c.raise_exception(`EX_LAFAULT, pc, tmp);
+							next_pc = csr_c.raise_exception(`EX_LAFAULT, pc, tmp);
 						end
+					end else begin
+						next_pc = trap_pc;
 					end
 				end
 				default: ;
@@ -669,25 +723,29 @@ module RISCV64G_ISS (
 			7'b01_001_11: begin	// STORE-FP
 				case (funct3)
 				3'b010: begin			// FSW
-					tmp = virtual_address_translation(rs1_d + imm_sw, `PTE_W);
+					virtual_address_translation(rs1_d + imm_sw, `PTE_W, tmp, trap_pc);
 					if(tmp != {64{1'b0}}) begin
 						if(pma.is_writeable(tmp)) begin
 							mem.write32(tmp, fp_rs2_d[31:0]);
-							pc = pc + 'h4;
+							next_pc = pc + 'h4;
 						end else begin
-							pc = csr_c.raise_exception(`EX_SAFAULT, pc, tmp);
+							next_pc = csr_c.raise_exception(`EX_SAFAULT, pc, tmp);
 						end
+					end else begin
+						next_pc = trap_pc;
 					end
 				end
 				3'b011: begin			// FSD
-					tmp = virtual_address_translation(rs1_d + imm_sw, `PTE_W);
+					virtual_address_translation(rs1_d + imm_sw, `PTE_W, tmp, trap_pc);
 					if(tmp != {64{1'b0}}) begin
 						if(pma.is_writeable(tmp)) begin
 							mem.write(tmp, fp_rs2_d);
-							pc = pc + 'h4;
+							next_pc = pc + 'h4;
 						end else begin
-							pc = csr_c.raise_exception(`EX_SAFAULT, pc, tmp);
+							next_pc = csr_c.raise_exception(`EX_SAFAULT, pc, tmp);
 						end
+					end else begin
+						next_pc = trap_pc;
 					end
 				end
 				default: ;
@@ -695,30 +753,30 @@ module RISCV64G_ISS (
 			end
 
 			7'b10_001_11: begin	// MSUB
-						pc = pc + 'h4;
+						next_pc = pc + 'h4;
 			end
 
 			7'b11_001_11: begin	// JALR
 				case (funct3)
 				3'b000: begin
 						rf.write(rd0, pc + 'h4);
-						pc = rs1_d + imm_iw;
+						next_pc = rs1_d + imm_iw;
 				end
 				default: ;
 				endcase
 			end
 
 			7'b01_010_11: begin	// NMSUB
-						pc = pc + 'h4;
+						next_pc = pc + 'h4;
 			end
 
 			7'b00_011_11: begin	// MISC-MEM
 				case (funct3)
 				3'b000: begin	// FENCE
-						pc = pc + 'h4;
+						next_pc = pc + 'h4;
 				end
 				3'b001: begin	// FENCE.I
-						pc = pc + 'h4;
+						next_pc = pc + 'h4;
 				end
 				default: ;
 				endcase
@@ -732,7 +790,7 @@ module RISCV64G_ISS (
 						lrsc_valid <= 1'b1;
 						lrsc_addr  <= rs1_d;
 						rf.write32s(rd0, mem.read32(rs1_d));
-						pc = pc + 'h4;
+						next_pc = pc + 'h4;
 					end
 					5'b00011: begin		// SC.W
 						if(lrsc_valid && lrsc_addr == rs1_d) begin
@@ -743,60 +801,60 @@ module RISCV64G_ISS (
 						end else begin
 							rf.write(rd0, {{`XLEN-1{1'b0}}, 1'b1});
 						end
-						pc = pc + 'h4;
+						next_pc = pc + 'h4;
 					end
 					5'b00001: begin		// AMOSWAP.W
 						rf.write32s(rd0, mem.read32(rs1_d));
 						mem.write32(rs1_d, rs2_d[31:0]);
-						pc = pc + 'h4;
+						next_pc = pc + 'h4;
 					end
 					5'b00000: begin		// AMOADD.W
 						tmp32 = mem.read32(rs1_d);
 						rf.write32s(rd0, tmp32);
 						mem.write32(rs1_d, rs2_d[31:0] + tmp32);
-						pc = pc + 'h4;
+						next_pc = pc + 'h4;
 					end
 					5'b00100: begin		// AMOXOR.W
 						tmp32 = mem.read32(rs1_d);
 						rf.write32s(rd0, tmp32);
 						mem.write32(rs1_d, rs2_d[31:0] ^ tmp32);
-						pc = pc + 'h4;
+						next_pc = pc + 'h4;
 					end
 					5'b01100: begin		// AMOAND.W
 						tmp32 = mem.read32(rs1_d);
 						rf.write32s(rd0, tmp32);
 						mem.write32(rs1_d, rs2_d[31:0] & tmp32);
-						pc = pc + 'h4;
+						next_pc = pc + 'h4;
 					end
 					5'b01000: begin		// AMOOR.W
 						tmp32 = mem.read32(rs1_d);
 						rf.write32s(rd0, tmp32);
 						mem.write32(rs1_d, rs2_d[31:0] | tmp32);
-						pc = pc + 'h4;
+						next_pc = pc + 'h4;
 					end
 					5'b10000: begin		// AMOMIN.W
 						tmp32 = mem.read32(rs1_d);
 						rf.write32s(rd0, tmp32);
 						mem.write32(rs1_d, $signed(rs2_d[31:0]) < $signed(tmp32) ? rs2_d[31:0] : tmp32);
-						pc = pc + 'h4;
+						next_pc = pc + 'h4;
 					end
 					5'b10100: begin		// AMOMAX.W
 						tmp32 = mem.read32(rs1_d);
 						rf.write32s(rd0, tmp32);
 						mem.write32(rs1_d, $signed(rs2_d[31:0]) > $signed(tmp32) ? rs2_d[31:0] : tmp32);
-						pc = pc + 'h4;
+						next_pc = pc + 'h4;
 					end
 					5'b11000: begin		// AMOMINU.W
 						tmp32 = mem.read32(rs1_d);
 						rf.write32s(rd0, tmp32);
 						mem.write32(rs1_d, rs2_d[31:0] < tmp32 ? rs2_d[31:0] : tmp32);
-						pc = pc + 'h4;
+						next_pc = pc + 'h4;
 					end
 					5'b11100: begin		// AMOMAXU.W
 						tmp32 = mem.read32(rs1_d);
 						rf.write32s(rd0, tmp32);
 						mem.write32(rs1_d, rs2_d[31:0] > tmp32 ? rs2_d[31:0] : tmp32);
-						pc = pc + 'h4;
+						next_pc = pc + 'h4;
 					end
 					default: ;
 					endcase
@@ -811,62 +869,62 @@ module RISCV64G_ISS (
 						tmp = mem.read(rs1_d);
 						rf.write(rd0, tmp);
 						mem.write(rs1_d, rs2_d);
-						pc = pc + 'h4;
+						next_pc = pc + 'h4;
 					end
 					5'b00000: begin		// AMOADD.D
 						tmp = mem.read(rs1_d);
 						rf.write(rd0, tmp);
 						mem.write(rs1_d, rs2_d + tmp);
-						pc = pc + 'h4;
+						next_pc = pc + 'h4;
 					end
 					5'b00100: begin		// AMOXOR.D
 						tmp = mem.read(rs1_d);
 						rf.write(rd0, tmp);
 						tmp = rs2_d ^ tmp;
 						mem.write(rs1_d, tmp);
-						pc = pc + 'h4;
+						next_pc = pc + 'h4;
 					end
 					5'b01100: begin		// AMOAND.D
 						tmp = mem.read(rs1_d);
 						rf.write(rd0, tmp);
 						tmp = rs2_d & tmp;
 						mem.write(rs1_d, tmp);
-						pc = pc + 'h4;
+						next_pc = pc + 'h4;
 					end
 					5'b01000: begin		// AMOOR.D
 						tmp = mem.read(rs1_d);
 						rf.write(rd0, tmp);
 						tmp = rs2_d | tmp;
 						mem.write(rs1_d, tmp);
-						pc = pc + 'h4;
+						next_pc = pc + 'h4;
 					end
 					5'b10000: begin		// AMOMIN.D
 						tmp = mem.read(rs1_d);
 						rf.write(rd0, tmp);
 						tmp = $signed(rs2_d) < $signed(tmp) ? rs2_d : tmp;
 						mem.write(rs1_d, tmp);
-						pc = pc + 'h4;
+						next_pc = pc + 'h4;
 					end
 					5'b10100: begin		// AMOMAX.D
 						tmp = mem.read(rs1_d);
 						rf.write(rd0, tmp);
 						tmp = $signed(rs2_d) > $signed(tmp) ? rs2_d : tmp;
 						mem.write(rs1_d, tmp);
-						pc = pc + 'h4;
+						next_pc = pc + 'h4;
 					end
 					5'b11000: begin		// AMOMINU.D
 						tmp = mem.read(rs1_d);
 						rf.write(rd0, tmp);
 						tmp = rs2_d < tmp ? rs2_d : tmp;
 						mem.write(rs1_d, tmp);
-						pc = pc + 'h4;
+						next_pc = pc + 'h4;
 					end
 					5'b11100: begin		// AMOMAXU.D
 						tmp = mem.read(rs1_d);
 						rf.write(rd0, tmp);
 						tmp = rs2_d > tmp ? rs2_d : tmp;
 						mem.write(rs1_d, tmp);
-						pc = pc + 'h4;
+						next_pc = pc + 'h4;
 					end
 					default: ;
 					endcase
@@ -876,61 +934,61 @@ module RISCV64G_ISS (
 			end
 
 			7'b10_011_11: begin	// NMADD
-						pc = pc + 'h4;
+						next_pc = pc + 'h4;
 			end
 
 			7'b11_011_11: begin	// JAL
 						rf.write(rd0, pc + 'h4);
-						pc = pc + imm_jw;
+						next_pc = pc + imm_jw;
 			end
 
 			7'b00_100_11: begin	// OP-IMM
 				case (funct3)
 				3'b000: begin								// ADDI
 						rf.write(rd0, rs1_d + imm_iw);
-						pc = pc + 'h4;
+						next_pc = pc + 'h4;
 				end
 				3'b001: begin
 					case (funct7[6:1])
 					6'b000000: begin						// SLLI
 						rf.write(rd0, rs1_d << shamt);
-						pc = pc + 'h4;
+						next_pc = pc + 'h4;
 					end
 					default: ;
 					endcase
 				end
 				3'b010: begin								// SLTI
 						rf.write(rd0, $signed(rs1_d) < $signed(imm_iw) ? {{63{1'b0}}, 1'b1} : {64{1'b0}});
-						pc = pc + 'h4;
+						next_pc = pc + 'h4;
 				end
 				3'b011: begin								// SLTIU
 						rf.write(rd0, rs1_d < imm_iw ? {{63{1'b0}}, 1'b1} : {64{1'b0}});
-						pc = pc + 'h4;
+						next_pc = pc + 'h4;
 				end
 				3'b100: begin								// XORI
 						rf.write(rd0, rs1_d ^ imm_iw);
-						pc = pc + 'h4;
+						next_pc = pc + 'h4;
 				end
 				3'b101: begin
 					case (funct7[6:1])
 					6'b000000: begin						// SRLI
 						rf.write(rd0, rs1_d >> shamt);
-						pc = pc + 'h4;
+						next_pc = pc + 'h4;
 					end
 					6'b010000: begin						// SRAI
 						rf.write(rd0, $signed(rs1_d) >>> shamt);
-						pc = pc + 'h4;
+						next_pc = pc + 'h4;
 					end
 					default: ;
 					endcase
 				end
 				3'b110: begin								// ORI
 						rf.write(rd0, rs1_d | imm_iw);
-						pc = pc + 'h4;
+						next_pc = pc + 'h4;
 				end
 				3'b111: begin								// ANDI
 						rf.write(rd0, rs1_d & imm_iw);
-						pc = pc + 'h4;
+						next_pc = pc + 'h4;
 				end
 				default: ;
 				endcase
@@ -942,16 +1000,16 @@ module RISCV64G_ISS (
 					case (funct7)
 					7'b0000000: begin	// ADD
 						rf.write(rd0, rs1_d + rs2_d);
-						pc = pc + 'h4;
+						next_pc = pc + 'h4;
 					end
 					7'b0000001: begin	// MUL
 						tmp128 = rs1_d * rs2_d;
 						rf.write(rd0, tmp128[`XLEN-1:0]);
-						pc = pc + 'h4;
+						next_pc = pc + 'h4;
 					end
 					7'b0100000: begin	// SUB
 						rf.write(rd0, rs1_d - rs2_d);
-						pc = pc + 'h4;
+						next_pc = pc + 'h4;
 					end
 					default: ;
 					endcase
@@ -960,12 +1018,12 @@ module RISCV64G_ISS (
 					case (funct7)
 					7'b0000000: begin	// SLL
 						rf.write(rd0, rs1_d << rs2_d[5:0]);
-						pc = pc + 'h4;
+						next_pc = pc + 'h4;
 					end
 					7'b0000001: begin	// MULH
 						tmp128 = $signed(rs1_d) * $signed(rs2_d);
 						rf.write(rd0, tmp128[`XLEN*2-1:`XLEN]);
-						pc = pc + 'h4;
+						next_pc = pc + 'h4;
 					end
 					default: ;
 					endcase
@@ -974,13 +1032,13 @@ module RISCV64G_ISS (
 					case (funct7)
 					7'b0000000: begin	// SLT
 						rf.write(rd0, $signed(rs1_d) < $signed(rs2_d) ? {{63{1'b0}}, 1'b1} : {64{1'b0}});
-						pc = pc + 'h4;
+						next_pc = pc + 'h4;
 					end
 					7'b0000001: begin	// MULHSU
 						tmp128 = absXLEN(rs1_d) * rs2_d;
 						tmp128 = twoscompXLENx2(rs1_d[`XLEN-1], tmp128);
 						rf.write(rd0, tmp128[`XLEN*2-1:`XLEN]);
-						pc = pc + 'h4;
+						next_pc = pc + 'h4;
 					end
 					default: ;
 					endcase
@@ -989,12 +1047,12 @@ module RISCV64G_ISS (
 					case (funct7)
 					7'b0000000: begin	// SLTU
 						rf.write(rd0, rs1_d < rs2_d ? {{63{1'b0}}, 1'b1} : {64{1'b0}});
-						pc = pc + 'h4;
+						next_pc = pc + 'h4;
 					end
 					7'b0000001: begin	// MULHU
 						tmp128 = rs1_d * rs2_d;
 						rf.write(rd0, tmp128[`XLEN*2-1:`XLEN]);
-						pc = pc + 'h4;
+						next_pc = pc + 'h4;
 					end
 					default: ;
 					endcase
@@ -1003,13 +1061,13 @@ module RISCV64G_ISS (
 					case (funct7)
 					7'b0000000: begin	// XOR
 					 	rf.write(rd0, rs1_d ^ rs2_d);
-						pc = pc + 'h4;
+						next_pc = pc + 'h4;
 					end
 					7'b0000001: begin	// DIV
 						tmp = absXLEN(rs1_d) / absXLEN(rs2_d);
 						tmp = twoscompXLEN(rs1_d[`XLEN-1] ^ rs2_d[`XLEN-1], tmp);
 						rf.write(rd0, rs2_d == {`XLEN{1'b0}} ? {`XLEN{1'b1}} : tmp);
-						pc = pc + 'h4;
+						next_pc = pc + 'h4;
 					end
 					default: ;
 					endcase
@@ -1018,15 +1076,15 @@ module RISCV64G_ISS (
 					case (funct7)
 					7'b0000000: begin	// SRL
 						rf.write(rd0, rs1_d >> rs2_d[5:0]);
-						pc = pc + 'h4;
+						next_pc = pc + 'h4;
 					end
 					7'b0000001: begin	// DIVU
 						rf.write(rd0, rs2_d == {`XLEN{1'b0}} ? {`XLEN{1'b1}} : rs1_d / rs2_d);
-						pc = pc + 'h4;
+						next_pc = pc + 'h4;
 					end
 					7'b0100000: begin	// SRA
 						rf.write(rd0, $signed(rs1_d) >>> rs2_d[5:0]);
-						pc = pc + 'h4;
+						next_pc = pc + 'h4;
 					end
 					default: ;
 					endcase
@@ -1035,13 +1093,13 @@ module RISCV64G_ISS (
 					case (funct7)
 					7'b0000000: begin	// OR
 						rf.write(rd0, rs1_d | rs2_d);
-						pc = pc + 'h4;
+						next_pc = pc + 'h4;
 					end
 					7'b0000001: begin	// REM
 						tmp = absXLEN(rs1_d) % absXLEN(rs2_d);
 						tmp = twoscompXLEN(rs1_d[`XLEN/2-1], tmp);
 						rf.write(rd0, rs2_d == {`XLEN{1'b0}} ? rs1_d : tmp);
-						pc = pc + 'h4;
+						next_pc = pc + 'h4;
 					end
 					default: ;
 					endcase
@@ -1050,11 +1108,11 @@ module RISCV64G_ISS (
 					case (funct7)
 					7'b0000000: begin	// AND
 						rf.write(rd0, rs1_d & rs2_d);
-						pc = pc + 'h4;
+						next_pc = pc + 'h4;
 					end
 					7'b0000001: begin	// REMU
 						rf.write(rd0, rs2_d == {`XLEN{1'b0}} ? rs1_d : rs1_d % rs2_d);
-						pc = pc + 'h4;
+						next_pc = pc + 'h4;
 					end
 					default: ;
 					endcase
@@ -1074,27 +1132,27 @@ module RISCV64G_ISS (
 						float.fadd(fp_rs1_d[31:0], fp_rs2_d[31:0], out);
 						fp.write32u(rd0, out.val);
 						csr_c.set_fflags({out.invalid, 3'h0, out.inexact});
-						pc = pc + 'h4;
+						next_pc = pc + 'h4;
 				end
 				7'b00001_00: begin		// FSUB.S
 						float.fsub(fp_rs1_d[31:0], fp_rs2_d[31:0], out);
 						fp.write32u(rd0, out.val);
 						csr_c.set_fflags({out.invalid, 3'h0, out.inexact});
-						pc = pc + 'h4;
+						next_pc = pc + 'h4;
 				end
 				7'b00010_00: begin		// FMUL.S
 						float.fmul(fp_rs1_d[31:0], fp_rs2_d[31:0], out);
 						fp.write32u(rd0, out.val);
 						csr_c.set_fflags({out.invalid, 3'h0, out.inexact});
-						pc = pc + 'h4;
+						next_pc = pc + 'h4;
 				end
 				7'b00011_00: begin		// FDIV.S
-						pc = pc + 'h4;
+						next_pc = pc + 'h4;
 				end
 				7'b01011_00: begin
 					case (rs2)
 					5'b00000: begin		// FSQRT.S
-						pc = pc + 'h4;
+						next_pc = pc + 'h4;
 					end
 					default: ;
 					endcase
@@ -1110,7 +1168,7 @@ module RISCV64G_ISS (
 							tmp32 = fp.read32(rs1);
 							fp.write32u(rd0, {1'b0, tmp32[30:0]});
 						end
-						pc = pc + 'h4;
+						next_pc = pc + 'h4;
 					end
 					3'b001: begin		// FSGNJN.S
 						tmp32 = fp.read32(rs2);
@@ -1121,7 +1179,7 @@ module RISCV64G_ISS (
 							tmp32 = fp.read32(rs1);
 							fp.write32u(rd0, {1'b1, tmp32[30:0]});
 						end
-						pc = pc + 'h4;
+						next_pc = pc + 'h4;
 					end
 					3'b010: begin		// FSGNJX.S
 						tmp32 = fp.read32(rs2);
@@ -1132,7 +1190,7 @@ module RISCV64G_ISS (
 							tmp32 = fp.read32(rs1);
 							fp.write32u(rd0, {1'b0 ^ tmp32[31], tmp32[30:0]});
 						end
-						pc = pc + 'h4;
+						next_pc = pc + 'h4;
 					end
 					default: ;
 					endcase
@@ -1143,13 +1201,13 @@ module RISCV64G_ISS (
 						float.fmin(fp_rs1_d[31:0], fp_rs2_d[31:0], out);
 						fp.write32u(rd0, out.val);
 						csr_c.set_fflags({out.invalid, 3'h0, out.inexact});
-						pc = pc + 'h4;
+						next_pc = pc + 'h4;
 					end
 					3'b001: begin		// FMAX.S
 						float.fmax(fp_rs1_d[31:0], fp_rs2_d[31:0], out);
 						fp.write32u(rd0, out.val);
 						csr_c.set_fflags({out.invalid, 3'h0, out.inexact});
-						pc = pc + 'h4;
+						next_pc = pc + 'h4;
 					end
 					default: ;
 					endcase
@@ -1160,7 +1218,7 @@ module RISCV64G_ISS (
 							fcvt_s_d.float_from_double(fp_rs1_d, out);
 							fp.write32u(rd0, out.val);
 							csr_c.set_fflags({out.invalid, 3'h0, out.inexact});
-							pc = pc + 'h4;
+							next_pc = pc + 'h4;
 					end
 					default: ;
 					endcase
@@ -1171,25 +1229,25 @@ module RISCV64G_ISS (
 							fcvt_w_s.int_from_real(fp_rs1_d[31:0], wout);
 							rf.write32s(rd0, wout.val);
 							csr_c.set_fflags({wout.invalid, 3'h0, wout.inexact});
-							pc = pc + 'h4;
+							next_pc = pc + 'h4;
 					end
 					5'b00001: begin		// FCVT.WU.S
 							fcvt_w_s.uint_from_real(fp_rs1_d[31:0], wout);
 							rf.write32s(rd0, wout.val);
 							csr_c.set_fflags({wout.invalid, 3'h0, wout.inexact});
-							pc = pc + 'h4;
+							next_pc = pc + 'h4;
 					end
 					5'b00010: begin		// FCVT.L.S
 							fcvt_l_s.int_from_real(fp_rs1_d[31:0], lout);
 							rf.write(rd0, lout.val);
 							csr_c.set_fflags({lout.invalid, 3'h0, lout.inexact});
-							pc = pc + 'h4;
+							next_pc = pc + 'h4;
 					end
 					5'b00011: begin		// FCVT.LU.S
 							fcvt_l_s.uint_from_real(fp_rs1_d[31:0], lout);
 							rf.write(rd0, lout.val);
 							csr_c.set_fflags({lout.invalid, 3'h0, lout.inexact});
-							pc = pc + 'h4;
+							next_pc = pc + 'h4;
 					end
 					default: ;
 					endcase
@@ -1200,11 +1258,11 @@ module RISCV64G_ISS (
 						case (funct3)
 						3'b000: begin	// FMV.X.W
 							rf.write32s(rd0, fp_rs1_d[31:0]);
-							pc = pc + 'h4;
+							next_pc = pc + 'h4;
 						end
 						3'b001: begin	// FCLASS.W
 							rf.write32u(rd0, float.fclass(fp_rs1_d[31:0]));
-							pc = pc + 'h4;
+							next_pc = pc + 'h4;
 						end
 						default: ;
 						endcase
@@ -1218,19 +1276,19 @@ module RISCV64G_ISS (
 							float.feq(fp_rs1_d[31:0], fp_rs2_d[31:0], out);
 							rf.write(rd0, {{32{1'b0}}, out.val});
 							csr_c.set_fflags({out.invalid, 3'h0, out.inexact});
-							pc = pc + 'h4;
+							next_pc = pc + 'h4;
 					end
 					3'b001: begin 		// FLT.S
 							float.flt(fp_rs1_d[31:0], fp_rs2_d[31:0], out);
 							rf.write(rd0, {{32{1'b0}}, out.val});
 							csr_c.set_fflags({out.invalid, 3'h0, out.inexact});
-							pc = pc + 'h4;
+							next_pc = pc + 'h4;
 					end
 					3'b000: begin		// FLE.S
 							float.fle(fp_rs1_d[31:0], fp_rs2_d[31:0], out);
 							rf.write(rd0, {{32{1'b0}}, out.val});
 							csr_c.set_fflags({out.invalid, 3'h0, out.inexact});
-							pc = pc + 'h4;
+							next_pc = pc + 'h4;
 					end
 					default: ;
 					endcase
@@ -1241,25 +1299,25 @@ module RISCV64G_ISS (
 							fcvt_w_s.real_from_int(rs1_d[31:0], out);
 							fp.write32u(rd0, out.val);
 							csr_c.set_fflags({out.invalid, 3'h0, out.inexact});
-							pc = pc + 'h4;
+							next_pc = pc + 'h4;
 					end
 					5'b00001: begin		// FCVT.S.WU
 							fcvt_w_s.real_from_uint(rs1_d[31:0], out);
 							fp.write32u(rd0, out.val);
 							csr_c.set_fflags({out.invalid, 3'h0, out.inexact});
-							pc = pc + 'h4;
+							next_pc = pc + 'h4;
 					end
 					5'b00010: begin		// FCVT.S.L
 							fcvt_l_s.real_from_int(rs1_d, out);
 							fp.write32u(rd0, out.val);
 							csr_c.set_fflags({out.invalid, 3'h0, out.inexact});
-							pc = pc + 'h4;
+							next_pc = pc + 'h4;
 					end
 					5'b00011: begin		// FCVT.S.LU
 							fcvt_l_s.real_from_uint(rs1_d, out);
 							fp.write32u(rd0, out.val);
 							csr_c.set_fflags({out.invalid, 3'h0, out.inexact});
-							pc = pc + 'h4;
+							next_pc = pc + 'h4;
 					end
 					default: ;
 					endcase
@@ -1270,7 +1328,7 @@ module RISCV64G_ISS (
 						case (funct3)
 						3'b000: begin	// FMV.W.X
 							fp.write(rd0, rs1_d);
-							pc = pc + 'h4;
+							next_pc = pc + 'h4;
 						end
 						default: ;
 						endcase
@@ -1284,27 +1342,27 @@ module RISCV64G_ISS (
 						double.fadd(fp_rs1_d, fp_rs2_d, dout);
 						fp.write(rd0, dout.val);
 						csr_c.set_fflags({dout.invalid, 3'h0, dout.inexact});
-						pc = pc + 'h4;
+						next_pc = pc + 'h4;
 				end
 				7'b00001_01: begin		// FSUB.D
 						double.fsub(fp_rs1_d, fp_rs2_d, dout);
 						fp.write(rd0, dout.val);
 						csr_c.set_fflags({dout.invalid, 3'h0, dout.inexact});
-						pc = pc + 'h4;
+						next_pc = pc + 'h4;
 				end
 				7'b00010_01: begin		// FMUL.D
 						double.fmul(fp_rs1_d, fp_rs2_d, dout);
 						fp.write(rd0, dout.val);
 						csr_c.set_fflags({dout.invalid, 3'h0, dout.inexact});
-						pc = pc + 'h4;
+						next_pc = pc + 'h4;
 				end
 				7'b00011_01: begin		// FDIV.D
-						pc = pc + 'h4;
+						next_pc = pc + 'h4;
 				end
 				7'b01011_01: begin
 					case (rs2)
 					5'b00000: begin		// FSQRT.D
-						pc = pc + 'h4;
+						next_pc = pc + 'h4;
 					end
 					default: ;
 					endcase
@@ -1320,7 +1378,7 @@ module RISCV64G_ISS (
 							tmp = fp.read(rs1);
 							fp.write(rd0, {1'b0, tmp[62:0]});
 						end
-						pc = pc + 'h4;
+						next_pc = pc + 'h4;
 					end
 					3'b001: begin		// FSGNJN.D
 						tmp = fp.read(rs2);
@@ -1331,7 +1389,7 @@ module RISCV64G_ISS (
 							tmp = fp.read(rs1);
 							fp.write(rd0, {1'b1, tmp[62:0]});
 						end
-						pc = pc + 'h4;
+						next_pc = pc + 'h4;
 					end
 					3'b010: begin		// FSGNJX.D
 						tmp = fp.read(rs2);
@@ -1342,7 +1400,7 @@ module RISCV64G_ISS (
 							tmp = fp.read(rs1);
 							fp.write(rd0, {1'b0 ^ tmp[63], tmp[62:0]});
 						end
-						pc = pc + 'h4;
+						next_pc = pc + 'h4;
 					end
 					default: ;
 					endcase
@@ -1353,13 +1411,13 @@ module RISCV64G_ISS (
 						double.fmin(fp_rs1_d, fp_rs2_d, dout);
 						fp.write(rd0, dout.val);
 						csr_c.set_fflags({dout.invalid, 3'h0, dout.inexact});
-						pc = pc + 'h4;
+						next_pc = pc + 'h4;
 					end
 					3'b001: begin		// FMAX.D
 						double.fmax(fp_rs1_d, fp_rs2_d, dout);
 						fp.write(rd0, dout.val);
 						csr_c.set_fflags({dout.invalid, 3'h0, dout.inexact});
-						pc = pc + 'h4;
+						next_pc = pc + 'h4;
 					end
 					default: ;
 					endcase
@@ -1370,7 +1428,7 @@ module RISCV64G_ISS (
 							fcvt_s_d.double_from_float(fp_rs1_d[31:0], dout);
 							fp.write(rd0, dout.val);
 							csr_c.set_fflags({dout.invalid, 3'h0, dout.inexact});
-							pc = pc + 'h4;
+							next_pc = pc + 'h4;
 					end
 					default: ;
 					endcase
@@ -1381,25 +1439,25 @@ module RISCV64G_ISS (
 							fcvt_w_d.int_from_real(fp_rs1_d, wout);
 							rf.write32s(rd0, wout.val);
 							csr_c.set_fflags({wout.invalid, 3'h0, wout.inexact});
-							pc = pc + 'h4;
+							next_pc = pc + 'h4;
 					end
 					5'b00001: begin		// FCVT.WU.D
 							fcvt_w_d.uint_from_real(fp_rs1_d, wout);
 							rf.write32s(rd0, wout.val);
 							csr_c.set_fflags({wout.invalid, 3'h0, wout.inexact});
-							pc = pc + 'h4;
+							next_pc = pc + 'h4;
 					end
 					5'b00010: begin		// FCVT.L.D
 							fcvt_l_d.int_from_real(fp_rs1_d, lout);
 							rf.write(rd0, lout.val);
 							csr_c.set_fflags({lout.invalid, 3'h0, lout.inexact});
-							pc = pc + 'h4;
+							next_pc = pc + 'h4;
 					end
 					5'b00011: begin		// FCVT.LU.D
 							fcvt_l_d.uint_from_real(fp_rs1_d, lout);
 							rf.write(rd0, lout.val);
 							csr_c.set_fflags({lout.invalid, 3'h0, lout.inexact});
-							pc = pc + 'h4;
+							next_pc = pc + 'h4;
 					end
 					default: ;
 					endcase
@@ -1410,11 +1468,11 @@ module RISCV64G_ISS (
 						case (funct3)
 						3'b000: begin	// FMV.X.D
 							rf.write(rd0, fp_rs1_d);
-							pc = pc + 'h4;
+							next_pc = pc + 'h4;
 						end
 						3'b001: begin	// FCLASS.D
 							rf.write32u(rd0, double.fclass(fp_rs1_d));
-							pc = pc + 'h4;
+							next_pc = pc + 'h4;
 						end
 						default: ;
 						endcase
@@ -1428,19 +1486,19 @@ module RISCV64G_ISS (
 							double.feq(fp_rs1_d, fp_rs2_d, wout);
 							rf.write32u(rd0, wout.val);
 							csr_c.set_fflags({wout.invalid, 3'h0, wout.inexact});
-							pc = pc + 'h4;
+							next_pc = pc + 'h4;
 					end
 					3'b001: begin 		// FLT.D
 							double.flt(fp_rs1_d, fp_rs2_d, wout);
 							rf.write32u(rd0, wout.val);
 							csr_c.set_fflags({wout.invalid, 3'h0, wout.inexact});
-							pc = pc + 'h4;
+							next_pc = pc + 'h4;
 					end
 					3'b000: begin		// FLE.D
 							double.fle(fp_rs1_d, fp_rs2_d, wout);
 							rf.write32u(rd0, wout.val);
 							csr_c.set_fflags({wout.invalid, 3'h0, wout.inexact});
-							pc = pc + 'h4;
+							next_pc = pc + 'h4;
 					end
 					default: ;
 					endcase
@@ -1451,25 +1509,25 @@ module RISCV64G_ISS (
 							fcvt_w_d.real_from_int(rs1_d[31:0], dout);
 							fp.write(rd0, dout.val);
 							csr_c.set_fflags({dout.invalid, 3'h0, dout.inexact});
-							pc = pc + 'h4;
+							next_pc = pc + 'h4;
 					end
 					5'b00001: begin		// FCVT.D.WU
 							fcvt_w_d.real_from_uint(rs1_d[31:0], dout);
 							fp.write(rd0, dout.val);
 							csr_c.set_fflags({dout.invalid, 3'h0, dout.inexact});
-							pc = pc + 'h4;
+							next_pc = pc + 'h4;
 					end
 					5'b00010: begin		// FCVT.D.L
 							fcvt_l_d.real_from_int(rs1_d, dout);
 							fp.write(rd0, dout.val);
 							csr_c.set_fflags({dout.invalid, 3'h0, dout.inexact});
-							pc = pc + 'h4;
+							next_pc = pc + 'h4;
 					end
 					5'b00011: begin		// FCVT.D.LU
 							fcvt_l_d.real_from_uint(rs1_d, dout);
 							fp.write(rd0, dout.val);
 							csr_c.set_fflags({dout.invalid, 3'h0, dout.inexact});
-							pc = pc + 'h4;
+							next_pc = pc + 'h4;
 					end
 					default: ;
 					endcase
@@ -1480,7 +1538,7 @@ module RISCV64G_ISS (
 						case (funct3)
 						3'b000: begin	// FMV.D.X
 							fp.write(rd0, rs1_d);
-							pc = pc + 'h4;
+							next_pc = pc + 'h4;
 						end
 						default: ;
 						endcase
@@ -1501,13 +1559,13 @@ module RISCV64G_ISS (
 						5'b00000: begin		// ECALL
 							tmp = csr_c.ecall(pc);
 							if(tmp == {`XLEN{1'b1}}) begin
-								pc = pc + 'h4;
+								next_pc = pc + 'h4;
 							end else begin
-								pc = tmp;
+								next_pc = tmp;
 							end
 						end
 						5'b00001: begin		// EBREAK
-								pc = pc + 'h4;
+								next_pc = pc + 'h4;
 						end
 						default: ;
 						endcase
@@ -1515,7 +1573,7 @@ module RISCV64G_ISS (
 					7'b0001000: begin
 						case(rs2)
 						5'b00010: begin		// SRET
-								pc = csr_c.sret();	// sepc
+								next_pc = csr_c.sret();	// sepc
 						end
 						default: ;
 						endcase
@@ -1523,7 +1581,7 @@ module RISCV64G_ISS (
 					7'b0011000: begin
 						case(rs2)
 						5'b00010: begin		// MRET
-								pc = csr_c.mret();	// mepc
+								next_pc = csr_c.mret();	// mepc
 						end
 						default: ;
 						endcase
@@ -1531,7 +1589,7 @@ module RISCV64G_ISS (
 					7'b0001001: begin
 						case(rd0)
 						5'h00: begin		// SFENCE.VMA
-								pc = pc + 'h4;
+								next_pc = pc + 'h4;
 						end
 						default: ;
 						endcase
@@ -1539,7 +1597,7 @@ module RISCV64G_ISS (
 					7'b0001011: begin
 						case(rd0)
 						5'b00000: begin		// SINVAL.VMA
-								pc = pc + 'h4;
+								next_pc = pc + 'h4;
 						end
 						default: ;
 						endcase
@@ -1549,10 +1607,10 @@ module RISCV64G_ISS (
 						5'b00000: begin
 							case (rs2)
 							5'b00000: begin	// SFENCE.W.INVAL
-								pc = pc + 'h4;
+								next_pc = pc + 'h4;
 							end
 							5'b00001: begin	// SFENCE.INVAL.IR
-								pc = pc + 'h4;
+								next_pc = pc + 'h4;
 							end
 							default: ;
 							endcase
@@ -1566,36 +1624,36 @@ module RISCV64G_ISS (
 				3'b001: begin		// CSRRW
 					rf.write(rd0, csr_c.read(csr));
 					csr_c.write(csr, rs1_d);
-					pc = pc + 'h4;
+					next_pc = pc + 'h4;
 				end
 				3'b010: begin		// CSRRS
 					rf.write(rd0, csr_c.read(csr));
 					if(rs1 != 5'h00) begin
 						csr_c.set(csr, rs1_d);
 					end
-					pc = pc + 'h4;
+					next_pc = pc + 'h4;
 				end
 				3'b011: begin		// CSRRC
 					rf.write(rd0, csr_c.read(csr));
 					if(rs1 != 5'h00) begin
 						csr_c.clear(csr, rs1_d);
 					end
-					pc = pc + 'h4;
+					next_pc = pc + 'h4;
 				end
 				3'b101: begin		// CSRRWI
 					rf.write(rd0, csr_c.read(csr));
 					csr_c.write(csr, uimm_w);
-					pc = pc + 'h4;
+					next_pc = pc + 'h4;
 				end
 				3'b110: begin		// CSRRSI
 					rf.write(rd0, csr_c.read(csr));
 					csr_c.set(csr, uimm_w);
-					pc = pc + 'h4;
+					next_pc = pc + 'h4;
 				end
 				3'b111: begin		// CSRRCI
 					rf.write(rd0, csr_c.read(csr));
 					csr_c.clear(csr, uimm_w);
-					pc = pc + 'h4;
+					next_pc = pc + 'h4;
 				end
 				default: ;
 				endcase
@@ -1603,25 +1661,25 @@ module RISCV64G_ISS (
 
 			7'b00_101_11: begin	// AUIPC
 						rf.write(rd0, pc + imm_uw);
-						pc = pc + 'h4;
+						next_pc = pc + 'h4;
 			end
 
 			7'b01_101_11: begin	// LUI
 						rf.write(rd0, imm_uw);
-						pc = pc + 'h4;
+						next_pc = pc + 'h4;
 			end
 
 			7'b00_110_11: begin	// OP-IMM-32
 				case (funct3)
 				3'b000: begin			// ADDIW
 						rf.write32s(rd0, rs1_d[31:0] + imm_iw[31:0]);
-						pc = pc + 'h4;
+						next_pc = pc + 'h4;
 				end
 				3'b001: begin
 					case (funct7)
 					7'b0000000: begin	// SLLIW
 						rf.write32s(rd0, rs1_d[31:0] << shamt[4:0]);
-						pc = pc + 'h4;
+						next_pc = pc + 'h4;
 					end
 					default: ;
 					endcase
@@ -1630,11 +1688,11 @@ module RISCV64G_ISS (
 					case (funct7)
 					7'b0000000: begin	// SRLIW
 						rf.write32s(rd0, rs1_d[31:0] >> shamt[4:0]);
-						pc = pc + 'h4;
+						next_pc = pc + 'h4;
 					end
 					7'b0100000: begin	// SRAIW
 						rf.write32s(rd0, $signed(rs1_d[31:0]) >>> shamt[4:0]);
-						pc = pc + 'h4;
+						next_pc = pc + 'h4;
 					end
 					default: ;
 					endcase
@@ -1649,16 +1707,16 @@ module RISCV64G_ISS (
 					case (funct7)
 					7'b0000000: begin	// ADDW
 						rf.write32s(rd0, rs1_d[31:0] + rs2_d[31:0]);
-						pc = pc + 'h4;
+						next_pc = pc + 'h4;
 					end
 					7'b0000001: begin	// MULW
 						tmp32 = rs1_d[31:0] * rs2_d[31:0];
 						rf.write32s(rd0, tmp32);
-						pc = pc + 'h4;
+						next_pc = pc + 'h4;
 					end
 					7'b0100000: begin	// SUBW
 						rf.write32s(rd0, rs1_d[31:0] - rs2_d[31:0]);
-						pc = pc + 'h4;
+						next_pc = pc + 'h4;
 					end
 					default: ;
 					endcase
@@ -1667,7 +1725,7 @@ module RISCV64G_ISS (
 					case (funct7)
 					7'b0000000: begin	// SLLW
 						rf.write32s(rd0, rs1_d[31:0] << rs2_d[4:0]);
-						pc = pc + 'h4;
+						next_pc = pc + 'h4;
 					end
 					default: ;
 					endcase
@@ -1678,7 +1736,7 @@ module RISCV64G_ISS (
 						tmp32 = absXLENh(rs1_d[`XLEN/2-1:0]) / absXLENh(rs2_d[`XLEN/2-1:0]);
 						tmp32 = twoscompXLENh(rs1_d[`XLEN/2-1] ^ rs2_d[`XLEN/2-1], tmp32);
 						rf.write32s(rd0, rs2_d == {`XLEN{1'b0}} ? {32{1'b1}} : tmp32);
-						pc = pc + 'h4;
+						next_pc = pc + 'h4;
 					end
 					default: ;
 					endcase
@@ -1687,15 +1745,15 @@ module RISCV64G_ISS (
 					case (funct7)
 					7'b0000000: begin	// SRLW
 						rf.write32s(rd0, rs1_d[31:0] >> rs2_d[4:0]);
-						pc = pc + 'h4;
+						next_pc = pc + 'h4;
 					end
 					7'b0000001: begin	// DIVUW
 						rf.write32s(rd0, rs2_d == {`XLEN{1'b0}} ? {32{1'b1}} : rs1_d[31:0] / rs2_d[31:0]);
-						pc = pc + 'h4;
+						next_pc = pc + 'h4;
 					end
 					7'b0100000: begin	// SRAW
 						rf.write32s(rd0, $signed(rs1_d[31:0]) >>> rs2_d[4:0]);
-						pc = pc + 'h4;
+						next_pc = pc + 'h4;
 					end
 					default: ;
 					endcase
@@ -1706,7 +1764,7 @@ module RISCV64G_ISS (
 						tmp32 = absXLENh(rs1_d[`XLEN/2-1:0]) % absXLENh(rs2_d[`XLEN/2-1:0]);
 						tmp32 = twoscompXLENh(rs1_d[`XLEN/2-1], tmp32);
 						rf.write32s(rd0, rs2_d == {`XLEN{1'b0}} ? rs1_d[31:0] : tmp32);
-						pc = pc + 'h4;
+						next_pc = pc + 'h4;
 					end
 					default: ;
 					endcase
@@ -1715,7 +1773,7 @@ module RISCV64G_ISS (
 					case (funct7)
 					7'b0000001: begin	// REMUW
 						rf.write32s(rd0, rs2_d == {`XLEN{1'b0}} ? rs1_d[`XLEN/2-1:0] : rs1_d[31:0] % rs2_d[31:0]);
-						pc = pc + 'h4;
+						next_pc = pc + 'h4;
 					end
 					default: ;
 					endcase
@@ -1728,6 +1786,9 @@ module RISCV64G_ISS (
 
 			// retire
 			csr_c.retire();
+
+			// pc update
+			pc = next_pc;
 
 			// debug outputs
 			rf_1_ra = rf.read('d1);
