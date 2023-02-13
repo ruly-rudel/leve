@@ -3,34 +3,34 @@
 
 class TRACE;
 	function void print(input [63:0] pc, input [31:0] inst);
-		logic [6:0]		opcode;
-		logic [4:0]		rd0;
-		logic [2:0]		funct3;
-		logic [4:0]		rs1;
-		logic [4:0]		rs2;
-		logic [4:0]		rs3;
-		logic [6:0]		funct7;
-		logic [4:0]		funct5;
-		logic [1:0]		funct2;
-		logic			aq;
-		logic			rl;
-		logic [2:0]		rm;
-		logic [32-1:0]		imm_i;
-		logic [32-1:0]		imm_s;
-		logic [32-1:0]		imm_b;
-		logic [32-1:0]		imm_u;
-		logic [32-1:0]		imm_j;
+		bit [6:0]		opcode;
+		bit [4:0]		rd0;
+		bit [2:0]		funct3;
+		bit [4:0]		rs1;
+		bit [4:0]		rs2;
+		bit [4:0]		rs3;
+		bit [6:0]		funct7;
+		bit [4:0]		funct5;
+		bit [1:0]		funct2;
+		bit			aq;
+		bit			rl;
+		bit [2:0]		rm;
+		bit [32-1:0]		imm_i;
+		bit [32-1:0]		imm_s;
+		bit [32-1:0]		imm_b;
+		bit [32-1:0]		imm_u;
+		bit [32-1:0]		imm_j;
 	
-		logic [`XLEN-1:0]	imm_iw;
-		logic [`XLEN-1:0]	imm_sw;
-		logic [`XLEN-1:0]	imm_bw;
-		logic [`XLEN-1:0]	imm_uw;
-		logic [`XLEN-1:0]	imm_jw;
+		bit [`XLEN-1:0]		imm_iw;
+		bit [`XLEN-1:0]		imm_sw;
+		bit [`XLEN-1:0]		imm_bw;
+		bit [`XLEN-1:0]		imm_uw;
+		bit [`XLEN-1:0]		imm_jw;
 	
-		logic [`XLEN-1:0]	uimm_w;
+		bit [`XLEN-1:0]		uimm_w;
 		
-		logic [12-1:0]		csr;
-		logic [6-1:0]		shamt;
+		bit [12-1:0]		csr;
+		bit [6-1:0]		shamt;
 
 		opcode = inst[6:0];
 		rd0    = inst[11:7];

@@ -5,15 +5,15 @@
 
 
 class PMA;
-	function logic is_readable(input [`XLEN-1:0] addr);
+	function bit is_readable(input [`XLEN-1:0] addr);
 			return 1'b1;
 	endfunction
 
-	function logic is_writeable(input [`XLEN-1:0] addr);
+	function bit is_writeable(input [`XLEN-1:0] addr);
 			return 1'b1;
 	endfunction
 
-	function logic is_executable(input [`XLEN-1:0] addr);
+	function bit is_executable(input [`XLEN-1:0] addr);
 			return 1'b1;
 	endfunction
 endclass : PMA;

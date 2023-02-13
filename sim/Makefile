@@ -1,12 +1,12 @@
 
 
-sc:
+obj_dir/Vtb_iss:
 	verilator --sc --exe --build -I../conf -I../iss sc_main.cpp tb_iss.sv ../iss/RV64GC_ISS.sv
 
 sc-trace:
 	verilator --sc --trace --exe --build -I../conf -I../iss sc_main.cpp tb_iss.sv ../iss/RV64GC_ISS.sv
 
-test:
+test:	obj_dir/Vtb_iss
 	./run.sh
 
 sc-fmulf:
