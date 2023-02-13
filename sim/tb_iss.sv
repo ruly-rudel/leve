@@ -10,7 +10,7 @@ module tb_iss
 	wire		tohost_we;
 	wire [32-1:0]	tohost;
 
-	RISCV64G_ISS	RISCV64G_ISS_0
+	RV64GC_ISS	RV64GC_ISS
 	(
 		.CLK		(CLK),
 		.RSTn		(RSTn),

@@ -1,10 +1,10 @@
 
 
-sc-trace:
-	verilator --sc --trace --exe --build -I../conf -I../iss sc_main.cpp tb_iss.sv ../iss/RISCV64G_ISS.sv
-
 sc:
-	verilator --sc --exe --build -I../conf -I../iss sc_main.cpp tb_iss.sv ../iss/RISCV64G_ISS.sv
+	verilator --sc --exe --build -I../conf -I../iss sc_main.cpp tb_iss.sv ../iss/RV64GC_ISS.sv
+
+sc-trace:
+	verilator --sc --trace --exe --build -I../conf -I../iss sc_main.cpp tb_iss.sv ../iss/RV64GC_ISS.sv
 
 test:
 	./run.sh

@@ -1,3 +1,5 @@
+`ifndef _trace_sv_
+`define _trace_sv_
 
 class TRACE;
 	function void print(input [63:0] pc, input [31:0] inst);
@@ -589,3 +591,5 @@ class TRACE;
 		endcase	
 	endfunction
 endclass : TRACE;
+
+`endif	// _trace_sv_
