@@ -47,15 +47,18 @@ class FLAG_MEMORY_ITEM;
 	endfunction
 endclass : FLAG_MEMORY_ITEM;
 
-`define FLAG_MEM_SIZE	4
-`define FLAG_MEM_SIZE_POW	2
+//`define FLAG_MEM_NUM_POW	2
+//`define FLAG_MEM_SIZE_POW	24
+`define FLAG_MEM_NUM_POW	8
+`define FLAG_MEM_SIZE_POW	12
+`define FLAG_MEM_NUM	(1<<`FLAG_MEM_NUM_POW)
 
 class FRAG_MEMORY;
 	FLAG_MEMORY_ITEM		mems[integer];
-	logic [31:0]			mem[]  = new [`FLAG_MEM_SIZE*1024*1024*4];
+	logic [31:0]			mem[]  = new [`FLAG_MEM_NUM*(1<<(`FLAG_MEM_SIZE_POW-2))];
 
 	function new();
-		for(integer i = 0; i < `FLAG_MEM_SIZE; i = i + 1) begin
+		for(integer i = 0; i < `FLAG_MEM_NUM; i = i + 1) begin
 			mems[i] = new;
 			mems[i].set_en(1'b0);
 		end
@@ -78,14 +81,14 @@ class FRAG_MEMORY;
 	endfunction
 
 	function integer get_last_idx();
-		for(integer i = 0; i < `FLAG_MEM_SIZE; i = i + 1) begin
+		for(integer i = 0; i < `FLAG_MEM_NUM; i = i + 1) begin
 			if(mems[i].get_en() == 1'b0) return i;
 		end
 		return -1;
 	endfunction
 
 	function integer find_idx(logic [63:0] addr);
-		for(integer i = 0; i < `FLAG_MEM_SIZE; i = i + 1) begin
+		for(integer i = 0; i < `FLAG_MEM_NUM; i = i + 1) begin
 			if(mems[i].get_en()) begin
 				if(addr >= mems[i].get_start()) begin
 					if(addr < mems[i].get_start() + {{32{1'b0}}, mems[i].get_size()}) begin
@@ -99,12 +102,12 @@ class FRAG_MEMORY;
 
 	function [31:0] read_idx(integer idx, logic [63:0] addr);
 		logic [63:0] tmp = addr - mems[idx].get_start() + {{34{1'b0}}, mems[idx].get_offset()};
-		return mem[tmp[24+`FLAG_MEM_SIZE_POW-1:2]];
+		return mem[tmp[`FLAG_MEM_SIZE_POW+`FLAG_MEM_NUM_POW-1:2]];
 	endfunction
 
 	function void write_idx(integer idx, logic [63:0] addr, logic [31:0] data);
 		logic [63:0] tmp = addr - mems[idx].get_start() + {{34{1'b0}}, mems[idx].get_offset()};
-		mem[tmp[24+`FLAG_MEM_SIZE_POW-1:2]] = data;
+		mem[tmp[`FLAG_MEM_SIZE_POW+`FLAG_MEM_NUM_POW-1:2]] = data;
 	endfunction
 
 	function [31:0] read(logic [63:0] addr);
