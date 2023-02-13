@@ -16,27 +16,27 @@ class FCVT_S_D
 	parameter	D_EXP   = 11,
 	parameter	D_FLAC  = 52
 );
-	logic 			sign_f;
-	logic [F_EXP-1:0]	exp_f;
-	logic [F_FLAC-1:0]	flac_f;
-	logic			is_zero_f;
-	logic			is_nan_f;
-	logic			is_inf_f;
-	logic			is_qnan_f;
-	logic			is_snan_f;
-	logic			is_num_f;
-	logic			is_sub_f;
+	bit 			sign_f;
+	bit [F_EXP-1:0]		exp_f;
+	bit [F_FLAC-1:0]	flac_f;
+	bit			is_zero_f;
+	bit			is_nan_f;
+	bit			is_inf_f;
+	bit			is_qnan_f;
+	bit			is_snan_f;
+	bit			is_num_f;
+	bit			is_sub_f;
 
-	logic 			sign_d;
-	logic [D_EXP-1:0]	exp_d;
-	logic [D_FLAC-1:0]	flac_d;
-	logic			is_zero_d;
-	logic			is_nan_d;
-	logic			is_inf_d;
-	logic			is_qnan_d;
-	logic			is_snan_d;
-	logic			is_num_d;
-	logic			is_sub_d;
+	bit 			sign_d;
+	bit [D_EXP-1:0]		exp_d;
+	bit [D_FLAC-1:0]	flac_d;
+	bit			is_zero_d;
+	bit			is_nan_d;
+	bit			is_inf_d;
+	bit			is_qnan_d;
+	bit			is_snan_d;
+	bit			is_num_d;
+	bit			is_sub_d;
 
 	function void parse_float
 	(
@@ -97,7 +97,7 @@ class FCVT_S_D
 		input  [D_WIDTH-1:0]		in1,
 		output S			out
 	);
-		logic [D_EXP:0]		exp;
+		bit [D_EXP:0]		exp;
 		// parse
 		parse_double(in1);
 

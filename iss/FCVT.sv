@@ -14,16 +14,16 @@ class FCVT
 	parameter	F_FLAC  = 23,
 	parameter	I_WIDTH = 64
 );
-	logic 			sign_1;
-	logic [F_EXP-1:0]	exp_1;
-	logic [F_FLAC-1:0]	flac_1;
-	logic			is_zero_1;
-	logic			is_nan_1;
-	logic			is_inf_1;
-	logic			is_qnan_1;
-	logic			is_snan_1;
-	logic			is_num_1;
-	logic			is_sub_1;
+	bit 			sign_1;
+	bit [F_EXP-1:0]		exp_1;
+	bit [F_FLAC-1:0]	flac_1;
+	bit			is_zero_1;
+	bit			is_nan_1;
+	bit			is_inf_1;
+	bit			is_qnan_1;
+	bit			is_snan_1;
+	bit			is_num_1;
+	bit			is_sub_1;
 
 	function void parse_float
 	(
@@ -71,15 +71,15 @@ class FCVT
 		input [I_WIDTH-1:0]		in1,
 		output T			out
 	);
-		logic [I_WIDTH-1:0]		abs_1;
+		bit [I_WIDTH-1:0]		abs_1;
 	
-		logic [F_EXP-1:0]		sft_amt_1;
-		logic [I_WIDTH-1:0]		sft_flac_1;
+		bit [F_EXP-1:0]			sft_amt_1;
+		bit [I_WIDTH-1:0]		sft_flac_1;
 	
-		logic [F_FLAC-1:0]		rnd_flac_1;
+		bit [F_FLAC-1:0]		rnd_flac_1;
 	
-		logic [F_EXP-1:0]		exp_1;
-		logic [F_FLAC-1:0]		flac_1;
+		bit [F_EXP-1:0]			exp_1;
+		bit [F_FLAC-1:0]		flac_1;
 
 		// parse
 		parse_long(in1);
@@ -109,14 +109,14 @@ class FCVT
 		input [I_WIDTH-1:0]		in1,
 		output T			out
 	);
-		logic [F_EXP-1:0]		sft_amt_1;
-		logic [I_WIDTH-1:0]		sft_flac_1;
+		bit [F_EXP-1:0]			sft_amt_1;
+		bit [I_WIDTH-1:0]		sft_flac_1;
 	
-		logic [F_FLAC+1:0]		rnd_flac_1;
-		logic		 		rnd_extra_sft_1;
+		bit [F_FLAC+1:0]		rnd_flac_1;
+		bit		 		rnd_extra_sft_1;
 	
-		logic [F_EXP-1:0]		exp_1;
-		logic [F_FLAC-1:0]		flac_1;
+		bit [F_EXP-1:0]			exp_1;
+		bit [F_FLAC-1:0]		flac_1;
 
 		// parse
 		parse_long(in1);
@@ -145,12 +145,12 @@ class FCVT
 		output S			out
 	);
 	
-		logic				is_oor_1;
-		logic				is_min_1;
+		bit				is_oor_1;
+		bit				is_min_1;
 	
-		logic [F_FLAC+I_WIDTH:0]	sft_flac_1;
+		bit [F_FLAC+I_WIDTH:0]		sft_flac_1;
 	
-		logic [I_WIDTH-1:0]		rnd_flac_1;
+		bit [I_WIDTH-1:0]		rnd_flac_1;
 
 		// parse
 		parse_float(in1);
@@ -194,12 +194,12 @@ class FCVT
 		input [F_WIDTH-1:0]		in1,
 		output S			out
 	);
-		logic				is_oor_1;
-		logic				is_min_1;
+		bit				is_oor_1;
+		bit				is_min_1;
 	
-		logic [F_FLAC+I_WIDTH:0]	sft_flac_1;
+		bit [F_FLAC+I_WIDTH:0]		sft_flac_1;
 	
-		logic [I_WIDTH-1:0]		rnd_flac_1;
+		bit [I_WIDTH-1:0]		rnd_flac_1;
 
 		// parse
 		parse_float(in1);

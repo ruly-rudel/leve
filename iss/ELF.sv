@@ -8,48 +8,48 @@
 class ELF;
 	string				filename;
 	FRAG_MEMORY			mem = new;
-	logic [63:0]			tohost;
+	bit [63:0]			tohost;
 
 	// elf header
-	logic [7:0]			e_ident[0:15];
-	logic [15:0]			e_type;
-	logic [15:0]			e_machine;
-	logic [31:0]			e_version;
-	logic [63:0]			e_entry;
-	logic [63:0]			e_phoff;
-	logic [63:0]			e_shoff;
-	logic [31:0]			e_flags;
-	logic [15:0]			e_ehsize;
-	logic [15:0]			e_phentsize;
-	logic [15:0]			e_phnum;
-	logic [15:0]			e_shentsize;
-	logic [15:0]			e_shnum;
-	logic [15:0]			e_shstrndx;
+	bit [7:0]			e_ident[0:15];
+	bit [15:0]			e_type;
+	bit [15:0]			e_machine;
+	bit [31:0]			e_version;
+	bit [63:0]			e_entry;
+	bit [63:0]			e_phoff;
+	bit [63:0]			e_shoff;
+	bit [31:0]			e_flags;
+	bit [15:0]			e_ehsize;
+	bit [15:0]			e_phentsize;
+	bit [15:0]			e_phnum;
+	bit [15:0]			e_shentsize;
+	bit [15:0]			e_shnum;
+	bit [15:0]			e_shstrndx;
 
 	// program header
 	struct packed {
-		logic [31:0]		p_type;
-		logic [31:0]		p_flags;
-		logic [63:0]		p_offset;
-		logic [63:0]		p_vaddr;
-		logic [63:0]		p_paddr;
-		logic [63:0]		p_filesz;
-		logic [63:0]		p_memsz;
-		logic [63:0]		p_align;
+		bit [31:0]		p_type;
+		bit [31:0]		p_flags;
+		bit [63:0]		p_offset;
+		bit [63:0]		p_vaddr;
+		bit [63:0]		p_paddr;
+		bit [63:0]		p_filesz;
+		bit [63:0]		p_memsz;
+		bit [63:0]		p_align;
 	} phdr[];
 
 	// section header
 	struct packed {
-		logic [31:0]		sh_name;
-		logic [31:0]		sh_type;
-		logic [63:0]		sh_flags;
-		logic [63:0]		sh_addr;
-		logic [63:0]		sh_offset;
-		logic [63:0]		sh_size;
-		logic [31:0]		sh_link;
-		logic [31:0]		sh_info;
-		logic [63:0]		sh_addralign;
-		logic [63:0]		sh_entsize;
+		bit [31:0]		sh_name;
+		bit [31:0]		sh_type;
+		bit [63:0]		sh_flags;
+		bit [63:0]		sh_addr;
+		bit [63:0]		sh_offset;
+		bit [63:0]		sh_size;
+		bit [31:0]		sh_link;
+		bit [31:0]		sh_info;
+		bit [63:0]		sh_addralign;
+		bit [63:0]		sh_entsize;
 	} shdr[];
 
 	function new(string fn);
@@ -76,7 +76,7 @@ class ELF;
 
 	function void load(input integer fd);
 		integer ret;
-		logic [63:0]	addr;
+		bit [63:0]	addr;
 
 		for(integer i = 0; i < e_phnum; i = i + 1) begin
 			ret = $fseek(fd, phdr[i].p_offset[31:0], 0);
@@ -254,7 +254,7 @@ class ELF;
 
 	function [7:0] read_c(integer fd);
 		integer ret;
-		logic [7:0] r_c;
+		bit [7:0] r_c;
 
 		ret = $fread(r_c, fd);
 		if(ret != 1) begin
@@ -265,7 +265,7 @@ class ELF;
 
 	function [15:0] read_hw(integer fd);
 		integer ret;
-		logic [7:0] r_hw[0:1];
+		bit [7:0] r_hw[0:1];
 
 		ret = $fread(r_hw, fd);
 		if(ret != 2) begin
@@ -276,7 +276,7 @@ class ELF;
 
 	function [31:0] read_w(integer fd);
 		integer ret;
-		logic [7:0] r_w[0:3];
+		bit [7:0] r_w[0:3];
 
 		ret = $fread(r_w, fd);
 		if(ret != 4) begin
@@ -287,7 +287,7 @@ class ELF;
 
 	function [63:0] read_dw(integer fd);
 		integer ret;
-		logic [7:0] r_dw[0:7];
+		bit [7:0] r_dw[0:7];
 
 		ret = $fread(r_dw, fd);
 		if(ret != 8) begin
@@ -322,7 +322,7 @@ class ELF;
 	endfunction
 
 	function void write16 (input [`XLEN-1:0] addr, input [16-1:0] data);
-		logic [31:0]	tmp32;
+		bit [31:0]	tmp32;
 		tmp32 = mem.read(addr);
 		case (addr[1:0])
 			2'h0 : mem.write(addr, {tmp32[31:16], data});
@@ -337,7 +337,7 @@ class ELF;
 	endfunction
 
 	function void write8 (input [`XLEN-1:0] addr, input [8-1:0] data);
-		logic [31:0]	tmp32;
+		bit [31:0]	tmp32;
 		tmp32 = mem.read(addr);
 		case (addr[1:0])
 			2'h0 : mem.write(addr, {tmp32[31:8], data});
@@ -348,7 +348,7 @@ class ELF;
 	endfunction
 
 	function [`XLEN-1:0] read (input [`XLEN-1:0] addr);
-		logic [95:0] tmp;
+		bit [95:0] tmp;
 		tmp[31:0]  = mem.read(addr);
 		tmp[63:32] = mem.read(addr + 'h4);
 		tmp[95:64] = mem.read(addr + 'h8);
@@ -361,7 +361,7 @@ class ELF;
 	endfunction
 
 	function [32-1:0] read32 (input [`XLEN-1:0] addr);
-		logic [63:0] tmp;
+		bit [63:0] tmp;
 		tmp[31:0]  = mem.read(addr);
 		tmp[63:32] = mem.read(addr + 'h4);
 		case(addr[1:0])
@@ -373,7 +373,7 @@ class ELF;
 	endfunction
 
 	function [16-1:0] read16 (input [`XLEN-1:0] addr);
-		logic [63:0] tmp;
+		bit [63:0] tmp;
 		tmp[31:0]  = mem.read(addr);
 		tmp[63:32] = mem.read(addr + 'h4);
 		case(addr[1:0])
@@ -385,7 +385,7 @@ class ELF;
 	endfunction
 
 	function [8-1:0] read8 (input [`XLEN-1:0] addr);
-		logic [31:0] tmp32 = mem.read(addr);
+		bit [31:0] tmp32 = mem.read(addr);
 		case(addr[1:0])
 			2'h0 : return tmp32[7:0];
 			2'h1 : return tmp32[15:8];

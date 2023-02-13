@@ -115,22 +115,22 @@ class ISS;
 				|| csr_c.get_mode() == `MODE_S && csr_c.get_s_sum()
 			       	|| csr_c.get_mode() == `MODE_U) begin
 				// 1. read satp
-				logic [`XLEN-1:0]	a = {8'h00, csr_c.get_satp_ppn(), 12'h000};
-				logic [8:0]		va_vpn2 = va[38:30];
-				logic [8:0]		va_vpn1 = va[29:21];
-				logic [8:0]		va_vpn0 = va[20:12];
-				logic [8:0]		va_vpn;
-				logic [11:0]		va_ofs  = va[11:0];
-				logic [`XLEN-1:0]	pte;
-				logic [`XLEN-1:0]	pte_cmp;
-				logic [`XLEN-1:0]	pte_cmp_a;
-				logic [`XLEN-1:0]	pte_a;
-				logic [25:0]		pte_ppn2;
-				logic [8:0]		pte_ppn1;
-				logic [8:0]		pte_ppn0;
-				logic [25:0]		pa_ppn2;
-				logic [8:0]		pa_ppn1;
-				logic [8:0]		pa_ppn0;
+				bit [`XLEN-1:0]	a = {8'h00, csr_c.get_satp_ppn(), 12'h000};
+				bit [8:0]		va_vpn2 = va[38:30];
+				bit [8:0]		va_vpn1 = va[29:21];
+				bit [8:0]		va_vpn0 = va[20:12];
+				bit [8:0]		va_vpn;
+				bit [11:0]		va_ofs  = va[11:0];
+				bit [`XLEN-1:0]	pte;
+				bit [`XLEN-1:0]	pte_cmp;
+				bit [`XLEN-1:0]	pte_cmp_a;
+				bit [`XLEN-1:0]	pte_a;
+				bit [25:0]		pte_ppn2;
+				bit [8:0]		pte_ppn1;
+				bit [8:0]		pte_ppn0;
+				bit [25:0]		pa_ppn2;
+				bit [8:0]		pa_ppn1;
+				bit [8:0]		pa_ppn0;
 				integer			i = 2;
 
 				$display("[INFO] Sv39 translate on: %16h", va);
@@ -319,8 +319,8 @@ class ISS;
 	endfunction
 
 	function [31:0] get_instruction(input [`XLEN-1:0] pc);
-		logic [`XLEN-1:0]	tmp;
-		logic [`XLEN-1:0]	trap_pc;
+		bit [`XLEN-1:0]	tmp;
+		bit [`XLEN-1:0]	trap_pc;
 		virtual_address_translation(pc, `PTE_X, pc, tmp, trap_pc);
 		if(tmp != {64{1'b0}}) begin
 			return mem.read32(tmp);
@@ -335,47 +335,47 @@ class ISS;
 			lrsc_valid = 1'b0;
 	endfunction
 
-	task exec(input [`XLEN-1:0] pc, output logic [`XLEN-1:0] next_pc, output logic tohost_we, output logic [31:0] tohost);
-		logic [`XLEN-1:0]	tmp;
-		logic [`XLEN-1:0]	trap_pc;
-		logic [32-1:0]		tmp32;
-		logic [`XLEN*2-1:0]	tmp128;
+	task exec(input [`XLEN-1:0] pc, output bit [`XLEN-1:0] next_pc, output bit tohost_we, output bit [31:0] tohost);
+		bit [`XLEN-1:0]		tmp;
+		bit [`XLEN-1:0]		trap_pc;
+		bit [32-1:0]		tmp32;
+		bit [`XLEN*2-1:0]	tmp128;
 
-		logic [32-1:0]		inst;
-		logic [6:0]		opcode;
-		logic [4:0]		rd0;
-		logic [2:0]		funct3;
-		logic [4:0]		rs1;
-		logic [4:0]		rs2;
-		logic [4:0]		rs3;
-		logic [6:0]		funct7;
-		logic [4:0]		funct5;
-		logic [1:0]		funct2;
-		logic			aq;
-		logic			rl;
-		logic [2:0]		rm;
-		logic [32-1:0]		imm_i;
-		logic [32-1:0]		imm_s;
-		logic [32-1:0]		imm_b;
-		logic [32-1:0]		imm_u;
-		logic [32-1:0]		imm_j;
+		bit [32-1:0]		inst;
+		bit [6:0]		opcode;
+		bit [4:0]		rd0;
+		bit [2:0]		funct3;
+		bit [4:0]		rs1;
+		bit [4:0]		rs2;
+		bit [4:0]		rs3;
+		bit [6:0]		funct7;
+		bit [4:0]		funct5;
+		bit [1:0]		funct2;
+		bit			aq;
+		bit			rl;
+		bit [2:0]		rm;
+		bit [32-1:0]		imm_i;
+		bit [32-1:0]		imm_s;
+		bit [32-1:0]		imm_b;
+		bit [32-1:0]		imm_u;
+		bit [32-1:0]		imm_j;
 	
-		logic [`XLEN-1:0]	imm_iw;
-		logic [`XLEN-1:0]	imm_sw;
-		logic [`XLEN-1:0]	imm_bw;
-		logic [`XLEN-1:0]	imm_uw;
-		logic [`XLEN-1:0]	imm_jw;
+		bit [`XLEN-1:0]		imm_iw;
+		bit [`XLEN-1:0]		imm_sw;
+		bit [`XLEN-1:0]		imm_bw;
+		bit [`XLEN-1:0]		imm_uw;
+		bit [`XLEN-1:0]		imm_jw;
 	
-		logic [`XLEN-1:0]	uimm_w;
+		bit [`XLEN-1:0]		uimm_w;
 		
-		logic [12-1:0]		csr;
-		logic [6-1:0]		shamt;
+		bit [12-1:0]		csr;
+		bit [6-1:0]		shamt;
 	
-		logic [`XLEN-1:0]	rs1_d;
-		logic [`XLEN-1:0]	rs2_d;
-		logic [`FLEN-1:0]	fp_rs1_d;
-		logic [`FLEN-1:0]	fp_rs2_d;
-		logic [`FLEN-1:0]	fp_rs3_d;
+		bit [`XLEN-1:0]		rs1_d;
+		bit [`XLEN-1:0]		rs2_d;
+		bit [`FLEN-1:0]		fp_rs1_d;
+		bit [`FLEN-1:0]		fp_rs2_d;
+		bit [`FLEN-1:0]		fp_rs3_d;
 
 		csr_c.tick();
 

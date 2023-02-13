@@ -13,63 +13,63 @@
 `define MXL_128	2'h3
 
 class CSR;
-	logic [`XLEN-1:0]		csr_reg[0:`NUM_CSR-1];
+	bit [`XLEN-1:0]		csr_reg[0:`NUM_CSR-1];
 
-	logic [1:0]		mode;
+	bit [1:0]		mode;
 
-	logic [4:0]		fflags;
-	logic [2:0]		frm;
-	logic [`XLEN-1:0]	cycle;
-	logic [`XLEN-1:0]	csr_time;
-	logic [`XLEN-1:0]	instret;
+	bit [4:0]		fflags;
+	bit [2:0]		frm;
+	bit [`XLEN-1:0]	cycle;
+	bit [`XLEN-1:0]	csr_time;
+	bit [`XLEN-1:0]	instret;
 	// mstatus
-	logic			m_sie;
-	logic			m_mie;
-	logic			m_spie;
-	logic			m_ube;
-	logic			m_mpie;
-	logic			m_spp;
-	logic [1:0]		m_vs;
-	logic [1:0]		m_mpp;
-	logic [1:0]		m_fs;
-	logic [1:0]		m_xs;
-	logic			m_mprv;
-	logic			m_sum;
-	logic			m_mxr;
-	logic			m_tvm;
-	logic			m_tw;
-	logic			m_tsr;
-	logic [1:0]		m_uxl = `MXL_64;
-	logic [1:0]		m_sxl = `MXL_64;
-	logic			m_sbe;
-	logic			m_mbe;
-	logic			m_sd;
+	bit			m_sie;
+	bit			m_mie;
+	bit			m_spie;
+	bit			m_ube;
+	bit			m_mpie;
+	bit			m_spp;
+	bit [1:0]		m_vs;
+	bit [1:0]		m_mpp;
+	bit [1:0]		m_fs;
+	bit [1:0]		m_xs;
+	bit			m_mprv;
+	bit			m_sum;
+	bit			m_mxr;
+	bit			m_tvm;
+	bit			m_tw;
+	bit			m_tsr;
+	bit [1:0]		m_uxl = `MXL_64;
+	bit [1:0]		m_sxl = `MXL_64;
+	bit			m_sbe;
+	bit			m_mbe;
+	bit			m_sd;
 
-	logic [`MXLEN-1:0]	mepc;
-	logic [`MXLEN-1:0]	mcause;
-	logic [`MXLEN-1:0]	mtvec;
-	logic [`MXLEN-1:0]	mtval;
+	bit [`MXLEN-1:0]	mepc;
+	bit [`MXLEN-1:0]	mcause;
+	bit [`MXLEN-1:0]	mtvec;
+	bit [`MXLEN-1:0]	mtval;
 
 	// sstatus
-	logic			s_sie;
-	logic			s_spie;
-	logic			s_ube;
-	logic			s_spp;
-	logic [1:0]		s_vs;
-	logic [1:0]		s_fs;
-	logic [1:0]		s_xs;
-	logic			s_sum;
-	logic			s_mxr;
-	logic [1:0]		s_uxl = `MXL_64;
-	logic			s_sd;
+	bit			s_sie;
+	bit			s_spie;
+	bit			s_ube;
+	bit			s_spp;
+	bit [1:0]		s_vs;
+	bit [1:0]		s_fs;
+	bit [1:0]		s_xs;
+	bit			s_sum;
+	bit			s_mxr;
+	bit [1:0]		s_uxl = `MXL_64;
+	bit			s_sd;
 
-	logic [`MXLEN-1:0]	sepc;
-	logic [`MXLEN-1:0]	scause;
-	logic [`MXLEN-1:0]	stvec;
+	bit [`MXLEN-1:0]	sepc;
+	bit [`MXLEN-1:0]	scause;
+	bit [`MXLEN-1:0]	stvec;
 
-	logic [43:0]		satp_ppn;
-	logic [15:0]		satp_asid;
-	logic [3:0]		satp_mode;
+	bit [43:0]		satp_ppn;
+	bit [15:0]		satp_asid;
+	bit [3:0]		satp_mode;
 
 	function void init();
 		for(integer i = 0; i < `NUM_CSR; i = i + 1) begin
@@ -337,15 +337,15 @@ class CSR;
 		endcase
 	endfunction
 
-	function logic [1:0] read_mode();
+	function bit [1:0] read_mode();
 		return mode;
 	endfunction
 
-	function logic read_m_mie();
+	function bit read_m_mie();
 		return m_mie;
 	endfunction
 
-	function logic read_m_sie();
+	function bit read_m_sie();
 		return m_sie;
 	endfunction
 

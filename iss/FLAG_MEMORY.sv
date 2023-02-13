@@ -5,16 +5,16 @@
 
 
 class FLAG_MEMORY_ITEM;
-	logic				en;
-	logic [63:0]			start;
-	logic [31:0]			size;
-	logic [24+6-1:0]		offset;
+	bit				en;
+	bit [63:0]			start;
+	bit [31:0]			size;
+	bit [24+6-1:0]		offset;
 
 	function new();
 		en = 1'b0;
 	endfunction
 
-	function logic get_en();
+	function bit get_en();
 		return en;
 	endfunction
 
@@ -30,19 +30,19 @@ class FLAG_MEMORY_ITEM;
 		return offset;
 	endfunction
 
-	function void set_en(logic e);
+	function void set_en(bit e);
 		en = e;
 	endfunction
 
-	function void set_start(logic [63:0] stat);
+	function void set_start(bit [63:0] stat);
 		start = stat;
 	endfunction
 
-	function void set_size(logic [31:0] siz);
+	function void set_size(bit [31:0] siz);
 		size = siz;
 	endfunction
 
-	function void set_offset(logic [24+6-1:0] ofs);
+	function void set_offset(bit [24+6-1:0] ofs);
 		offset = ofs;
 	endfunction
 endclass : FLAG_MEMORY_ITEM;
@@ -54,18 +54,18 @@ endclass : FLAG_MEMORY_ITEM;
 `define FLAG_MEM_NUM	(1<<`FLAG_MEM_NUM_POW)
 
 class FRAG_MEMORY;
-	FLAG_MEMORY_ITEM		mems[integer];
-	logic [31:0]			mem[]  = new [`FLAG_MEM_NUM*(1<<(`FLAG_MEM_SIZE_POW-2))];
+	FLAG_MEMORY_ITEM		mems[int];
+	bit [31:0]			mem[]  = new [`FLAG_MEM_NUM*(1<<(`FLAG_MEM_SIZE_POW-2))];
 
 	function new();
-		for(integer i = 0; i < `FLAG_MEM_NUM; i = i + 1) begin
+		for(int i = 0; i < `FLAG_MEM_NUM; i = i + 1) begin
 			mems[i] = new;
 			mems[i].set_en(1'b0);
 		end
 	endfunction
 
-	function integer get_idx_or_alloc(logic [63:0] addr);
-		integer idx = find_idx(addr);
+	function int get_idx_or_alloc(bit [63:0] addr);
+		int idx = find_idx(addr);
 		if(idx >= 0) return idx;
 
 		idx = get_last_idx();
@@ -80,15 +80,15 @@ class FRAG_MEMORY;
 		return idx;
 	endfunction
 
-	function integer get_last_idx();
-		for(integer i = 0; i < `FLAG_MEM_NUM; i = i + 1) begin
+	function int get_last_idx();
+		for(int i = 0; i < `FLAG_MEM_NUM; i = i + 1) begin
 			if(mems[i].get_en() == 1'b0) return i;
 		end
 		return -1;
 	endfunction
 
-	function integer find_idx(logic [63:0] addr);
-		for(integer i = 0; i < `FLAG_MEM_NUM; i = i + 1) begin
+	function int find_idx(bit [63:0] addr);
+		for(int i = 0; i < `FLAG_MEM_NUM; i = i + 1) begin
 			if(mems[i].get_en()) begin
 				if(addr >= mems[i].get_start()) begin
 					if(addr < mems[i].get_start() + {{32{1'b0}}, mems[i].get_size()}) begin
@@ -100,18 +100,18 @@ class FRAG_MEMORY;
 		return -1;
 	endfunction
 
-	function [31:0] read_idx(integer idx, logic [63:0] addr);
-		logic [63:0] tmp = addr - mems[idx].get_start() + {{34{1'b0}}, mems[idx].get_offset()};
+	function [31:0] read_idx(int idx, bit [63:0] addr);
+		bit [63:0] tmp = addr - mems[idx].get_start() + {{34{1'b0}}, mems[idx].get_offset()};
 		return mem[tmp[`FLAG_MEM_SIZE_POW+`FLAG_MEM_NUM_POW-1:2]];
 	endfunction
 
-	function void write_idx(integer idx, logic [63:0] addr, logic [31:0] data);
-		logic [63:0] tmp = addr - mems[idx].get_start() + {{34{1'b0}}, mems[idx].get_offset()};
+	function void write_idx(int idx, bit [63:0] addr, bit [31:0] data);
+		bit [63:0] tmp = addr - mems[idx].get_start() + {{34{1'b0}}, mems[idx].get_offset()};
 		mem[tmp[`FLAG_MEM_SIZE_POW+`FLAG_MEM_NUM_POW-1:2]] = data;
 	endfunction
 
-	function [31:0] read(logic [63:0] addr);
-		integer idx = find_idx(addr);
+	function [31:0] read(bit [63:0] addr);
+		int idx = find_idx(addr);
 		if(idx == -1) begin
 			return 32'h0;
 		end else begin
@@ -119,8 +119,8 @@ class FRAG_MEMORY;
 		end
 	endfunction
 
-	function void write(logic [63:0] addr, logic [31:0] data);
-		integer idx = get_idx_or_alloc(addr);
+	function void write(bit [63:0] addr, bit [31:0] data);
+		int idx = get_idx_or_alloc(addr);
 		if(idx != -1) begin
 			write_idx(idx, addr, data);
 		end

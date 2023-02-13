@@ -4,27 +4,27 @@
 `include "defs.vh"
 
 typedef struct packed {
-	logic [31:0]	val;
-	logic		inexact;
-	logic		invalid;
+	bit [31:0]	val;
+	bit		inexact;
+	bit		invalid;
 } float_t;
 
 typedef struct packed {
-	logic [63:0]	val;
-	logic		inexact;
-	logic		invalid;
+	bit [63:0]	val;
+	bit		inexact;
+	bit		invalid;
 } double_t;
 
 typedef struct packed {
-	logic [31:0]	val;
-	logic		inexact;
-	logic		invalid;
+	bit [31:0]	val;
+	bit		inexact;
+	bit		invalid;
 } word_t;
 
 typedef struct packed {
-	logic [63:0]	val;
-	logic		inexact;
-	logic		invalid;
+	bit [63:0]	val;
+	bit		inexact;
+	bit		invalid;
 } long_t;
 
 class FLOAT
@@ -35,16 +35,16 @@ class FLOAT
 	parameter	F_FLAC  = 23
 );
 
-	logic 			sign_1, sign_2;
-	logic [F_EXP-1:0]	exp_1, exp_2;
-	logic [F_FLAC-1:0]	flac_1, flac_2;
-	logic			is_zero_1, is_zero_2;
-	logic			is_nan_1, is_nan_2;
-	logic			is_inf_1, is_inf_2;
-	logic			is_qnan_1, is_qnan_2;
-	logic			is_snan_1, is_snan_2;
-	logic			is_num_1, is_num_2;
-	logic			is_sub_1, is_sub_2;
+	bit 			sign_1, sign_2;
+	bit [F_EXP-1:0]		exp_1, exp_2;
+	bit [F_FLAC-1:0]	flac_1, flac_2;
+	bit			is_zero_1, is_zero_2;
+	bit			is_nan_1, is_nan_2;
+	bit			is_inf_1, is_inf_2;
+	bit			is_qnan_1, is_qnan_2;
+	bit			is_snan_1, is_snan_2;
+	bit			is_num_1, is_num_2;
+	bit			is_sub_1, is_sub_2;
 	
 
 	function [F_EXP-1:0] first_1(input [F_FLAC+1:0] in);
@@ -57,7 +57,7 @@ class FLOAT
 	endfunction
 
 	function last_n_dirty(input [F_FLAC-1:0] in, input [F_EXP-1:0] mag_shift);
-		logic [F_FLAC-1:0]	mask = ('b1 << mag_shift) - 'b1;
+		bit [F_FLAC-1:0]	mask = ('b1 << mag_shift) - 'b1;
 		return |(in & mask);
 	endfunction
 
@@ -97,38 +97,38 @@ class FLOAT
 		output T			out
 	);
 
-		logic 			mm_swap;
-		logic			mm_is_zero_1, mm_is_zero_2;
-		logic			mm_sign_1, mm_sign_2;
-		logic [F_EXP-1:0]	mm_exp_1,  mm_exp_2;
-		logic [F_FLAC-1:0]	mm_flac_1, mm_flac_2;
+		bit 			mm_swap;
+		bit			mm_is_zero_1, mm_is_zero_2;
+		bit			mm_sign_1, mm_sign_2;
+		bit [F_EXP-1:0]		mm_exp_1,  mm_exp_2;
+		bit [F_FLAC-1:0]	mm_flac_1, mm_flac_2;
 	
-		logic [F_EXP-1:0]	mag_shift;
-		logic			sf_sign_1, sf_sign_2;
-		logic [F_EXP-1:0]	sf_exp_1, sf_exp_2;
-		logic [F_FLAC:0]	sf_flac_1, sf_flac_2;
+		bit [F_EXP-1:0]		mag_shift;
+		bit			sf_sign_1, sf_sign_2;
+		bit [F_EXP-1:0]		sf_exp_1, sf_exp_2;
+		bit [F_FLAC:0]		sf_flac_1, sf_flac_2;
 	
-		logic [F_EXP-1:0]	cm_exp_1,  cm_exp_2;
-		logic [F_FLAC+1:0]	cm_flac_1, cm_flac_2;
+		bit [F_EXP-1:0]		cm_exp_1,  cm_exp_2;
+		bit [F_FLAC+1:0]	cm_flac_1, cm_flac_2;
 	
-		logic [F_EXP-1:0]	add_exp;
-		logic [F_FLAC+2:0]	add_flac;
+		bit [F_EXP-1:0]		add_exp;
+		bit [F_FLAC+2:0]	add_flac;
 	
-		logic			abs_sign;
-		logic [F_EXP-1:0]	abs_exp;
-		logic [F_FLAC+1:0]	abs_flac;
+		bit			abs_sign;
+		bit [F_EXP-1:0]		abs_exp;
+		bit [F_FLAC+1:0]	abs_flac;
 	
-		logic [F_EXP-1:0]	norm_shift;
-		logic			norm_is_zero;
-		logic			norm_sign;
-		logic [F_EXP-1:0]	norm_exp;
-		logic [F_FLAC+1:0]	norm_flac;
+		bit [F_EXP-1:0]		norm_shift;
+		bit			norm_is_zero;
+		bit			norm_sign;
+		bit [F_EXP-1:0]		norm_exp;
+		bit [F_FLAC+1:0]	norm_flac;
 	
-		logic			round_sign;
-		logic [F_EXP-1:0]	round_exp;
-		logic [F_FLAC-1:0]	round_flac;
+		bit			round_sign;
+		bit [F_EXP-1:0]		round_exp;
+		bit [F_FLAC-1:0]	round_flac;
 	
-		logic [F_WIDTH-1:0]	add_f;
+		bit [F_WIDTH-1:0]	add_f;
 
 		// parse
 		parse(in1, in2);
@@ -217,17 +217,17 @@ class FLOAT
 		input [F_WIDTH-1:0]		in2,
 		output T			out
 	);
-		logic				mul_sign;
-		logic [F_EXP+1:0]		mul_exp;
-		logic [(F_FLAC+1)*2-1:0]	mul_flac;
+		bit			mul_sign;
+		bit [F_EXP+1:0]		mul_exp;
+		bit [(F_FLAC+1)*2-1:0]	mul_flac;
 	
-		logic [F_EXP+1:0]		norm_exp;
-		logic [(F_FLAC+1)*2-1:0]	norm_flac;
+		bit [F_EXP+1:0]		norm_exp;
+		bit [(F_FLAC+1)*2-1:0]	norm_flac;
 	
-		logic [F_EXP+1:0]		round_exp;
-		logic [F_FLAC:0]		round_flac;
+		bit [F_EXP+1:0]		round_exp;
+		bit [F_FLAC:0]		round_flac;
 	
-		logic [F_WIDTH-1:0]		mul_f;
+		bit [F_WIDTH-1:0]	mul_f;
 
 		// parse
 		parse(in1, in2);
@@ -276,7 +276,7 @@ class FLOAT
 	(
 		input [F_WIDTH-1:0]		in1,
 	);
-		logic [9:0]	out_w, out_w2;
+		bit [9:0]	out_w, out_w2;
 
 		// parse
 		parse(in1, in1);
@@ -331,7 +331,7 @@ class FLOAT
 		input [F_WIDTH-1:0]		in2,
 		output word_t			out
 	);
-		logic		less_than;
+		bit		less_than;
 		T		sub;
 
 		fsub(in1, in2, sub);
@@ -379,8 +379,8 @@ class FLOAT
 		output T			out
 	);
 		T				sub;
-		logic				less_than;
-		logic [F_WIDTH-1:0]		max;
+		bit				less_than;
+		bit [F_WIDTH-1:0]		max;
 
 		fsub(in1, in2, sub);
 		less_than = sub.val[F_WIDTH-1];
@@ -433,8 +433,8 @@ class FLOAT
 		output T			out
 	);
 		T				sub;
-		logic				less_than;
-		logic [F_WIDTH-1:0]		min;
+		bit				less_than;
+		bit [F_WIDTH-1:0]		min;
 
 		fsub(in1, in2, sub);
 		less_than = sub.val[F_WIDTH-1];

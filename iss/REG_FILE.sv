@@ -4,7 +4,7 @@
 `include "defs.vh"
 
 class REG_FILE;
-	logic [`XLEN-1:0]		reg_file[0:`NUM_REG-1];
+	bit [`XLEN-1:0]		reg_file[0:`NUM_REG-1];
 
 	function void write (input [4:0] addr, input [`XLEN-1:0] data);
 		if(addr != 5'h00) reg_file[addr] = data;

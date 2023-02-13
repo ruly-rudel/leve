@@ -18,16 +18,16 @@ module RV64GC_ISS (
 	TRACE			trace = new;
 
 	// PC
-	logic  [`XLEN-1:0]	pc;
-	logic  [`XLEN-1:0]	next_pc;
+	bit  [`XLEN-1:0]	pc;
+	bit  [`XLEN-1:0]	next_pc;
 
 	// main loop
 	always_ff @(posedge CLK or negedge RSTn)
 	begin
-		logic [`XLEN-1:0]	tmp;
-		logic [`XLEN-1:0]	trap_pc;
-		logic [`XLEN-1:0]	next_pc;
-		logic [32-1:0]		inst;
+		bit [`XLEN-1:0]	tmp;
+		bit [`XLEN-1:0]	trap_pc;
+		bit [`XLEN-1:0]	next_pc;
+		bit [32-1:0]	inst;
 
 		if(!RSTn) begin
 			iss.init(init_file);
