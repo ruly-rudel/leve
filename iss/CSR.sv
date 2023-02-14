@@ -370,6 +370,15 @@ class CSR;
 		return mode;
 	endfunction
 
+	function [1:0] get_ldst_mode();
+		if(m_mprv == 1'b0) begin
+			return mode;
+		end else begin
+			return m_mpp;
+		end
+		return mode;
+	endfunction
+
 	function get_m_sum();
 		return m_sum;
 	endfunction
@@ -384,6 +393,10 @@ class CSR;
 	
 	function get_mprv();
 		return m_mprv;
+	endfunction
+
+	function get_mxr();
+		return m_mxr;
 	endfunction
 
 	function [1:0] get_mpp();

@@ -111,9 +111,9 @@ class ISS;
 			pa = va;
 			return;
 		end else if(csr_c.get_satp_mode() == 4'd08) begin	// Sv39
-			if(csr_c.get_mode() == `MODE_M && csr_c.get_m_sum() && csr_c.get_mprv() && csr_c.get_mpp() == `MODE_S && (acc[`PTE_RB] || acc[`PTE_WB])
-				|| csr_c.get_mode() == `MODE_S && csr_c.get_s_sum()
-			       	|| csr_c.get_mode() == `MODE_U) begin
+			bit [1:0] ldst_mode = csr_c.get_ldst_mode();
+			if((acc[`PTE_RB] || acc[`PTE_WB]) && (ldst_mode == `MODE_S || ldst_mode == `MODE_U) ||
+			    acc[`PTE_XB] && (csr_c.get_mode() == `MODE_S || csr_c.get_mode() == `MODE_U)) begin
 				// 1. read satp
 				bit [`XLEN-1:0]	a = {8'h00, csr_c.get_satp_ppn(), 12'h000};
 				bit [8:0]		va_vpn2 = va[38:30];
@@ -222,7 +222,8 @@ class ISS;
 				if(
 					acc[`PTE_RB] && ~pte[`PTE_RB] ||
 					acc[`PTE_WB] && ~pte[`PTE_WB] ||
-					acc[`PTE_XB] && ~pte[`PTE_XB] 
+					acc[`PTE_XB] && ~pte[`PTE_XB] ||
+				        acc[`PTE_XB] && ~pte[`PTE_RB] && csr_c.get_mxr()
 				) begin
 					trap_pc = raise_page_fault(va, acc, pc);
 					pa = {64{1'b0}};
