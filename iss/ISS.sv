@@ -14,7 +14,12 @@
 `include "FCVT_W_D.sv"
 `include "FCVT_S_D.sv"
 
+`include "TRACE.sv"
+
 class ISS;
+	// trace
+	TRACE			trace = new;
+
 	// memory
 	ELF			mem;
 
@@ -163,7 +168,7 @@ class ISS;
 				$display("[INFO] 1st pte: %16h", pte);
 
 				// 4. leaf check
-				if(~pte[`PTE_RB] && ~pte[`PTE_WB]) begin	// not leaf
+				if(~pte[`PTE_RB] && ~pte[`PTE_XB]) begin	// not leaf
 					i = 1;
 					a = {8'h00, pte[53:10], 12'h000};
 					// 2. 1st page table entry address
@@ -184,7 +189,7 @@ class ISS;
 					end
 					$display("[INFO] 2nd pte: %16h", pte);
 					// 4. leaf check
-					if(~pte[`PTE_RB] && ~pte[`PTE_WB]) begin	// not leaf
+					if(~pte[`PTE_RB] && ~pte[`PTE_XB]) begin	// not leaf
 						i = 0;
 						a = {8'h00, pte[53:10], 12'h000};
 						// 2. 1st page table entry address
@@ -205,7 +210,8 @@ class ISS;
 						end
 						$display("[INFO] 3rd pte: %16h", pte);
 						// 4. leaf check
-						if(~pte[`PTE_RB] && ~pte[`PTE_WB]) begin	// not leaf
+						if(~pte[`PTE_RB] && ~pte[`PTE_XB]) begin	// not leaf
+							$display("[INFO] 3rd pte is not leaf.");
 							trap_pc = raise_page_fault(va, acc, pc);
 							pa = {64{1'b0}};
 							return;
@@ -225,6 +231,7 @@ class ISS;
 					acc[`PTE_XB] && ~pte[`PTE_XB] ||
 				        acc[`PTE_XB] && ~pte[`PTE_RB] && csr_c.get_mxr()
 				) begin
+					$display("[INFO] access type check fails: acc %b", acc);
 					trap_pc = raise_page_fault(va, acc, pc);
 					pa = {64{1'b0}};
 					return ;
@@ -233,14 +240,16 @@ class ISS;
 				// current privilege mode check
 				if(csr_c.get_mode() == `MODE_U && ~pte[`PTE_UB] ||
 				   csr_c.get_mode() == `MODE_S &&  pte[`PTE_UB] && csr_c.get_m_sum()) begin
+					$display("[INFO] current privilege mode: %d check fails.", csr_c.get_mode());
 					trap_pc = raise_page_fault(va, acc, pc);
 					pa = {64{1'b0}};
 					return ;
 				end
 
-				// 6. misaligned sperpage
+				// 6. misaligned superpage
 				if(i == 2 && (|pte_ppn1 || |pte_ppn0) ||
 				   i == 1 &&               |pte_ppn0) begin
+					$display("[INFO] misaligned superpage.");
 					trap_pc = raise_page_fault(va, acc, pc);
 					pa = {64{1'b0}};
 					return ;
@@ -248,7 +257,9 @@ class ISS;
 
 				// 7. pte.a == 0, or store access and pte.d ==0
 				if(~pte[`PTE_AB] || acc[`PTE_WB] && ~pte[`PTE_DB]) begin
+					$display("[INFO] pte.a == 0 or pte.d == 0 at store.");
 					trap_pc = raise_page_fault(va, acc, pc);
+					$display("[INFO] trap_pc = %16h", trap_pc);
 					pa = {64{1'b0}};
 					return ;
 				end
@@ -330,7 +341,7 @@ class ISS;
 		if(tmp != {64{1'b0}}) begin
 			return mem.read32(tmp);
 		end else begin
-			return 32'h0000_0000;
+			return mem.read32(trap_pc);
 		end
 	endfunction
 
@@ -391,8 +402,10 @@ class ISS;
 		virtual_address_translation(pc, `PTE_X, pc, tmp, trap_pc);
 		if(tmp != {64{1'b0}}) begin
 			inst   = mem.read32(tmp);
+			trace.print(tmp, inst);
 		end else begin
-			inst   = 32'h0000_0000;
+			inst   = mem.read32(trap_pc);
+			trace.print(trap_pc, inst);
 		end
 
 
@@ -1490,7 +1503,7 @@ class ISS;
 						end
 					end
 					5'b00001: begin		// EBREAK
-							next_pc = pc + 'h4;
+							next_pc = csr_c.raise_exception(`EX_BREAK, pc, pc);
 					end
 					default: next_pc = raise_illegal_instruction(pc, inst);
 					endcase
@@ -1498,7 +1511,18 @@ class ISS;
 				7'b0001000: begin
 					case(rs2)
 					5'b00010: begin		// SRET
+						if(rd0 == 5'h00) begin
 							next_pc = csr_c.sret();	// sepc
+						end else begin
+							next_pc = raise_illegal_instruction(pc, inst);
+						end
+					end
+					5'b00101: begin		// WFI
+						if(rd0 == 5'h00) begin
+							next_pc = pc + 'h4;
+						end else begin
+							next_pc = raise_illegal_instruction(pc, inst);
+						end
 					end
 					default: next_pc = raise_illegal_instruction(pc, inst);
 					endcase

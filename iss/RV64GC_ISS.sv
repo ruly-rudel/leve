@@ -2,7 +2,6 @@
 `include "defs.vh"
 
 `include "ISS.sv"
-`include "TRACE.sv"
 
 module RV64GC_ISS (
 	input			CLK,
@@ -15,7 +14,6 @@ module RV64GC_ISS (
 );
 	// ISS
 	ISS			iss = new;
-	TRACE			trace = new;
 
 	// PC
 	bit  [`XLEN-1:0]	pc;
@@ -35,7 +33,6 @@ module RV64GC_ISS (
 			tohost_we = 1'b0;
 		end else begin
 			tohost_we = 1'b0;
-			trace.print(pc, iss.get_instruction(pc));
 			iss.exec(pc, next_pc, tohost_we, tohost);
 			pc = next_pc;
 		end
