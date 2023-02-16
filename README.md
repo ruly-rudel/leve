@@ -1,2 +1,2 @@
 # leve
-tiny RISC-V RV64G processor
+tiny RISC-V RV64GC processor
