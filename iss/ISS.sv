@@ -138,7 +138,7 @@ class ISS;
 				bit [8:0]		pa_ppn0;
 				integer			i = 2;
 
-				$display("[INFO] Sv39 translate on: %16h", va);
+//				$display("[INFO] Sv39 translate on: %16h", va);
 
 				// virtual address check
 				if((~va[38] | ~&va[63:39]) & (va[38] | |va[63:39])) begin
@@ -146,32 +146,32 @@ class ISS;
 					pa = {64{1'b0}};
 					return;
 				end
-				$display("[INFO] a: %16h", a);
+//				$display("[INFO] a: %16h", a);
 
 				// 2. 1st page table entry address
 				pte_a = a + va_vpn2 * 8;
+//				$display("[INFO] pte_a: %16h", pte_a);
 				if(~pma.is_readable(pte_a)) begin
 					trap_pc = raise_page_fault(va, `PTE_R, pc);
 					pa = {64{1'b0}};
 					return;
 				end
-				$display("[INFO] pte_a: %16h", pte_a);
 
 				// 1st page table entry
 				pte = mem.read(pte_a);
+//				$display("[INFO] 1st pte: %16h:%16h", pte_a, pte);
 				// 3. pte check
 				if(~pte[`PTE_VB] || ~pte[`PTE_RB] & pte[`PTE_WB] || pte[9:8] != 2'h0 || |pte[63:54]) begin
 					trap_pc = raise_page_fault(va, acc, pc);
 					pa = {64{1'b0}};
 					return;
 				end
-				$display("[INFO] 1st pte: %16h", pte);
 
 				// 4. leaf check
 				if(~pte[`PTE_RB] && ~pte[`PTE_XB]) begin	// not leaf
 					i = 1;
 					a = {8'h00, pte[53:10], 12'h000};
-					// 2. 1st page table entry address
+					// 2. 2nd page table entry address
 					pte_a = a + va_vpn1 * 8;
 					if(~pma.is_readable(pte_a)) begin
 						trap_pc = raise_page_fault(va, `PTE_R, pc);
@@ -181,18 +181,18 @@ class ISS;
 
 					// 2nd page table entry
 					pte = mem.read(pte_a);
+//					$display("[INFO] 2nd pte: %16h:%16h", pte_a, pte);
 					// 3. pte check
 					if(~pte[`PTE_VB] || ~pte[`PTE_RB] & pte[`PTE_WB] || pte[9:8] != 2'h0 || |pte[63:54]) begin
 						trap_pc = raise_page_fault(va, acc, pc);
 						pa = {64{1'b0}};
 						return;
 					end
-					$display("[INFO] 2nd pte: %16h", pte);
 					// 4. leaf check
 					if(~pte[`PTE_RB] && ~pte[`PTE_XB]) begin	// not leaf
 						i = 0;
 						a = {8'h00, pte[53:10], 12'h000};
-						// 2. 1st page table entry address
+						// 2. 3rd page table entry address
 						pte_a = a + va_vpn0 * 8;
 						if(~pma.is_readable(pte_a)) begin
 							trap_pc = raise_page_fault(va, `PTE_R, pc);
@@ -202,13 +202,13 @@ class ISS;
 
 						// 3rd page table entry
 						pte = mem.read(pte_a);
+//						$display("[INFO] 3rd pte: %16h:%16h, a:%8h, va_vpn0 = %8h", pte_a, pte, a, va_vpn0);
 						// 3. pte check
 						if(~pte[`PTE_VB] || ~pte[`PTE_RB] & pte[`PTE_WB] || pte[9:8] != 2'h0 || |pte[63:54]) begin
 							trap_pc = raise_page_fault(va, acc, pc);
 							pa = {64{1'b0}};
 							return;
 						end
-						$display("[INFO] 3rd pte: %16h", pte);
 						// 4. leaf check
 						if(~pte[`PTE_RB] && ~pte[`PTE_XB]) begin	// not leaf
 							$display("[INFO] 3rd pte is not leaf.");
@@ -299,7 +299,7 @@ class ISS;
 					pa_ppn0 = va_vpn0;
 				end
 
-				$display("[INFO] va -> pa: %16h -> %16h", va, {8'h00, pa_ppn2, pa_ppn1, pa_ppn0, va_ofs});
+//				$display("[INFO] va -> pa: %16h -> %16h", va, {8'h00, pa_ppn2, pa_ppn1, pa_ppn0, va_ofs});
 				pa = {8'h00, pa_ppn2, pa_ppn1, pa_ppn0, va_ofs};
 				return ;
 
@@ -442,10 +442,10 @@ class ISS;
 		virtual_address_translation(pc, `PTE_X, pc, tmp, trap_pc);
 		if(tmp != {64{1'b0}}) begin
 			inst   = mem.read32(tmp);
-			trace.print(tmp, inst);
+			trace.print(pc, inst);
 		end else begin
-			inst   = mem.read32(trap_pc);
-			trace.print(trap_pc, inst);
+			next_pc     = trap_pc;
+			return ;
 		end
 
 
@@ -532,10 +532,14 @@ class ISS;
 		2'b00: begin
 			case(c_funct3)
 			3'b000: begin			// C.ADDI4SPN
-				rs1_d = rf.read(5'h02);
-				tmp =  rs1_d + c_addi4spn_immw;
-				rf.write(c_rdd, tmp);
-				next_pc = pc + 'h2;
+				if(c_rdd == 5'h8 && c_addi4spn_imm == 10'h000) begin
+					next_pc = raise_illegal_instruction(pc, inst);
+				end else begin
+					rs1_d = rf.read(5'h02);
+					tmp =  rs1_d + c_addi4spn_immw;
+					rf.write(c_rdd, tmp);
+					next_pc = pc + 'h2;
+				end
 			end
 			3'b001: begin			// C.FLD
 				rs1_d = rf.read(c_rs1d);
@@ -1926,11 +1930,7 @@ class ISS;
 					7'b0001000: begin
 						case(rs2)
 						5'b00010: begin		// SRET
-							if(rd0 == 5'h00) begin
 								next_pc = csr_c.sret();	// sepc
-							end else begin
-								next_pc = raise_illegal_instruction(pc, inst);
-							end
 						end
 						5'b00101: begin		// WFI
 							if(rd0 == 5'h00) begin

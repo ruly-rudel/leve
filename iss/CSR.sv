@@ -45,6 +45,8 @@ class CSR;
 	bit			m_mbe;
 	bit			m_sd;
 
+	bit [`MXLEN-1:0]	medeleg;
+
 	bit [`MXLEN-1:0]	mepc;
 	bit [`MXLEN-1:0]	mcause;
 	bit [`MXLEN-1:0]	mtvec;
@@ -63,9 +65,10 @@ class CSR;
 	bit [1:0]		s_uxl = `MXL_64;
 	bit			s_sd;
 
+	bit [`MXLEN-1:0]	stvec;
 	bit [`MXLEN-1:0]	sepc;
 	bit [`MXLEN-1:0]	scause;
-	bit [`MXLEN-1:0]	stvec;
+	bit [`MXLEN-1:0]	stval;
 
 	bit [43:0]		satp_ppn;
 	bit [15:0]		satp_asid;
@@ -105,6 +108,8 @@ class CSR;
 		m_mbe		= 1'b0;
 		m_sd		= 1'b0;		// must be fixed
 
+		medeleg		= {`MXLEN{1'b0}};
+
 		mtvec		= {`MXLEN{1'b0}};
 
 		mepc		= {`MXLEN{1'b0}};
@@ -128,6 +133,7 @@ class CSR;
 
 		sepc		= {`MXLEN{1'b0}};
 		scause		= {`MXLEN{1'b0}};
+		stval		= {`MXLEN{1'b0}};
 
 		satp_ppn	= {44{1'b0}};
 		satp_asid	= {16{1'b0}};
@@ -203,6 +209,7 @@ class CSR;
 				$display("[INFO] set mstatus, sie:%b, mie:%b, spie:%b, mpie:%b, spp:%b, mpp:%02b, fs:%02b, mprv:%b, sum:%b, mxr:%b, tvm:%b, tw:%b, tsr:%b",
 					 m_sie, m_mie, m_spie, m_mpie, m_spp, m_mpp, m_fs, m_mprv, m_sum, m_mxr, m_tvm, m_tw, m_tsr);
 			end
+			12'h302: medeleg= data;
 			12'h305: mtvec	= data;
 			12'h341: mepc	= {data[`XLEN-1:1], 1'b0};
 			12'h342: mcause	= data;
@@ -210,6 +217,7 @@ class CSR;
 			12'h105: stvec	= data;
 			12'h141: sepc	= {data[`XLEN-1:1], 1'b0};
 			12'h142: scause	= data;
+			12'h143: stval	= data;
 			default: csr_reg[addr] = data;
 		endcase
 	endfunction
@@ -236,6 +244,7 @@ class CSR;
 					m_mprv, m_xs, m_fs, m_mpp, m_vs, m_spp, m_mpie,
 					m_ube, m_spie, 1'b0, m_mie, 1'b0, m_sie, 1'b0};
 			end
+			12'h302: return medeleg;
 			12'h305: return mtvec;
 			12'h341: return {mepc[`XLEN-1:2], 2'h0};
 			12'h342: return mcause;
@@ -247,6 +256,7 @@ class CSR;
 			12'h105: return stvec;
 			12'h141: return {sepc[`XLEN-1:2], 2'h0};
 			12'h142: return scause;
+			12'h143: return stval;
 			default: return csr_reg[addr];
 		endcase
 	endfunction
@@ -279,7 +289,19 @@ class CSR;
 	endfunction
 
 	function [`MXLEN-1:0] raise_exception(input [3:0] cause, input[`XLEN-1:0] epc, input[`XLEN-1:0] tval);
-		$display("[INFO] EXCEPTION cause %d, mode = %d.", cause, mode);
+		$display("[INFO] EXCEPTION cause %d, mode = %d at %08h", cause, mode, epc);
+		if((medeleg & (1 << cause)) != 64'h0) begin
+			s_spie	= s_sie;
+			s_sie	= 1'b0;
+			s_spp	= mode[0];
+			mode    = `MODE_S;
+			sepc	= {epc[`XLEN-1:1], 1'b0};
+			scause	= {1'b0, {`MXLEN-5{1'b0}}, cause};
+			stval	= tval;
+
+			return stvec[1:0] == 2'h1 ? {stvec[`MXLEN-1:2], 2'h0} + cause * 4 : {stvec[`MXLEN-1:2], 2'h0};
+			$display("[INFO] entering S-MODE.");
+		end else begin
 			m_mpie	= m_mie;
 			m_mie	= 1'b0;
 			m_mpp	= mode;
@@ -290,21 +312,7 @@ class CSR;
 
 			return mtvec[1:0] == 2'h1 ? {mtvec[`MXLEN-1:2], 2'h0} + cause * 4 : {mtvec[`MXLEN-1:2], 2'h0};
 			$display("[INFO] entering M-MODE.");
-			/*
-		if(mode == `MODE_M) begin
-		end else if(mode == `MODE_U) begin
-			mpie	= mie;
-			mie     = 1'b0;
-			mpp     = `MODE_U;
-			mode    = `MODE_M;
-			mepc	= {epc[`XLEN-1:1], 1'b0};
-			mcause	= {1'b0, {`MXLEN-5{1'b0}}, cause};
-
-			return mtvec[1:0] == 2'h1 ? {mtvec[`MXLEN-1:2], 2'h0} + cause * 4 : {mtvec[`MXLEN-1:2], 2'h0};
-		end else begin
-			return {`MXLEN{1'b1}};	// do not traped.
 		end
-		*/
 	endfunction
 
 	function [`MXLEN-1:0] mret();
@@ -402,6 +410,7 @@ class CSR;
 	function [1:0] get_mpp();
 		return m_mpp;
 	endfunction
+
 endclass : CSR;
 
 `endif // _csr_sv_
