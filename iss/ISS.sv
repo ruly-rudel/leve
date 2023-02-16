@@ -394,6 +394,44 @@ class ISS;
 		bit [`FLEN-1:0]		fp_rs2_d;
 		bit [`FLEN-1:0]		fp_rs3_d;
 
+		bit [1:0]		c_funct2;
+		bit [2:0]		c_funct3;
+		bit [3:0]		c_funct4;
+		bit [5:0]		c_funct6;
+		bit [4:0]		c_rd;
+		bit [4:0]		c_rs1;
+		bit [4:0]		c_rs2;
+		bit [4:0]		c_rdd;
+		bit [4:0]		c_rs1d;
+		bit [4:0]		c_rs2d;
+
+		bit [9:0]		c_addi4spn_imm;
+		bit [7:0]		c_fld_imm;
+		bit [6:0]		c_lw_imm;
+		bit [5:0]		c_addi_imm;
+		bit [9:0]		c_addi16sp_imm;
+		bit [11:0]		c_j_imm;
+		bit [8:0]		c_beqz_imm;
+
+		bit [5:0]		c_slli_imm;
+		bit [8:0]		c_fldsp_imm;
+		bit [7:0]		c_lwsp_imm;
+		bit [8:0]		c_fsdsp_imm;
+		bit [7:0]		c_swsp_imm;
+
+		bit [`XLEN-1:0]		c_addi4spn_immw;
+		bit [`XLEN-1:0]		c_fld_immw;
+		bit [`XLEN-1:0]		c_lw_immw;
+		bit [`XLEN-1:0]		c_addi_immw;
+		bit [`XLEN-1:0]		c_addi16sp_immw;
+		bit [`XLEN-1:0]		c_j_immw;
+		bit [`XLEN-1:0]		c_beqz_immw;
+
+		bit [`XLEN-1:0]		c_slli_immw;
+		bit [`XLEN-1:0]		c_fldsp_immw;
+		bit [`XLEN-1:0]		c_lwsp_immw;
+		bit [`XLEN-1:0]		c_fsdsp_immw;
+		bit [`XLEN-1:0]		c_swsp_immw;
 		csr_c.tick();
 
 		tohost_we = 1'b0;
@@ -441,6 +479,45 @@ class ISS;
 		csr    = inst[31:20];
 		shamt  = imm_i[5:0];
 
+		c_funct2 = inst[6:5];
+		c_funct3 = inst[15:13];
+		c_funct4 = inst[15:12];
+		c_funct6 = inst[15:10];
+		c_rd     = inst[11:7];
+		c_rs1    = inst[11:7];
+		c_rs2    = inst[6:2];
+		c_rdd    = {2'h1, inst[4:2]};
+		c_rs1d   = {2'h1, inst[9:7]};
+		c_rs2d   = {2'h1, inst[4:2]};
+
+		c_addi4spn_imm	= {inst[10:7], inst[12:11], inst[5], inst[6], 2'h0};
+		c_fld_imm	= {inst[6:5], inst[12:10],          3'h0};
+		c_lw_imm	= {inst[  5], inst[12:10], inst[6], 2'h0};
+		c_addi_imm	= {inst[12], inst[6:2]};
+		c_addi16sp_imm	= {inst[12], inst[4:3], inst[5], inst[2], inst[6], 4'h0};
+		c_j_imm		= {inst[12], inst[8], inst[10:9], inst[6], inst[7], inst[2], inst[11], inst[5:3], 1'b0};
+		c_beqz_imm	= {inst[12], inst[6:5], inst[2], inst[11:10], inst[4:3], 1'b0};
+
+		c_slli_imm	= {inst[12], inst[6:2]};
+		c_fldsp_imm	= {inst[4:2], inst[12], inst[6:5], 3'h0};
+		c_lwsp_imm	= {inst[3:2], inst[12], inst[6:4], 2'h0};
+		c_fsdsp_imm	= {inst[9:7], inst[12:10], 3'h0};
+		c_swsp_imm	= {inst[8:7], inst[12:9], 2'h0};
+
+		c_addi4spn_immw = {{`XLEN-10{1'b0}}, c_addi4spn_imm};
+		c_fld_immw = {{`XLEN-8{1'b0}}, c_fld_imm};
+		c_lw_immw = {{`XLEN-7{1'b0}}, c_lw_imm};
+		c_addi_immw = {{`XLEN-6{1'b0}}, c_addi_imm};
+		c_addi16sp_immw = {{`XLEN-10{1'b0}}, c_addi16sp_imm};
+		c_j_immw = {{`XLEN-12{1'b0}}, c_j_imm};
+		c_beqz_immw = {{`XLEN-9{1'b0}}, c_beqz_imm};
+
+		c_slli_immw = {{`XLEN-6{1'b0}}, c_slli_imm};
+		c_fldsp_immw = {{`XLEN-9{1'b0}}, c_fldsp_imm};
+		c_lwsp_immw = {{`XLEN-8{1'b0}}, c_lwsp_imm};
+		c_fsdsp_immw = {{`XLEN-9{1'b0}}, c_fsdsp_imm};
+		c_swsp_immw = {{`XLEN-8{1'b0}}, c_swsp_imm};
+
 		// 2. register fetch
 		rs1_d    = rf.read(rs1);
 		rs2_d    = rf.read(rs2);
@@ -448,13 +525,218 @@ class ISS;
 		fp_rs2_d = fp.read(rs2);
 		fp_rs3_d = fp.read(rs3);
 
-		// trace output
-
 		// execute and write back
 		case(op)
-		2'b00:	next_pc = pc + 'h2;
-		2'b01:	next_pc = pc + 'h2;
-		2'b10:	next_pc = pc + 'h2;
+		2'b00: begin
+			case(funct3)
+			3'b000: begin			// C.ADDI4SPN
+				rs1_d = rf.read(5'h02);
+				tmp =  rs1_d + c_addi4spn_immw;
+				rf.write(c_rdd, tmp);
+				pc = pc + 'h2;
+			end
+			3'b001: begin			// C.FLD
+				rs1_d = rf.read(c_rs1d);
+				virtual_address_translation(rs1_d + c_fld_immw, `PTE_R, pc, tmp, trap_pc);
+				if(tmp != {64{1'b0}}) begin
+					if(pma.is_readable(tmp)) begin
+						fp.write(c_rdd, mem.read(tmp));
+						next_pc = pc + 'h2;
+					end else begin
+						next_pc = csr_c.raise_exception(`EX_LAFAULT, pc, tmp);
+					end
+				end else begin
+					next_pc = trap_pc;
+				end
+			end
+			3'b010: begin			// C.LW
+				rs1_d = rf.read(c_rs1d);
+				virtual_address_translation(rs1_d + c_lw_immw, `PTE_R, pc, tmp, trap_pc);
+				if(tmp != {64{1'b0}}) begin
+					if(pma.is_readable(tmp)) begin
+						rf.write32s(c_rdd, mem.read32(tmp));
+						next_pc = pc + 'h2;
+					end else begin
+						next_pc = csr_c.raise_exception(`EX_LAFAULT, pc, tmp);
+					end
+				end else begin
+					next_pc = trap_pc;
+				end
+			end
+			3'b011: begin			// C.LD
+				rs1_d = rf.read(c_rs1d);
+				virtual_address_translation(rs1_d + c_fld_immw, `PTE_R, pc, tmp, trap_pc);
+				if(tmp != {64{1'b0}}) begin
+					if(pma.is_readable(tmp)) begin
+						rf.write(c_rdd, mem.read(tmp));
+						next_pc = pc + 'h2;
+					end else begin
+						next_pc = csr_c.raise_exception(`EX_LAFAULT, pc, tmp);
+					end
+				end else begin
+					next_pc = trap_pc;
+				end
+			end
+			3'b101: begin			// C.FSD
+				rs1_d = rf.read(c_rs1d);
+				virtual_address_translation(rs1_d + c_fld_immw, `PTE_W, pc, tmp, trap_pc);
+				if(tmp != {64{1'b0}}) begin
+					if(pma.is_writeable(tmp)) begin
+						mem.write(tmp, fp.read(c_rs2d));
+						next_pc = pc + 'h2;
+					end else begin
+						next_pc = csr_c.raise_exception(`EX_SAFAULT, pc, tmp);
+					end
+				end else begin
+					next_pc = trap_pc;
+				end
+			end
+			3'b110: begin			// C.SW
+				rs1_d = rf.read(c_rs1d);
+				rs2_d = rf.read(c_rs2d);
+				virtual_address_translation(rs1_d + c_lw_immw, `PTE_W, pc, tmp, trap_pc);
+				if(tmp != {64{1'b0}}) begin
+					if(pma.is_writeable(tmp)) begin
+						mem.write32(tmp, rs2_d[31:0]);
+						next_pc = pc + 'h4;
+						tohost_we  = rs1_d + c_lw_immw == mem.get_tohost() ? 1'b1 : 1'b0;	// for testbench hack
+						tohost     = rs2_d[31:0];
+					end else begin
+						next_pc = csr_c.raise_exception(`EX_SAFAULT, pc, tmp);
+					end
+				end else begin
+					next_pc = trap_pc;
+				end
+			end
+			3'b111: begin			// C.SD
+				rs1_d = rf.read(c_rs1d);
+				rs2_d = rf.read(c_rs2d);
+				virtual_address_translation(rs1_d + c_fld_immw, `PTE_W, pc, tmp, trap_pc);
+				if(tmp != {64{1'b0}}) begin
+					if(pma.is_writeable(tmp)) begin
+						mem.write(tmp, rs2_d);
+						next_pc = pc + 'h2;
+					end else begin
+						next_pc = csr_c.raise_exception(`EX_SAFAULT, pc, tmp);
+					end
+				end else begin
+					next_pc = trap_pc;
+				end
+			end
+			default: next_pc = raise_illegal_instruction(pc, inst);
+			endcase
+		end
+		2'b01: begin
+			next_pc = pc + 'h2;
+			/*
+			case(funct3)
+			3'b000: begin
+				$display("pc=%016H: %08H, op = %02B, funct3 = %03B, C.ADDI,     rs1/rd = x%d, nzimm = %d", pc, inst, op, c_funct3, c_rs1,  $signed(c_addi_imm));
+			end
+			3'b001: begin
+				$display("pc=%016H: %08H, op = %02B, funct3 = %03B, C.ADDIW,    rs1/rd = x%d, nzimm = %d", pc, inst, op, c_funct3, c_rs1,  $signed(c_addi_imm));
+			end
+			3'b010: begin
+				$display("pc=%016H: %08H, op = %02B, funct3 = %03B, C.LI            rd = x%d,   imm = %d", pc, inst, op, c_funct3, c_rs1,  $signed(c_addi_imm));
+			end
+			3'b011: begin
+				if(c_rs1 == 5'h02) begin
+					$display("pc=%016H: %08H, op = %02B, funct3 = %03B, C.ADDI16SP, nzimm = %d", pc, inst, op, c_funct3, $signed(c_addi16sp_imm));
+				end else begin
+					$display("pc=%016H: %08H, op = %02B, funct3 = %03B, C.LUI,          rd = x%d, nzimm = %d", pc, inst, op, c_funct3, c_rs1,  $signed(c_addi16sp_imm));
+				end
+			end
+			3'b100: begin
+				case(inst[11:10])
+				2'b10:	$display("pc=%016H: %08H, op = %02B, funct3 = %03B.%02B, C.ANDI,     rs1'/rd' = x%d, imm = %d", pc, inst, op, c_funct3, inst[11:10], c_rs1d,  $signed(c_addi_imm));
+				2'b11: begin
+					case({inst[12], inst[6:5]})
+					3'b000: begin
+						$display("pc=%016H: %08H, op = %02B, funct3 = %03B.%02B.%03B, C.SUB,      rs1'/rd' = x%d, rs2' = x%d", pc, inst, op, c_funct3, inst[11:10], {inst[12], inst[6:5]}, c_rs1d,  c_rs2d);
+					end
+					3'b001: begin
+						$display("pc=%016H: %08H, op = %02B, funct3 = %03B.%02B.%03B, C.XOR,      rs1'/rd' = x%d, rs2' = x%d", pc, inst, op, c_funct3, inst[11:10], {inst[12], inst[6:5]}, c_rs1d,  c_rs2d);
+					end
+					3'b010: begin
+						$display("pc=%016H: %08H, op = %02B, funct3 = %03B.%02B.%03B, C.OR,       rs1'/rd' = x%d, rs2' = x%d", pc, inst, op, c_funct3, inst[11:10], {inst[12], inst[6:5]}, c_rs1d,  c_rs2d);
+					end
+					3'b011: begin
+						$display("pc=%016H: %08H, op = %02B, funct3 = %03B.%02B.%03B, C.AND,      rs1'/rd' = x%d, rs2' = x%d", pc, inst, op, c_funct3, inst[11:10], {inst[12], inst[6:5]}, c_rs1d,  c_rs2d);
+					end
+					3'b100: begin
+						$display("pc=%016H: %08H, op = %02B, funct3 = %03B.%02B.%03B, C.SUBW,     rs1'/rd' = x%d, rs2' = x%d", pc, inst, op, c_funct3, inst[11:10], {inst[12], inst[6:5]}, c_rs1d,  c_rs2d);
+					end
+					3'b101: begin
+						$display("pc=%016H: %08H, op = %02B, funct3 = %03B.%02B.%03B, C.ADDW,     rs1'/rd' = x%d, rs2' = x%d", pc, inst, op, c_funct3, inst[11:10], {inst[12], inst[6:5]}, c_rs1d,  c_rs2d);
+					end
+					default:;
+					endcase
+				end
+				default: ;
+				endcase
+			end
+			3'b101: begin
+				$display("pc=%016H: %08H, op = %02B, funct3 = %03B, C.J, imm = %d", pc, inst, op, c_funct3, $signed(c_j_imm));
+			end
+			3'b110: begin
+				$display("pc=%016H: %08H, op = %02B, funct3 = %03B, C.BEQZ,  rs1' = x%d, imm = %d", pc, inst, op, c_funct3, c_rs1d, $signed(c_beqz_imm));
+			end
+			3'b111: begin
+				$display("pc=%016H: %08H, op = %02B, funct3 = %03B, C.BNEZ,  rs1' = x%d, imm = %d", pc, inst, op, c_funct3, c_rs1d, $signed(c_beqz_imm));
+			end
+			endcase
+			*/
+		end
+		2'b10: begin
+			next_pc = pc + 'h2;
+			/*
+			case(funct3)
+			3'b000: begin
+				$display("pc=%016H: %08H, op = %02B, funct3 = %03B, C.SLLI,  rs1/rd = x%d, nzuimm = %d", pc, inst, op, c_funct3, c_rs1, c_slli_imm);
+			end
+			3'b001: begin
+				$display("pc=%016H: %08H, op = %02B, funct3 = %03B, C.FLDSP,     rd = x%d,   uimm = %d", pc, inst, op, c_funct3, c_rs1, c_fldsp_imm);
+			end
+			3'b010: begin
+				$display("pc=%016H: %08H, op = %02B, funct3 = %03B, C.LWSP,      rd = x%d,   uimm = %d", pc, inst, op, c_funct3, c_rs1, c_lwsp_imm);
+			end
+			3'b011: begin
+				$display("pc=%016H: %08H, op = %02B, funct3 = %03B, C.LDSP,      rd = x%d,   uimm = %d", pc, inst, op, c_funct3, c_rs1, c_fldsp_imm);
+			end
+			3'b100: begin
+				case(inst[12])
+				1'b0: begin
+					if(c_rs2 == 5'h00) begin
+						$display("pc=%016H: %08H, op = %02B, funct3 = %03B.%1B, C.JR,  rs1/rd = x%d, rs2 = x%d", pc, inst, op, c_funct3, inst[12], c_rs1, c_rs2);
+					end else begin
+						$display("pc=%016H: %08H, op = %02B, funct3 = %03B.%1B, C.MV,  rs1/rd = x%d, rs2 = x%d", pc, inst, op, c_funct3, inst[12], c_rs1, c_rs2);
+					end
+				end
+				1'b1: begin
+					if(c_rs2 == 5'h00) begin
+						if(c_rs1 == 5'h00) begin
+							$display("pc=%016H: %08H, op = %02B, funct3 = %03B.%1B, C.EBREAK,  rs1/rd = x%d, rs2 = x%d", pc, inst, op, c_funct3, inst[12], c_rs1, c_rs2);
+						end else begin
+							$display("pc=%016H: %08H, op = %02B, funct3 = %03B.%1B, C.JALR,  rs1/rd = x%d, rs2 = x%d", pc, inst, op, c_funct3, inst[12], c_rs1, c_rs2);
+						end
+					end else begin
+							$display("pc=%016H: %08H, op = %02B, funct3 = %03B.%1B, C.ADD,   rs1/rd = x%d, rs2 = x%d", pc, inst, op, c_funct3, inst[12], c_rs1, c_rs2);
+					end
+				end
+				endcase
+			end
+			3'b101: begin
+				$display("pc=%016H: %08H, op = %02B, funct3 = %03B, C.FSDSP,      rs2 = x%d,   uimm = %d", pc, inst, op, c_funct3, c_rs2, c_fsdsp_imm);
+			end
+			3'b110: begin
+				$display("pc=%016H: %08H, op = %02B, funct3 = %03B, C.SWSP,       rs2 = x%d,   uimm = %d", pc, inst, op, c_funct3, c_rs2, c_swsp_imm);
+			end
+			3'b111: begin
+				$display("pc=%016H: %08H, op = %02B, funct3 = %03B, C.SDSP,       rs2 = x%d,   uimm = %d", pc, inst, op, c_funct3, c_rs2, c_fsdsp_imm);
+			end
+			endcase
+			*/
+		end
 		2'b11:	case (opcode)
 			7'b00_000_11: begin	// LOAD: I type
 				case (funct3)

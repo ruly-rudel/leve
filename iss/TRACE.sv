@@ -105,19 +105,19 @@ class TRACE;
 
 		case(op)
 		2'b00: begin
-			case(funct3)
+			case(c_funct3)
 			3'b000: $display("pc=%016H: %08H, op = %02B, funct3 = %03B, C.ADDI4SPN, rd' = x%d, nzuimm = %d", pc, inst, op, c_funct3, c_rdd,  c_addi4spn_imm);
 			3'b001: $display("pc=%016H: %08H, op = %02B, funct3 = %03B, C.FLD,      rd' = x%d, rs1' = x%d, uimm = %d", pc, inst, op, c_funct3, c_rdd,  c_rs1d, c_fld_imm);
 			3'b010: $display("pc=%016H: %08H, op = %02B, funct3 = %03B, C.LW,       rd' = x%d, rs1' = x%d, uimm = %d", pc, inst, op, c_funct3, c_rdd,  c_rs1d, c_lw_imm);
 			3'b011: $display("pc=%016H: %08H, op = %02B, funct3 = %03B, C.LD,       rd' = x%d, rs1' = x%d, uimm = %d", pc, inst, op, c_funct3, c_rdd,  c_rs1d, c_fld_imm);
-			3'b101: $display("pc=%016H: %08H, op = %02B, funct3 = %03B, C.FSD,      rd' = x%d, rs1' = x%d, uimm = %d", pc, inst, op, c_funct3, c_rdd,  c_rs1d, c_fld_imm);
-			3'b110: $display("pc=%016H: %08H, op = %02B, funct3 = %03B, C.SW,       rd' = x%d, rs1' = x%d, uimm = %d", pc, inst, op, c_funct3, c_rdd,  c_rs1d, c_lw_imm);
-			3'b111: $display("pc=%016H: %08H, op = %02B, funct3 = %03B, C.SD,       rd' = x%d, rs1' = x%d, uimm = %d", pc, inst, op, c_funct3, c_rdd,  c_rs1d, c_fld_imm);
+			3'b101: $display("pc=%016H: %08H, op = %02B, funct3 = %03B, C.FSD,      rs1' = x%d, rs2' = x%d, uimm = %d", pc, inst, op, c_funct3, c_rs1d,  c_rs2d, c_fld_imm);
+			3'b110: $display("pc=%016H: %08H, op = %02B, funct3 = %03B, C.SW,       rs1' = x%d, rs2' = x%d, uimm = %d", pc, inst, op, c_funct3, c_rs1d,  c_rs2d, c_lw_imm);
+			3'b111: $display("pc=%016H: %08H, op = %02B, funct3 = %03B, C.SD,       rs1' = x%d, rs2' = x%d, uimm = %d", pc, inst, op, c_funct3, c_rs1d,  c_rs2d, c_fld_imm);
 			default: $display("pc=%016H: %08H, op = %02B, funct3 = %03B, ???,        rd' = x%d, rs1' = x%d", pc, inst, op, c_funct3, c_rdd,  c_rs1d);
 			endcase
 		end
 		2'b01: begin
-			case(funct3)
+			case(c_funct3)
 			3'b000: $display("pc=%016H: %08H, op = %02B, funct3 = %03B, C.ADDI,     rs1/rd = x%d, nzimm = %d", pc, inst, op, c_funct3, c_rs1,  $signed(c_addi_imm));
 			3'b001: $display("pc=%016H: %08H, op = %02B, funct3 = %03B, C.ADDIW,    rs1/rd = x%d, nzimm = %d", pc, inst, op, c_funct3, c_rs1,  $signed(c_addi_imm));
 			3'b010: $display("pc=%016H: %08H, op = %02B, funct3 = %03B, C.LI            rd = x%d,   imm = %d", pc, inst, op, c_funct3, c_rs1,  $signed(c_addi_imm));
@@ -151,7 +151,7 @@ class TRACE;
 			endcase
 		end
 		2'b10: begin
-			case(funct3)
+			case(c_funct3)
 			3'b000: $display("pc=%016H: %08H, op = %02B, funct3 = %03B, C.SLLI,  rs1/rd = x%d, nzuimm = %d", pc, inst, op, c_funct3, c_rs1, c_slli_imm);
 			3'b001: $display("pc=%016H: %08H, op = %02B, funct3 = %03B, C.FLDSP,     rd = x%d,   uimm = %d", pc, inst, op, c_funct3, c_rs1, c_fldsp_imm);
 			3'b010: $display("pc=%016H: %08H, op = %02B, funct3 = %03B, C.LWSP,      rd = x%d,   uimm = %d", pc, inst, op, c_funct3, c_rs1, c_lwsp_imm);
