@@ -408,8 +408,8 @@ class ELF;
 			end
 		end
 
-		$display("[ELF] .tohost does not found. assume phdr[1] is .tohost", phdr[1].p_vaddr);
-		tohost = phdr[1].p_vaddr;
+		$display("[ELF] .tohost does not found.");
+		tohost = {`XLEN{1'b0}};
 		return;
 	endfunction
 
