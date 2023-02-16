@@ -1,7 +1,7 @@
 #!/bin/bash
 
 if [ $# -eq 0 ]; then
-	files=(`ls -1 ../tests/rv64ui-p/* ../tests/rv64um-p/* ../tests/rv64ua-p/* ../tests/rv64uf-p/* ../tests/rv64ud-p/* ../tests/rv64si-p/* | grep -v .dump`)
+	files=(`ls -1 ../tests/rv64ui-p/* ../tests/rv64um-p/* ../tests/rv64ua-p/* ../tests/rv64uf-p/* ../tests/rv64ud-p/* ../tests/rv64si-p/* ../tests/rv64uc-p/* | grep -v .dump`)
 else
 	files=$@
 fi

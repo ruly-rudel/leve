@@ -35,3 +35,4 @@
 *.swp
 *.log
 *.vcd
+obj_dir

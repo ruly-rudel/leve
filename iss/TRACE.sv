@@ -50,6 +50,7 @@ class TRACE;
 		bit [5:0]	c_addi_imm	= {inst[12], inst[6:2]};
 
 		bit [9:0]	c_addi16sp_imm	= {inst[12], inst[4:3], inst[5], inst[2], inst[6], 4'h0};
+		bit [17:0]	c_lui_imm	= {inst[12], inst[6:2], 12'h000};
 		
 		bit [11:0]	c_j_imm		= {inst[12], inst[8], inst[10:9], inst[6], inst[7], inst[2], inst[11], inst[5:3], 1'b0};
 
@@ -125,11 +126,13 @@ class TRACE;
 				if(c_rs1 == 5'h02) begin
 					$display("pc=%016H: %08H, op = %02B, funct3 = %03B, C.ADDI16SP, nzimm = %d", pc, inst, op, c_funct3, $signed(c_addi16sp_imm));
 				end else begin
-					$display("pc=%016H: %08H, op = %02B, funct3 = %03B, C.LUI,          rd = x%d, nzimm = %d", pc, inst, op, c_funct3, c_rs1,  $signed(c_addi16sp_imm));
+					$display("pc=%016H: %08H, op = %02B, funct3 = %03B, C.LUI,          rd = x%d, nzimm = %h", pc, inst, op, c_funct3, c_rs1, c_lui_imm);
 				end
 			end
 			3'b100: begin
 				case(inst[11:10])
+				2'b00:	$display("pc=%016H: %08H, op = %02B, funct3 = %03B.%02B, C.SRLI,     rs1'/rd' = x%d, imm = %d", pc, inst, op, c_funct3, inst[11:10], c_rs1d,  c_slli_imm);
+				2'b01:	$display("pc=%016H: %08H, op = %02B, funct3 = %03B.%02B, C.SRAI,     rs1'/rd' = x%d, imm = %d", pc, inst, op, c_funct3, inst[11:10], c_rs1d,  c_slli_imm);
 				2'b10:	$display("pc=%016H: %08H, op = %02B, funct3 = %03B.%02B, C.ANDI,     rs1'/rd' = x%d, imm = %d", pc, inst, op, c_funct3, inst[11:10], c_rs1d,  $signed(c_addi_imm));
 				2'b11: begin
 					case({inst[12], inst[6:5]})
