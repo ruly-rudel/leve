@@ -1592,36 +1592,16 @@ class ISS;
 				7'b00100_00: begin
 					case (funct3)
 					3'b000: begin		// FSGNJ.S
-						tmp32 = fp.read32(rs2);
-						if(tmp32[31]) begin
-							tmp32 = fp.read32(rs1);
-							fp.write32u(rd0, {1'b1, tmp32[30:0]});
-						end else begin
-							tmp32 = fp.read32(rs1);
-							fp.write32u(rd0, {1'b0, tmp32[30:0]});
-						end
+						$display("[INFO] FSGNJ.S: %08h, %08h", fp_rs1_d[31:0], fp_rs2_d[31:0]);
+						fp.write32u(rd0, {fp_rs2_d[31], fp_rs1_d[30:0]});
 						next_pc = pc + 'h4;
 					end
 					3'b001: begin		// FSGNJN.S
-						tmp32 = fp.read32(rs2);
-						if(tmp32[31]) begin
-							tmp32 = fp.read32(rs1);
-							fp.write32u(rd0, {1'b0, tmp32[30:0]});
-						end else begin
-							tmp32 = fp.read32(rs1);
-							fp.write32u(rd0, {1'b1, tmp32[30:0]});
-						end
+						fp.write32u(rd0, {~fp_rs2_d[31], fp_rs1_d[30:0]});
 						next_pc = pc + 'h4;
 					end
 					3'b010: begin		// FSGNJX.S
-						tmp32 = fp.read32(rs2);
-						if(tmp32[31]) begin
-							tmp32 = fp.read32(rs1);
-							fp.write32u(rd0, {1'b1 ^ tmp32[31], tmp32[30:0]});
-						end else begin
-							tmp32 = fp.read32(rs1);
-							fp.write32u(rd0, {1'b0 ^ tmp32[31], tmp32[30:0]});
-						end
+						fp.write32u(rd0, {fp_rs1_d[31] ^ fp_rs2_d[31], fp_rs1_d[30:0]});
 						next_pc = pc + 'h4;
 					end
 					default: next_pc = raise_illegal_instruction(pc, inst);
@@ -1802,36 +1782,15 @@ class ISS;
 				7'b00100_01: begin
 					case (funct3)
 					3'b000: begin		// FSGNJ.D
-						tmp = fp.read(rs2);
-						if(tmp[63]) begin
-							tmp = fp.read(rs1);
-							fp.write(rd0, {1'b1, tmp[62:0]});
-						end else begin
-							tmp = fp.read(rs1);
-							fp.write(rd0, {1'b0, tmp[62:0]});
-						end
+						fp.write(rd0, {fp_rs2_d[63], fp_rs1_d[62:0]});
 						next_pc = pc + 'h4;
 					end
 					3'b001: begin		// FSGNJN.D
-						tmp = fp.read(rs2);
-						if(tmp[63]) begin
-							tmp = fp.read(rs1);
-							fp.write(rd0, {1'b0, tmp[62:0]});
-						end else begin
-							tmp = fp.read(rs1);
-							fp.write(rd0, {1'b1, tmp[62:0]});
-						end
+						fp.write(rd0, {~fp_rs2_d[63], fp_rs1_d[62:0]});
 						next_pc = pc + 'h4;
 					end
 					3'b010: begin		// FSGNJX.D
-						tmp = fp.read(rs2);
-						if(tmp[63]) begin
-							tmp = fp.read(rs1);
-							fp.write(rd0, {1'b1 ^ tmp[63], tmp[62:0]});
-						end else begin
-							tmp = fp.read(rs1);
-							fp.write(rd0, {1'b0 ^ tmp[63], tmp[62:0]});
-						end
+						fp.write(rd0, {fp_rs1_d[63] ^  fp_rs2_d[63], fp_rs1_d[62:0]});
 						next_pc = pc + 'h4;
 					end
 					default: next_pc = raise_illegal_instruction(pc, inst);
