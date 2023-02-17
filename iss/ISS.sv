@@ -1026,8 +1026,26 @@ class ISS;
 				endcase
 			end
 
-			7'b10_000_11: begin	// MADD
-						next_pc = pc + 'h4;
+			7'b10_000_11: begin	// MADD: R4 type
+				case (funct2)
+				2'b00: begin			// FMADD.S
+					float_t fout1, fout2;
+					float.fmul(fp_rs1_d[31:0],  fp_rs2_d[31:0], fout1);
+					float.fadd(fout1.val, fp_rs3_d[31:0], fout2);
+					fp.write32u(rd0, fout2.val);
+					csr_c.set_fflags({fout1.invalid | fout2.invalid, 3'h0, fout1.inexact | fout2.inexact});
+					next_pc = pc + 'h4;
+				end
+				2'b01: begin 			// FMADD.D
+					double_t dout1, dout2;
+					double.fmul(fp_rs1_d,  fp_rs2_d, dout1);
+					double.fadd(dout1.val, fp_rs3_d, dout2);
+					fp.write(rd0, dout2.val);
+					csr_c.set_fflags({dout1.invalid | dout2.invalid, 3'h0, dout1.inexact | dout2.inexact});
+					next_pc = pc + 'h4;
+				end
+				default: next_pc = raise_illegal_instruction(pc, inst);
+				endcase
 			end
 
 			7'b11_000_11: begin	// BRANCH
@@ -1113,7 +1131,25 @@ class ISS;
 			end
 
 			7'b10_001_11: begin	// MSUB
-						next_pc = pc + 'h4;
+				case (funct2)
+				2'b00: begin			// FMSUB.S
+					float_t fout1, fout2;
+					float.fmul(fp_rs1_d[31:0],  fp_rs2_d[31:0], fout1);
+					float.fsub(fout1.val, fp_rs3_d[31:0], fout2);
+					fp.write32u(rd0, fout2.val);
+					csr_c.set_fflags({fout1.invalid | fout2.invalid, 3'h0, fout1.inexact | fout2.inexact});
+					next_pc = pc + 'h4;
+				end
+				2'b01: begin 			// FMSUB.D
+					double_t dout1, dout2;
+					double.fmul(fp_rs1_d,  fp_rs2_d, dout1);
+					double.fsub(dout1.val, fp_rs3_d, dout2);
+					fp.write(rd0, dout2.val);
+					csr_c.set_fflags({dout1.invalid | dout2.invalid, 3'h0, dout1.inexact | dout2.inexact});
+					next_pc = pc + 'h4;
+				end
+				default: next_pc = raise_illegal_instruction(pc, inst);
+				endcase
 			end
 
 			7'b11_001_11: begin	// JALR
@@ -1126,8 +1162,26 @@ class ISS;
 				endcase
 			end
 
-			7'b01_010_11: begin	// NMSUB
-						next_pc = pc + 'h4;
+			7'b10_010_11: begin	// NMSUB
+				case (funct2)
+				2'b00: begin			// FMSUB.S
+					float_t fout1, fout2;
+					float.fmul(fp_rs1_d[31:0],  fp_rs2_d[31:0], fout1);
+					float.fsub(fp_rs3_d[31:0], fout1.val, fout2);
+					fp.write32u(rd0, fout2.val);
+					csr_c.set_fflags({fout1.invalid | fout2.invalid, 3'h0, fout1.inexact | fout2.inexact});
+					next_pc = pc + 'h4;
+				end
+				2'b01: begin 			// FMSUB.D
+					double_t dout1, dout2;
+					double.fmul(fp_rs1_d, fp_rs2_d,  dout1);
+					double.fsub(fp_rs3_d, dout1.val, dout2);
+					fp.write(rd0, dout2.val);
+					csr_c.set_fflags({dout1.invalid | dout2.invalid, 3'h0, dout1.inexact | dout2.inexact});
+					next_pc = pc + 'h4;
+				end
+				default: next_pc = raise_illegal_instruction(pc, inst);
+				endcase
 			end
 
 			7'b00_011_11: begin	// MISC-MEM
@@ -1294,7 +1348,25 @@ class ISS;
 			end
 
 			7'b10_011_11: begin	// NMADD
-						next_pc = pc + 'h4;
+				case (funct2)
+				2'b00: begin			// FNMADD.S
+					float_t fout1, fout2;
+					float.fmul(fp_rs1_d[31:0],  fp_rs2_d[31:0], fout1);
+					float.fsub(float.negate(fout1.val), fp_rs3_d[31:0], fout2);
+					fp.write32u(rd0, fout2.val);
+					csr_c.set_fflags({fout1.invalid | fout2.invalid, 3'h0, fout1.inexact | fout2.inexact});
+					next_pc = pc + 'h4;
+				end
+				2'b01: begin 			// FNMADD.D
+					double_t dout1, dout2;
+					double.fmul(fp_rs1_d,  fp_rs2_d, dout1);
+					double.fsub(double.negate(dout1.val), fp_rs3_d, dout2);
+					fp.write(rd0, dout2.val);
+					csr_c.set_fflags({dout1.invalid | dout2.invalid, 3'h0, dout1.inexact | dout2.inexact});
+					next_pc = pc + 'h4;
+				end
+				default: next_pc = raise_illegal_instruction(pc, inst);
+				endcase
 			end
 
 			7'b11_011_11: begin	// JAL

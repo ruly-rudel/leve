@@ -480,6 +480,13 @@ class FLOAT
 		out.inexact = 1'b0;
 	endtask
 
+	function [F_WIDTH-1:0] negate
+	(
+		input [F_WIDTH-1:0]		in1
+	);
+		return {~in1[F_WIDTH-1], in1[F_WIDTH-2:0]};
+	endfunction
+
 endclass: FLOAT;
 
 `endif	// _float_sv_
