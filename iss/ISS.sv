@@ -1032,7 +1032,10 @@ class ISS;
 
 			7'b11_000_11: begin	// BRANCH
 				case (funct3)
-				3'b000:	next_pc = rs1_d == rs2_d ? pc + imm_bw : pc + 'h4;	// BEQ
+				3'b000:	begin
+					$display("[INFO] BEQ %16h == %16h or not.", rs1_d, rs2_d);
+					next_pc = rs1_d == rs2_d ? pc + imm_bw : pc + 'h4;	// BEQ
+				end
 				3'b001:	begin 			// BNE
 					$display("[INFO] BNE %16h == %16h or not.", rs1_d, rs2_d);
 					next_pc = rs1_d != rs2_d ? pc + imm_bw : pc + 'h4;
