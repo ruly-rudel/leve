@@ -238,9 +238,10 @@ class ISS;
 				end
 
 				// current privilege mode check
-				if(~(csr_c.get_mode() == `MODE_U &&  pte[`PTE_UB] ||
-				     csr_c.get_mode() == `MODE_S && ~pte[`PTE_UB] ||
-				     csr_c.get_mode() == `MODE_S &&  pte[`PTE_UB] && csr_c.get_sum())) begin
+				if(~(csr_c.get_ldst_mode() == `MODE_M && ~pte[`PTE_UB] ||
+				     csr_c.get_ldst_mode() == `MODE_U &&  pte[`PTE_UB] ||
+				     csr_c.get_ldst_mode() == `MODE_S && ~pte[`PTE_UB] ||
+				     csr_c.get_ldst_mode() == `MODE_S &&  pte[`PTE_UB] && csr_c.get_sum())) begin
 					$display("[INFO] current privilege mode: %d check fails.", csr_c.get_mode());
 					trap_pc = raise_page_fault(va, acc, pc);
 					pa = {64{1'b0}};
