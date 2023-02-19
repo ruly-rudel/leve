@@ -892,6 +892,8 @@ class ISS;
 					vat_wacc(rs1_d + imm_sw, tmp, 4, pc, next_pc);
 					if(tmp != {64{1'b0}}) begin
 						mem.write(tmp, rs2_d);
+						tohost_we  = tmp == mem.get_tohost() ? 1'b1 : 1'b0;	// for testbench hack
+						tohost     = rs2_d[31:0];
 					end
 				end
 				default: next_pc = raise_illegal_instruction(pc, inst);
