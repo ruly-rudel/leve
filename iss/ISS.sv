@@ -345,6 +345,38 @@ class ISS;
 		end
 	endfunction
 
+	task vat_racc(input [`XLEN-1:0] va, output [`XLEN-1:0] pa, input [3:0] n, input [`XLEN-1:0] pc, output [`XLEN-1:0] next_pc);
+		bit [`XLEN-1:0]	trap_pc;
+		virtual_address_translation(va, `PTE_R, pc, pa, trap_pc);
+		if(pa != {64{1'b0}}) begin
+			if(pma.is_readable(pa)) begin
+				next_pc = pc + {{`XLEN-4{1'b0}}, n};
+			end else begin
+				next_pc = csr_c.raise_exception(`EX_LAFAULT, pc, pa);
+				pa = {64{1'b0}};
+			end
+		end else begin
+			next_pc = trap_pc;
+			pa = {64{1'b0}};
+		end
+	endtask
+
+	task vat_wacc(input [`XLEN-1:0] va, output [`XLEN-1:0] pa, input [3:0] n, input [`XLEN-1:0] pc, output [`XLEN-1:0] next_pc);
+		bit [`XLEN-1:0]	trap_pc;
+		virtual_address_translation(va, `PTE_W, pc, pa, trap_pc);
+		if(pa != {64{1'b0}}) begin
+			if(pma.is_readable(pa)) begin
+				next_pc = pc + {{`XLEN-4{1'b0}}, n};
+			end else begin
+				next_pc = csr_c.raise_exception(`EX_SAFAULT, pc, pa);
+				pa = {64{1'b0}};
+			end
+		end else begin
+			next_pc = trap_pc;
+			pa = {64{1'b0}};
+		end
+	endtask
+
 	function void init(string init_file);
 			mem = new(init_file);
 			csr_c.init();
@@ -527,6 +559,7 @@ class ISS;
 		fp_rs2_d = fp.read(rs2);
 		fp_rs3_d = fp.read(rs3);
 
+
 		// execute and write back
 		case(op)
 		2'b00: begin
@@ -543,90 +576,48 @@ class ISS;
 			end
 			3'b001: begin			// C.FLD
 				rs1_d = rf.read(c_rs1d);
-				virtual_address_translation(rs1_d + c_fld_immw, `PTE_R, pc, tmp, trap_pc);
-				if(tmp != {64{1'b0}}) begin
-					if(pma.is_readable(tmp)) begin
-						fp.write(c_rdd, mem.read(tmp));
-						next_pc = pc + 'h2;
-					end else begin
-						next_pc = csr_c.raise_exception(`EX_LAFAULT, pc, tmp);
-					end
-				end else begin
-					next_pc = trap_pc;
+				vat_racc(rs1_d + c_fld_immw, tmp, 2, pc, next_pc);
+				if(tmp != {`XLEN{1'b0}}) begin
+					fp.write(c_rdd, mem.read(tmp));
 				end
 			end
 			3'b010: begin			// C.LW
 				rs1_d = rf.read(c_rs1d);
-				virtual_address_translation(rs1_d + c_lw_immw, `PTE_R, pc, tmp, trap_pc);
-				if(tmp != {64{1'b0}}) begin
-					if(pma.is_readable(tmp)) begin
-						rf.write32s(c_rdd, mem.read32(tmp));
-						next_pc = pc + 'h2;
-					end else begin
-						next_pc = csr_c.raise_exception(`EX_LAFAULT, pc, tmp);
-					end
-				end else begin
-					next_pc = trap_pc;
+				vat_racc(rs1_d + c_lw_immw, tmp, 2, pc, next_pc);
+				if(tmp != {`XLEN{1'b0}}) begin
+					rf.write32s(c_rdd, mem.read32(tmp));
 				end
 			end
 			3'b011: begin			// C.LD
 				rs1_d = rf.read(c_rs1d);
-				virtual_address_translation(rs1_d + c_fld_immw, `PTE_R, pc, tmp, trap_pc);
-				if(tmp != {64{1'b0}}) begin
-					if(pma.is_readable(tmp)) begin
-						rf.write(c_rdd, mem.read(tmp));
-						next_pc = pc + 'h2;
-					end else begin
-						next_pc = csr_c.raise_exception(`EX_LAFAULT, pc, tmp);
-					end
-				end else begin
-					next_pc = trap_pc;
+				vat_racc(rs1_d + c_fld_immw, tmp, 2, pc, next_pc);
+				if(tmp != {`XLEN{1'b0}}) begin
+					rf.write(c_rdd, mem.read(tmp));
 				end
 			end
 			3'b101: begin			// C.FSD
 				rs1_d = rf.read(c_rs1d);
-				virtual_address_translation(rs1_d + c_fld_immw, `PTE_W, pc, tmp, trap_pc);
-				if(tmp != {64{1'b0}}) begin
-					if(pma.is_writeable(tmp)) begin
-						mem.write(tmp, fp.read(c_rs2d));
-						next_pc = pc + 'h2;
-					end else begin
-						next_pc = csr_c.raise_exception(`EX_SAFAULT, pc, tmp);
-					end
-				end else begin
-					next_pc = trap_pc;
+				vat_wacc(rs1_d + c_fld_immw, tmp, 2, pc, next_pc);
+				if(tmp != {`XLEN{1'b0}}) begin
+					mem.write(tmp, fp.read(c_rs2d));
 				end
 			end
 			3'b110: begin			// C.SW
 				rs1_d = rf.read(c_rs1d);
 				rs2_d = rf.read(c_rs2d);
-				virtual_address_translation(rs1_d + c_lw_immw, `PTE_W, pc, tmp, trap_pc);
-				if(tmp != {64{1'b0}}) begin
-					if(pma.is_writeable(tmp)) begin
-						mem.write32(tmp, rs2_d[31:0]);
-						next_pc = pc + 'h2;
-						tohost_we  = rs1_d + c_lw_immw == mem.get_tohost() ? 1'b1 : 1'b0;	// for testbench hack
-						tohost     = rs2_d[31:0];
-					end else begin
-						next_pc = csr_c.raise_exception(`EX_SAFAULT, pc, tmp);
-					end
-				end else begin
-					next_pc = trap_pc;
+				vat_wacc(rs1_d + c_lw_immw, tmp, 2, pc, next_pc);
+				if(tmp != {`XLEN{1'b0}}) begin
+					mem.write32(tmp, rs2_d[31:0]);
+					tohost_we  = tmp == mem.get_tohost() ? 1'b1 : 1'b0;	// for testbench hack
+					tohost     = rs2_d[31:0];
 				end
 			end
 			3'b111: begin			// C.SD
 				rs1_d = rf.read(c_rs1d);
 				rs2_d = rf.read(c_rs2d);
-				virtual_address_translation(rs1_d + c_fld_immw, `PTE_W, pc, tmp, trap_pc);
-				if(tmp != {64{1'b0}}) begin
-					if(pma.is_writeable(tmp)) begin
-						mem.write(tmp, rs2_d);
-						next_pc = pc + 'h2;
-					end else begin
-						next_pc = csr_c.raise_exception(`EX_SAFAULT, pc, tmp);
-					end
-				end else begin
-					next_pc = trap_pc;
+				vat_wacc(rs1_d + c_fld_immw, tmp, 2, pc, next_pc);
+				if(tmp != {`XLEN{1'b0}}) begin
+					mem.write(tmp, rs2_d);
 				end
 			end
 			default: next_pc = raise_illegal_instruction(pc, inst);
@@ -751,44 +742,23 @@ class ISS;
 			end
 			3'b001: begin
 				rs1_d = rf.read(5'h02);
-				virtual_address_translation(rs1_d + c_fldsp_immw, `PTE_R, pc, tmp, trap_pc);
+				vat_racc(rs1_d + c_fldsp_immw, tmp, 2, pc, next_pc);
 				if(tmp != {64{1'b0}}) begin
-					if(pma.is_writeable(tmp)) begin
-						fp.write(c_rd, mem.read(tmp));
-						next_pc = pc + 'h2;
-					end else begin
-						next_pc = csr_c.raise_exception(`EX_SAFAULT, pc, tmp);
-					end
-				end else begin
-					next_pc = trap_pc;
+					fp.write(c_rd, mem.read(tmp));
 				end
 			end
 			3'b010: begin					// C.LWSP
 				rs1_d = rf.read(5'h02);
-				virtual_address_translation(rs1_d + c_lwsp_immw, `PTE_R, pc, tmp, trap_pc);
+				vat_racc(rs1_d + c_lwsp_immw, tmp, 2, pc, next_pc);
 				if(tmp != {64{1'b0}}) begin
-					if(pma.is_writeable(tmp)) begin
-						rf.write32s(c_rd, mem.read32(tmp));
-						next_pc = pc + 'h2;
-					end else begin
-						next_pc = csr_c.raise_exception(`EX_SAFAULT, pc, tmp);
-					end
-				end else begin
-					next_pc = trap_pc;
+					rf.write32s(c_rd, mem.read32(tmp));
 				end
 			end
 			3'b011: begin					// C.LDSP
 				rs1_d = rf.read(5'h02);
-				virtual_address_translation(rs1_d + c_fldsp_immw, `PTE_R, pc, tmp, trap_pc);
+				vat_racc(rs1_d + c_fldsp_immw, tmp, 2, pc, next_pc);
 				if(tmp != {64{1'b0}}) begin
-					if(pma.is_writeable(tmp)) begin
-						rf.write(c_rd, mem.read(tmp));
-						next_pc = pc + 'h2;
-					end else begin
-						next_pc = csr_c.raise_exception(`EX_SAFAULT, pc, tmp);
-					end
-				end else begin
-					next_pc = trap_pc;
+					rf.write(c_rd, mem.read(tmp));
 				end
 			end
 			3'b100: begin
@@ -824,46 +794,25 @@ class ISS;
 			3'b101: begin					// C.FSDSP
 				rs1_d = rf.read(5'h02);
 				fp_rs2_d = fp.read(c_rs2);
-				virtual_address_translation(rs1_d + c_fsdsp_immw, `PTE_W, pc, tmp, trap_pc);
+				vat_wacc(rs1_d + c_fsdsp_immw, tmp, 2, pc, next_pc);
 				if(tmp != {64{1'b0}}) begin
-					if(pma.is_writeable(tmp)) begin
-						mem.write(tmp, fp_rs2_d);
-						next_pc = pc + 'h2;
-					end else begin
-						next_pc = csr_c.raise_exception(`EX_SAFAULT, pc, tmp);
-					end
-				end else begin
-					next_pc = trap_pc;
+					mem.write(tmp, fp_rs2_d);
 				end
 			end
 			3'b110: begin					// C.SWSP
 				rs1_d = rf.read(5'h02);
 				rs2_d = rf.read(c_rs2);
-				virtual_address_translation(rs1_d + c_swsp_immw, `PTE_W, pc, tmp, trap_pc);
+				vat_wacc(rs1_d + c_swsp_immw, tmp, 2, pc, next_pc);
 				if(tmp != {64{1'b0}}) begin
-					if(pma.is_writeable(tmp)) begin
-						mem.write32(tmp, rs2_d[31:0]);
-						next_pc = pc + 'h2;
-					end else begin
-						next_pc = csr_c.raise_exception(`EX_SAFAULT, pc, tmp);
-					end
-				end else begin
-					next_pc = trap_pc;
+					mem.write32(tmp, rs2_d[31:0]);
 				end
 			end
 			3'b111: begin					// C.SDSP
 				rs1_d = rf.read(5'h02);
 				rs2_d = rf.read(c_rs2);
-				virtual_address_translation(rs1_d + c_fsdsp_immw, `PTE_W, pc, tmp, trap_pc);
+				vat_wacc(rs1_d + c_fsdsp_immw, tmp, 2, pc, next_pc);
 				if(tmp != {64{1'b0}}) begin
-					if(pma.is_writeable(tmp)) begin
-						mem.write(tmp, rs2_d);
-						next_pc = pc + 'h2;
-					end else begin
-						next_pc = csr_c.raise_exception(`EX_SAFAULT, pc, tmp);
-					end
-				end else begin
-					next_pc = trap_pc;
+					mem.write(tmp, rs2_d);
 				end
 			end
 			endcase
@@ -872,94 +821,45 @@ class ISS;
 			7'b00_000_11: begin	// LOAD: I type
 				case (funct3)
 				3'b000: begin			// LB
-					virtual_address_translation(rs1_d + imm_iw, `PTE_R, pc, tmp, trap_pc);
+					vat_racc(rs1_d + imm_iw, tmp, 4, pc, next_pc);
 					if(tmp != {64{1'b0}}) begin
-						if(pma.is_readable(tmp)) begin
-							rf.write8s(rd0, mem.read8(tmp));
-							next_pc = pc + 'h4;
-						end else begin
-							next_pc = csr_c.raise_exception(`EX_LAFAULT, pc, tmp);
-						end
-					end else begin
-						next_pc = trap_pc;
+						rf.write8s(rd0, mem.read8(tmp));
 					end
 				end
 				3'b001: begin			// LH
-					virtual_address_translation(rs1_d + imm_iw, `PTE_R, pc, tmp, trap_pc);
+					vat_racc(rs1_d + imm_iw, tmp, 4, pc, next_pc);
 					if(tmp != {64{1'b0}}) begin
-						if(pma.is_readable(tmp)) begin
-							rf.write16s(rd0, mem.read16(tmp));
-							next_pc = pc + 'h4;
-						end else begin
-							next_pc = csr_c.raise_exception(`EX_LAFAULT, pc, tmp);
-						end
-					end else begin
-						next_pc = trap_pc;
+						rf.write16s(rd0, mem.read16(tmp));
 					end
 				end
 				3'b010: begin			// LW
-					virtual_address_translation(rs1_d + imm_iw, `PTE_R, pc, tmp, trap_pc);
+					vat_racc(rs1_d + imm_iw, tmp, 4, pc, next_pc);
 					if(tmp != {64{1'b0}}) begin
-						if(pma.is_readable(tmp)) begin
-							rf.write32s(rd0, mem.read32(tmp));
-							next_pc = pc + 'h4;
-						end else begin
-							next_pc = csr_c.raise_exception(`EX_LAFAULT, pc, tmp);
-						end
-					end else begin
-						next_pc = trap_pc;
+						rf.write32s(rd0, mem.read32(tmp));
 					end
 				end
 				3'b011: begin			// LD
-					virtual_address_translation(rs1_d + imm_iw, `PTE_R, pc, tmp, trap_pc);
+					vat_racc(rs1_d + imm_iw, tmp, 4, pc, next_pc);
 					if(tmp != {64{1'b0}}) begin
-						if(pma.is_readable(tmp)) begin
-							rf.write(rd0, mem.read(tmp));
-							next_pc = pc + 'h4;
-						end else begin
-							next_pc = csr_c.raise_exception(`EX_LAFAULT, pc, tmp);
-						end
-					end else begin
-						next_pc = trap_pc;
+						rf.write(rd0, mem.read(tmp));
 					end
 				end
 				3'b100: begin			// LBU
-					virtual_address_translation(rs1_d + imm_iw, `PTE_R, pc, tmp, trap_pc);
+					vat_racc(rs1_d + imm_iw, tmp, 4, pc, next_pc);
 					if(tmp != {64{1'b0}}) begin
-						if(pma.is_readable(tmp)) begin
-							rf.write8u(rd0, mem.read8(tmp));
-							next_pc = pc + 'h4;
-						end else begin
-							next_pc = csr_c.raise_exception(`EX_LAFAULT, pc, tmp);
-						end
-					end else begin
-						next_pc = trap_pc;
+						rf.write8u(rd0, mem.read8(tmp));
 					end
 				end
 				3'b101: begin			// LHU
-					virtual_address_translation(rs1_d + imm_iw, `PTE_R, pc, tmp, trap_pc);
+					vat_racc(rs1_d + imm_iw, tmp, 4, pc, next_pc);
 					if(tmp != {64{1'b0}}) begin
-						if(pma.is_readable(tmp)) begin
-							rf.write16u(rd0, mem.read16(tmp));
-							next_pc = pc + 'h4;
-						end else begin
-							next_pc = csr_c.raise_exception(`EX_LAFAULT, pc, tmp);
-						end
-					end else begin
-						next_pc = trap_pc;
+						rf.write16u(rd0, mem.read16(tmp));
 					end
 				end
 				3'b110: begin			// LWU
-					virtual_address_translation(rs1_d + imm_iw, `PTE_R, pc, tmp, trap_pc);
+					vat_racc(rs1_d + imm_iw, tmp, 4, pc, next_pc);
 					if(tmp != {64{1'b0}}) begin
-						if(pma.is_readable(tmp)) begin
-							rf.write32u(rd0, mem.read32(tmp));
-							next_pc = pc + 'h4;
-						end else begin
-							next_pc = csr_c.raise_exception(`EX_LAFAULT, pc, tmp);
-						end
-					end else begin
-						next_pc = trap_pc;
+						rf.write32u(rd0, mem.read32(tmp));
 					end
 				end
 				default: next_pc = raise_illegal_instruction(pc, inst);
@@ -969,57 +869,29 @@ class ISS;
 			7'b01_000_11: begin	// STORE: S type
 				case (funct3)
 				3'b000: begin			// SB
-					virtual_address_translation(rs1_d + imm_sw, `PTE_W, pc, tmp, trap_pc);
+					vat_wacc(rs1_d + imm_sw, tmp, 4, pc, next_pc);
 					if(tmp != {64{1'b0}}) begin
-						if(pma.is_writeable(tmp)) begin
-							mem.write8(rs1_d + imm_sw, rs2_d[7:0]);
-							next_pc = pc + 'h4;
-						end else begin
-							next_pc = csr_c.raise_exception(`EX_SAFAULT, pc, tmp);
-						end
-					end else begin
-						next_pc = trap_pc;
+						mem.write8(rs1_d + imm_sw, rs2_d[7:0]);
 					end
 				end
 				3'b001: begin			// SH
-					virtual_address_translation(rs1_d + imm_sw, `PTE_W, pc, tmp, trap_pc);
+					vat_wacc(rs1_d + imm_sw, tmp, 4, pc, next_pc);
 					if(tmp != {64{1'b0}}) begin
-						if(pma.is_writeable(tmp)) begin
-							mem.write16(tmp, rs2_d[15:0]);
-							next_pc = pc + 'h4;
-						end else begin
-							next_pc = csr_c.raise_exception(`EX_SAFAULT, pc, tmp);
-						end
-					end else begin
-						next_pc = trap_pc;
+						mem.write16(tmp, rs2_d[15:0]);
 					end
 				end
 				3'b010: begin			// SW
-					virtual_address_translation(rs1_d + imm_sw, `PTE_W, pc, tmp, trap_pc);
+					vat_wacc(rs1_d + imm_sw, tmp, 4, pc, next_pc);
 					if(tmp != {64{1'b0}}) begin
-						if(pma.is_writeable(tmp)) begin
-							mem.write32(tmp, rs2_d[31:0]);
-							next_pc = pc + 'h4;
-							tohost_we  = rs1_d + imm_sw == mem.get_tohost() ? 1'b1 : 1'b0;	// for testbench hack
-							tohost     = rs2_d[31:0];
-						end else begin
-							next_pc = csr_c.raise_exception(`EX_SAFAULT, pc, tmp);
-						end
-					end else begin
-						next_pc = trap_pc;
+						mem.write32(tmp, rs2_d[31:0]);
+						tohost_we  = tmp == mem.get_tohost() ? 1'b1 : 1'b0;	// for testbench hack
+						tohost     = rs2_d[31:0];
 					end
 				end
 				3'b011: begin			// SD
-					virtual_address_translation(rs1_d + imm_sw, `PTE_W, pc, tmp, trap_pc);
+					vat_wacc(rs1_d + imm_sw, tmp, 4, pc, next_pc);
 					if(tmp != {64{1'b0}}) begin
-						if(pma.is_writeable(tmp)) begin
-							mem.write(tmp, rs2_d);
-							next_pc = pc + 'h4;
-						end else begin
-							next_pc = csr_c.raise_exception(`EX_SAFAULT, pc, tmp);
-						end
-					end else begin
-						next_pc = trap_pc;
+						mem.write(tmp, rs2_d);
 					end
 				end
 				default: next_pc = raise_illegal_instruction(pc, inst);
@@ -1069,29 +941,15 @@ class ISS;
 			7'b00_001_11: begin	// LOAD-FP
 				case (funct3)
 				3'b010: begin			// FLW
-					virtual_address_translation(rs1_d + imm_iw, `PTE_R, pc, tmp, trap_pc);
+					vat_racc(rs1_d + imm_iw, tmp, 4, pc, next_pc);
 					if(tmp != {64{1'b0}}) begin
-						if(pma.is_readable(tmp)) begin
-							fp.write32u(rd0, mem.read32(tmp));
-							next_pc = pc + 'h4;
-						end else begin
-							next_pc = csr_c.raise_exception(`EX_LAFAULT, pc, tmp);
-						end
-					end else begin
-						next_pc = trap_pc;
+						fp.write32u(rd0, mem.read32(tmp));
 					end
 				end
 				3'b011: begin			// FLD
-					virtual_address_translation(rs1_d + imm_iw, `PTE_R, pc, tmp, trap_pc);
+					vat_racc(rs1_d + imm_iw, tmp, 4, pc, next_pc);
 					if(tmp != {64{1'b0}}) begin
-						if(pma.is_readable(tmp)) begin
-							fp.write(rd0, mem.read(tmp));
-							next_pc = pc + 'h4;
-						end else begin
-							next_pc = csr_c.raise_exception(`EX_LAFAULT, pc, tmp);
-						end
-					end else begin
-						next_pc = trap_pc;
+						fp.write(rd0, mem.read(tmp));
 					end
 				end
 				default: next_pc = raise_illegal_instruction(pc, inst);
@@ -1101,29 +959,15 @@ class ISS;
 			7'b01_001_11: begin	// STORE-FP
 				case (funct3)
 				3'b010: begin			// FSW
-					virtual_address_translation(rs1_d + imm_sw, `PTE_W, pc, tmp, trap_pc);
+					vat_wacc(rs1_d + imm_sw, tmp, 4, pc, next_pc);
 					if(tmp != {64{1'b0}}) begin
-						if(pma.is_writeable(tmp)) begin
-							mem.write32(tmp, fp_rs2_d[31:0]);
-							next_pc = pc + 'h4;
-						end else begin
-							next_pc = csr_c.raise_exception(`EX_SAFAULT, pc, tmp);
-						end
-					end else begin
-						next_pc = trap_pc;
+						mem.write32(tmp, fp_rs2_d[31:0]);
 					end
 				end
 				3'b011: begin			// FSD
-					virtual_address_translation(rs1_d + imm_sw, `PTE_W, pc, tmp, trap_pc);
+					vat_wacc(rs1_d + imm_sw, tmp, 4, pc, next_pc);
 					if(tmp != {64{1'b0}}) begin
-						if(pma.is_writeable(tmp)) begin
-							mem.write(tmp, fp_rs2_d);
-							next_pc = pc + 'h4;
-						end else begin
-							next_pc = csr_c.raise_exception(`EX_SAFAULT, pc, tmp);
-						end
-					end else begin
-						next_pc = trap_pc;
+						mem.write(tmp, fp_rs2_d);
 					end
 				end
 				default: next_pc = raise_illegal_instruction(pc, inst);
