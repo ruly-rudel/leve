@@ -1003,7 +1003,7 @@ class ISS;
 				case (funct3)
 				3'b000: begin
 						rf.write(rd0, pc + 'h4);
-						next_pc = rs1_d + imm_iw;
+						next_pc = rs1_d + {imm_iw[`XLEN-1:1], 1'b0};
 				end
 				default: next_pc = raise_illegal_instruction(pc, inst);
 				endcase
