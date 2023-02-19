@@ -872,7 +872,7 @@ class ISS;
 				3'b000: begin			// SB
 					vat_wacc(rs1_d + imm_sw, tmp, 4, pc, next_pc);
 					if(tmp != {64{1'b0}}) begin
-						mem.write8(rs1_d + imm_sw, rs2_d[7:0]);
+						mem.write8(tmp, rs2_d[7:0]);
 					end
 				end
 				3'b001: begin			// SH
