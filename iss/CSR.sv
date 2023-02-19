@@ -23,27 +23,27 @@ class CSR;
 	bit [`XLEN-1:0]	csr_time;
 	bit [`XLEN-1:0]	instret;
 	// mstatus
-	bit			m_sie;
-	bit			m_mie;
-	bit			m_spie;
-	bit			m_ube;
-	bit			m_mpie;
-	bit			m_spp;
-	bit [1:0]		m_vs;
-	bit [1:0]		m_mpp;
-	bit [1:0]		m_fs;
-	bit [1:0]		m_xs;
-	bit			m_mprv;
-	bit			m_sum;
-	bit			m_mxr;
-	bit			m_tvm;
-	bit			m_tw;
-	bit			m_tsr;
-	bit [1:0]		m_uxl = `MXL_64;
-	bit [1:0]		m_sxl = `MXL_64;
-	bit			m_sbe;
-	bit			m_mbe;
-	bit			m_sd;
+	bit			sie;
+	bit			mie;
+	bit			spie;
+	bit			ube;
+	bit			mpie;
+	bit			spp;
+	bit [1:0]		vs;
+	bit [1:0]		mpp;
+	bit [1:0]		fs;
+	bit [1:0]		xs;
+	bit			mprv;
+	bit			sum;
+	bit			mxr;
+	bit			tvm;
+	bit			tw;
+	bit			tsr;
+	bit [1:0]		uxl = `MXL_64;
+	bit [1:0]		sxl = `MXL_64;
+	bit			sbe;
+	bit			mbe;
+	bit			sd;
 
 	bit [`MXLEN-1:0]	medeleg;
 
@@ -51,19 +51,6 @@ class CSR;
 	bit [`MXLEN-1:0]	mcause;
 	bit [`MXLEN-1:0]	mtvec;
 	bit [`MXLEN-1:0]	mtval;
-
-	// sstatus
-	bit			s_sie;
-	bit			s_spie;
-	bit			s_ube;
-	bit			s_spp;
-	bit [1:0]		s_vs;
-	bit [1:0]		s_fs;
-	bit [1:0]		s_xs;
-	bit			s_sum;
-	bit			s_mxr;
-	bit [1:0]		s_uxl = `MXL_64;
-	bit			s_sd;
 
 	bit [`MXLEN-1:0]	stvec;
 	bit [`MXLEN-1:0]	sepc;
@@ -86,27 +73,27 @@ class CSR;
 		csr_time	= {`XLEN{1'b0}};
 		instret		= {`XLEN{1'b0}};
 		// mstatus
-		m_sie		= 1'b0;
-		m_mie		= 1'b0;
-		m_spie		= 1'b0;
-		m_ube		= 1'b0;
-		m_mpie		= 1'b0;
-		m_spp		= 1'b0;
-		m_vs		= 2'h0;
-		m_mpp		= `MODE_M;
-		m_fs		= 2'h0;		// must be fiexd
-		m_xs		= 2'h0;
-		m_mprv		= 1'b0;
-		m_sum		= 1'b0;
-		m_mxr		= 1'b0;
-		m_tvm		= 1'b0;
-		m_tw		= 1'b0;
-		m_tsr		= 1'b0;
-		m_uxl		= `MXL_64;
-		m_sxl		= `MXL_64;
-		m_sbe		= 1'b0;
-		m_mbe		= 1'b0;
-		m_sd		= 1'b0;		// must be fixed
+		sie		= 1'b0;
+		mie		= 1'b0;
+		spie		= 1'b0;
+		ube		= 1'b0;
+		mpie		= 1'b0;
+		spp		= 1'b0;
+		vs		= 2'h0;
+		mpp		= `MODE_M;
+		fs		= 2'h0;		// must be fiexd
+		xs		= 2'h0;
+		mprv		= 1'b0;
+		sum		= 1'b0;
+		mxr		= 1'b0;
+		tvm		= 1'b0;
+		tw		= 1'b0;
+		tsr		= 1'b0;
+		uxl		= `MXL_64;
+		sxl		= `MXL_64;
+		sbe		= 1'b0;
+		mbe		= 1'b0;
+		sd		= 1'b0;		// must be fixed
 
 		medeleg		= {`MXLEN{1'b0}};
 
@@ -115,19 +102,6 @@ class CSR;
 		mepc		= {`MXLEN{1'b0}};
 		mcause		= {`MXLEN{1'b0}};
 		mtval		= {`MXLEN{1'b0}};
-
-		// sstatus
-		s_sie		= 1'b0;
-		s_spie		= 1'b0;
-		s_ube		= 1'b0;
-		s_spp		= 1'b0;
-		s_vs		= 2'h0;
-		s_fs		= 2'h0;
-		s_xs		= 2'h0;
-		s_sum		= 1'b0;
-		s_mxr		= 1'b0;
-		s_uxl		= `MXL_64;
-		s_sd		= 1'b0;
 
 		stvec		= {`MXLEN{1'b0}};
 
@@ -158,19 +132,19 @@ class CSR;
 				frm    = data[7:5];
 			end
 			12'h100: begin			// sstatus
-				s_sie		= data[1];
-				s_spie		= data[5];
-				s_ube		= data[6];
-				s_spp		= data[8];
-//				s_vs		= data[10:9];
-				s_fs		= data[14:13];
-//				s_xs		= data[16:15];
-				s_sum		= data[18];
-				s_mxr		= data[19];
-//				s_uxl		= data[33:32];
+				sie		= data[1];
+				spie		= data[5];
+				ube		= data[6];
+				spp		= data[8];
+//				vs		= data[10:9];
+				fs		= data[14:13];
+//				xs		= data[16:15];
+				sum		= data[18];
+				mxr		= data[19];
+//				uxl		= data[33:32];
 //				s_sd		= data[63];
 				$display("[INFO] set sstatus, sie:%b, spie:%b, ube:%b, spp:%b, fs:%02b, sum:%b, mxr:%b",
-					s_sie, s_spie, s_ube, s_spp, s_fs, s_sum, s_mxr);
+					sie, spie, ube, spp, fs, sum, mxr);
 			end
 			12'h180: begin			// satp
 				satp_ppn	= data[43:0];
@@ -185,29 +159,29 @@ class CSR;
 				end
 			end
 			12'h300: begin			// mstatus
-				m_sie	= data[1];
-				m_mie	= data[3];
-				m_spie	= data[5];
-//				m_ube	= data[6];
-				m_mpie	= data[7];
-				m_spp	= data[8];
-//				m_vs	= data[10:9];
-				m_mpp	= data[12:11];
-				m_fs	= data[14:13];
-//				m_xs	= data[16:15];
-				m_mprv	= data[17];
-				m_sum	= data[18];
-				m_mxr	= data[19];
-				m_tvm	= data[20];
-				m_tw	= data[21];
-				m_tsr	= data[22];
-//				m_uxl	= data[33:32];
-//				m_sxl	= data[35:34];
-//				m_sbe	= data[36];
-//				m_mbe	= data[37];
-//				m_sd	= data[63];
+				sie	= data[1];
+				mie	= data[3];
+				spie	= data[5];
+//				ube	= data[6];
+				mpie	= data[7];
+				spp	= data[8];
+//				vs	= data[10:9];
+				mpp	= data[12:11];
+				fs	= data[14:13];
+//				xs	= data[16:15];
+				mprv	= data[17];
+				sum	= data[18];
+				mxr	= data[19];
+				tvm	= data[20];
+				tw	= data[21];
+				tsr	= data[22];
+//				uxl	= data[33:32];
+//				sxl	= data[35:34];
+//				sbe	= data[36];
+//				mbe	= data[37];
+//				sd	= data[63];
 				$display("[INFO] set mstatus, sie:%b, mie:%b, spie:%b, mpie:%b, spp:%b, mpp:%02b, fs:%02b, mprv:%b, sum:%b, mxr:%b, tvm:%b, tw:%b, tsr:%b",
-					 m_sie, m_mie, m_spie, m_mpie, m_spp, m_mpp, m_fs, m_mprv, m_sum, m_mxr, m_tvm, m_tw, m_tsr);
+					 sie, mie, spie, mpie, spp, mpp, fs, mprv, sum, mxr, tvm, tw, tsr);
 			end
 			12'h302: medeleg= data;
 			12'h305: mtvec	= data;
@@ -239,10 +213,10 @@ class CSR;
 				return {satp_mode, satp_asid, satp_ppn};
 			end
 			12'h300: begin			// mstatus
-				return {m_sd, 25'h00_0000, m_mbe, m_sbe, m_sxl, m_uxl,
-					9'h000, m_tsr, m_tw, m_tvm, m_mxr, m_sum,
-					m_mprv, m_xs, m_fs, m_mpp, m_vs, m_spp, m_mpie,
-					m_ube, m_spie, 1'b0, m_mie, 1'b0, m_sie, 1'b0};
+				return {sd, 25'h00_0000, mbe, sbe, sxl, uxl,
+					9'h000, tsr, tw, tvm, mxr, sum,
+					mprv, xs, fs, mpp, vs, spp, mpie,
+					ube, spie, 1'b0, mie, 1'b0, sie, 1'b0};
 			end
 			12'h302: return medeleg;
 			12'h305: return mtvec;
@@ -250,8 +224,8 @@ class CSR;
 			12'h342: return mcause;
 			12'h343: return mtval;
 			12'h100: begin
-				return {s_sd, 29'h0000_0000, s_uxl, 12'h000, s_mxr, s_sum, 1'b0,
-					s_xs, s_fs, 2'h0, s_vs, s_spp, 1'b0, s_ube, s_spie, 3'h0, s_sie, 1'b0};
+				return {sd, 29'h0000_0000, uxl, 12'h000, mxr, sum, 1'b0,
+					xs, fs, 2'h0, vs, spp, 1'b0, ube, spie, 3'h0, sie, 1'b0};
 			end
 			12'h105: return stvec;
 			12'h141: return {sepc[`XLEN-1:2], 2'h0};
@@ -291,9 +265,9 @@ class CSR;
 	function [`MXLEN-1:0] raise_exception(input [3:0] cause, input[`XLEN-1:0] epc, input[`XLEN-1:0] tval);
 		$display("[INFO] EXCEPTION cause %d, mode = %d at %08h", cause, mode, epc);
 		if((medeleg & (1 << cause)) != 64'h0) begin
-			s_spie	= s_sie;
-			s_sie	= 1'b0;
-			s_spp	= mode[0];
+			spie	= sie;
+			sie	= 1'b0;
+			spp	= mode[0];
 			mode    = `MODE_S;
 			sepc	= {epc[`XLEN-1:1], 1'b0};
 			scause	= {1'b0, {`MXLEN-5{1'b0}}, cause};
@@ -302,9 +276,9 @@ class CSR;
 			return stvec[1:0] == 2'h1 ? {stvec[`MXLEN-1:2], 2'h0} + cause * 4 : {stvec[`MXLEN-1:2], 2'h0};
 			$display("[INFO] entering S-MODE.");
 		end else begin
-			m_mpie	= m_mie;
-			m_mie	= 1'b0;
-			m_mpp	= mode;
+			mpie	= mie;
+			mie	= 1'b0;
+			mpp	= mode;
 			mode    = `MODE_M;
 			mepc	= {epc[`XLEN-1:1], 1'b0};
 			mcause	= {1'b0, {`MXLEN-5{1'b0}}, cause};
@@ -316,19 +290,19 @@ class CSR;
 	endfunction
 
 	function [`MXLEN-1:0] mret();
-		m_mie = m_mpie;
-		m_mpie = 1'b1;
-		mode = m_mpp;
-		m_mpp = `MODE_U;
+		mie = mpie;
+		mpie = 1'b1;
+		mode = mpp;
+		mpp = `MODE_U;
 		print_mode();
 		return {mepc[`MXLEN-1:1], 1'b0};
 	endfunction
 
 	function [`MXLEN-1:0] sret();
-		s_sie = s_spie;
-		s_spie = 1'b1;
-		mode = {1'b0, s_spp};
-		s_spp = 1'b0;	// mode U
+		sie = spie;
+		spie = 1'b1;
+		mode = {1'b0, spp};
+		spp = 1'b0;	// mode U
 		print_mode();
 		return {sepc[`MXLEN-1:2], 2'h0};
 	endfunction
@@ -349,12 +323,12 @@ class CSR;
 		return mode;
 	endfunction
 
-	function bit read_m_mie();
-		return m_mie;
+	function bit read_mie();
+		return mie;
 	endfunction
 
-	function bit read_m_sie();
-		return m_sie;
+	function bit read_sie();
+		return sie;
 	endfunction
 
 	function void set (input [12-1:0] addr, input [`XLEN-1:0] data);
@@ -369,7 +343,6 @@ class CSR;
 		fflags = fflags_in;
 	endfunction
 
-
 	function [3:0] get_satp_mode();
 		return satp_mode;
 	endfunction
@@ -379,36 +352,24 @@ class CSR;
 	endfunction
 
 	function [1:0] get_ldst_mode();
-		if(m_mprv == 1'b0) begin
+		if(mprv == 1'b0) begin
 			return mode;
 		end else begin
-			return m_mpp;
+			return mpp;
 		end
 		return mode;
 	endfunction
 
-	function get_m_sum();
-		return m_sum;
-	endfunction
-
-	function get_s_sum();
-		return s_sum;
+	function get_sum();
+		return sum;
 	endfunction
 
 	function [43:0] get_satp_ppn();
 		return satp_ppn;
 	endfunction
 	
-	function get_mprv();
-		return m_mprv;
-	endfunction
-
 	function get_mxr();
-		return m_mxr;
-	endfunction
-
-	function [1:0] get_mpp();
-		return m_mpp;
+		return mxr;
 	endfunction
 
 endclass : CSR;
