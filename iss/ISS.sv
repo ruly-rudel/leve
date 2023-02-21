@@ -10,6 +10,7 @@
 `include "ELF.sv"
 `include "PMA.sv"
 `include "FLOAT.sv"
+`include "FDIV_SQRT.sv"
 `include "FCVT.sv"
 `include "FCVT_W_D.sv"
 `include "FCVT_S_D.sv"
@@ -41,6 +42,20 @@ class ISS;
 		.F_FLAC		(52)
 		)
 				double = new;
+	FDIV_SQRT #(
+		.T		(float_d_t),
+		.F_WIDTH	(32+4),
+		.F_EXP		(8),
+		.F_FLAC		(23+4)
+		)
+				float_fdiv = new;
+	FDIV_SQRT #(
+		.T		(double_d_t),
+		.F_WIDTH	(64+4),
+		.F_EXP		(11),
+		.F_FLAC		(52+4)
+		)
+				double_fdiv = new;
 	FCVT #(
 		.T		(float_t),
 		.F_WIDTH	(32),
@@ -1279,7 +1294,8 @@ class ISS;
 				2'b00: begin			// FNMADD.S
 					float_t fout1, fout2;
 					float.fmul(fp_rs1_d[31:0],  fp_rs2_d[31:0], fout1);
-					float.fsub(float.negate(fout1.val), fp_rs3_d[31:0], fout2);
+					float.negate(fout1.val, tmp32);
+					float.fsub(tmp32, fp_rs3_d[31:0], fout2);
 					fp.write32u(rd0, fout2.val);
 					csr_c.set_fflags({fout1.invalid | fout2.invalid, 3'h0, fout1.inexact | fout2.inexact});
 					next_pc = pc + 'h4;
@@ -1287,7 +1303,8 @@ class ISS;
 				2'b01: begin 			// FNMADD.D
 					double_t dout1, dout2;
 					double.fmul(fp_rs1_d,  fp_rs2_d, dout1);
-					double.fsub(double.negate(dout1.val), fp_rs3_d, dout2);
+					double.negate(dout1.val, tmp);
+					double.fsub(tmp, fp_rs3_d, dout2);
 					fp.write(rd0, dout2.val);
 					csr_c.set_fflags({dout1.invalid | dout2.invalid, 3'h0, dout1.inexact | dout2.inexact});
 					next_pc = pc + 'h4;
@@ -1506,6 +1523,10 @@ class ISS;
 						next_pc = pc + 'h4;
 				end
 				7'b00011_00: begin		// FDIV.S
+						float_d_t	fdout;
+						float_fdiv.fdiv({fp_rs1_d[31:0], 4'h0}, {fp_rs2_d[31:0], 4'h0}, fdout);
+						fp.write32u(rd0, fdout.val[35:4] + {{31{1'b0}}, fdout.val[3]});
+						csr_c.set_fflags({fdout.invalid, 3'h0, fdout.inexact});
 						next_pc = pc + 'h4;
 				end
 				7'b01011_00: begin
@@ -1696,6 +1717,10 @@ class ISS;
 						next_pc = pc + 'h4;
 				end
 				7'b00011_01: begin		// FDIV.D
+						double_d_t	ddout;
+						double_fdiv.fdiv({fp_rs1_d, 4'h0}, {fp_rs2_d, 4'h0}, ddout);
+						fp.write(rd0, ddout.val[67:4] + {{63{1'b0}}, ddout.val[3]});
+						csr_c.set_fflags({ddout.invalid, 3'h0, ddout.inexact});
 						next_pc = pc + 'h4;
 				end
 				7'b01011_01: begin

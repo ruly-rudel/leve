@@ -251,7 +251,7 @@ class FLOAT
 	
 		// round
 		round_exp  = norm_exp;
-		round_flac = norm_flac[(F_FLAC+1)*2-1:(F_FLAC+1)*2-F_FLAC-1];
+		round_flac = norm_flac[(F_FLAC+1)*2-1:(F_FLAC+1)*2-F_FLAC-1] + {{F_FLAC{1'b0}}, norm_flac[(F_FLAC+1)*2-F_FLAC-2]};
 
 		// result
 		mul_f = is_nan_1  || is_nan_2       ? {1'b0, {F_EXP+1{1'b1}}, {F_FLAC-1{1'b0}}} :		// NaN   * any   = NaN, any * NaN = NaN
@@ -480,12 +480,13 @@ class FLOAT
 		out.inexact = 1'b0;
 	endtask
 
-	function [F_WIDTH-1:0] negate
+	task negate
 	(
-		input [F_WIDTH-1:0]		in1
+		input [F_WIDTH-1:0]		in1,
+		output [F_WIDTH-1:0]		out
 	);
-		return {~in1[F_WIDTH-1], in1[F_WIDTH-2:0]};
-	endfunction
+		out = {~in1[F_WIDTH-1], in1[F_WIDTH-2:0]};
+	endtask
 
 endclass: FLOAT;
 
