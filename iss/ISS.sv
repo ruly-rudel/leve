@@ -43,17 +43,21 @@ class ISS;
 		)
 				double = new;
 	FDIV_SQRT #(
-		.T		(float_d_t),
-		.F_WIDTH	(32+4),
+		.T		(float_t),
+		.S		(float_d_t),
+		.F_WIDTH	(32),
 		.F_EXP		(8),
-		.F_FLAC		(23+4)
+		.F_FLAC		(23),
+		.MAGIC		(32'h5f3759df)
 		)
 				float_fdiv = new;
 	FDIV_SQRT #(
-		.T		(double_d_t),
-		.F_WIDTH	(64+4),
+		.T		(double_t),
+		.S		(double_d_t),
+		.F_WIDTH	(64),
 		.F_EXP		(11),
-		.F_FLAC		(52+4)
+		.F_FLAC		(52),
+		.MAGIC		(64'h5fe6eb50c7b537aa)
 		)
 				double_fdiv = new;
 	FCVT #(
@@ -1524,18 +1528,17 @@ class ISS;
 				end
 				7'b00011_00: begin		// FDIV.S
 						float_d_t	fdout;
-						float_fdiv.fdiv({fp_rs1_d[31:0], 4'h0}, {fp_rs2_d[31:0], 4'h0}, fdout);
-						fp.write32u(rd0, fdout.val[35:4] + {{31{1'b0}}, fdout.val[3]});
-						csr_c.set_fflags({fdout.invalid, 3'h0, fdout.inexact});
+						float_fdiv.fdiv(fp_rs1_d[31:0], fp_rs2_d[31:0], out);
+						fp.write32u(rd0, out.val);
+						csr_c.set_fflags({out.invalid, 3'h0, out.inexact});
 						next_pc = pc + 'h4;
 				end
 				7'b01011_00: begin
 					case (rs2)
 					5'b00000: begin		// FSQRT.S
-						float_d_t	fdout;
-						float_fdiv.fsqrt({fp_rs1_d[31:0], 4'h0}, fdout);
-						fp.write32u(rd0, fdout.val[35:4] + {{31{1'b0}}, fdout.val[3]});
-						csr_c.set_fflags({fdout.invalid, 3'h0, fdout.inexact});
+						float_fdiv.fsqrt(fp_rs1_d[31:0], out);
+						fp.write32u(rd0, out.val);
+						csr_c.set_fflags({out.invalid, 3'h0, out.inexact});
 						next_pc = pc + 'h4;
 					end
 					default: next_pc = raise_illegal_instruction(pc, inst);
@@ -1721,19 +1724,17 @@ class ISS;
 						next_pc = pc + 'h4;
 				end
 				7'b00011_01: begin		// FDIV.D
-						double_d_t	ddout;
-						double_fdiv.fdiv({fp_rs1_d, 4'h0}, {fp_rs2_d, 4'h0}, ddout);
-						fp.write(rd0, ddout.val[67:4] + {{63{1'b0}}, ddout.val[3]});
-						csr_c.set_fflags({ddout.invalid, 3'h0, ddout.inexact});
+						double_fdiv.fdiv(fp_rs1_d, fp_rs2_d, dout);
+						fp.write(rd0, dout.val);
+						csr_c.set_fflags({dout.invalid, 3'h0, dout.inexact});
 						next_pc = pc + 'h4;
 				end
 				7'b01011_01: begin
 					case (rs2)
 					5'b00000: begin		// FSQRT.D
-						double_d_t	ddout;
-						double_fdiv.fsqrt({fp_rs1_d, 4'h0}, ddout);
-						fp.write(rd0, ddout.val[67:4] + {{63{1'b0}}, ddout.val[3]});
-						csr_c.set_fflags({ddout.invalid, 3'h0, ddout.inexact});
+						double_fdiv.fsqrt(fp_rs1_d, dout);
+						fp.write(rd0, dout.val);
+						csr_c.set_fflags({dout.invalid, 3'h0, dout.inexact});
 						next_pc = pc + 'h4;
 					end
 					default: next_pc = raise_illegal_instruction(pc, inst);
