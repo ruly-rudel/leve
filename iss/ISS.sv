@@ -1532,6 +1532,10 @@ class ISS;
 				7'b01011_00: begin
 					case (rs2)
 					5'b00000: begin		// FSQRT.S
+						float_d_t	fdout;
+						float_fdiv.fsqrt({fp_rs1_d[31:0], 4'h0}, fdout);
+						fp.write32u(rd0, fdout.val[35:4] + {{31{1'b0}}, fdout.val[3]});
+						csr_c.set_fflags({fdout.invalid, 3'h0, fdout.inexact});
 						next_pc = pc + 'h4;
 					end
 					default: next_pc = raise_illegal_instruction(pc, inst);
@@ -1726,6 +1730,10 @@ class ISS;
 				7'b01011_01: begin
 					case (rs2)
 					5'b00000: begin		// FSQRT.D
+						double_d_t	ddout;
+						double_fdiv.fsqrt({fp_rs1_d, 4'h0}, ddout);
+						fp.write(rd0, ddout.val[67:4] + {{63{1'b0}}, ddout.val[3]});
+						csr_c.set_fflags({ddout.invalid, 3'h0, ddout.inexact});
 						next_pc = pc + 'h4;
 					end
 					default: next_pc = raise_illegal_instruction(pc, inst);

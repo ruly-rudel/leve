@@ -129,6 +129,62 @@ class FDIV_SQRT
 		out.inexact = div_o.inexact;
 	endtask
 
+	task fsqrt
+	(
+		input [F_WIDTH-1:0]		in1,
+		output T			out
+	);
+		bit [F_EXP:0]		unbias_exp;
+		bit [F_EXP:0]		half_exp;
+		bit [F_EXP:0]		bias_half_exp;
+		bit [F_WIDTH-1:0]	xn;
+		bit [F_WIDTH-1:0]	xn_half;
+		bit [F_EXP-1:0]		xn_half_exp;
+		T			xn_dbl;
+		T			xn_dbl_in1;
+		bit [F_WIDTH-1:0]	three;
+		T			three_minus_xn_dbl_in1;
+		T			xnp1;
+		T			sqrt_o;
+
+		// parse
+		parse(in1, in1);
+		$display("[INFO] sqrt in1 = %1b.%2h.%6h", sign_1, exp_1, flac_1);
+
+		// newton's method
+		// 1. initial value
+		unbias_exp    = {1'h0, exp_1} - ((1 << (F_EXP -1)) - 1);
+		half_exp      = $signed(unbias_exp) >>> 1;
+		bias_half_exp = half_exp + ((1 << (F_EXP -1)) - 1) - 'b1;
+		xn            = {sign_2, bias_half_exp[F_EXP-1:0], {F_FLAC{1'b0}}};
+
+		// 2. iteration
+		for(int i = 0; i < 6; i = i + 1) begin
+			$display("[INFO] sqrt xn = %1b.%2h.%6h", xn[F_WIDTH-1], xn[F_WIDTH-2:F_FLAC], xn[F_FLAC-1:0]);
+			xn_half_exp = xn[F_WIDTH-2:F_FLAC] - 'b1;
+			xn_half = {xn[F_WIDTH-1], xn_half_exp, xn[F_FLAC-1:0]};
+			float.fmul(xn, xn, xn_dbl);
+			float.fmul(xn_dbl.val, in1, xn_dbl_in1);
+			three = {1'b0, {1'b1, {F_EXP-1{1'b0}}}, {1'b1, {F_FLAC-1{1'b0}}}};
+			float.fsub(three, xn_dbl_in1.val, three_minus_xn_dbl_in1);
+			float.fmul(xn_half, three_minus_xn_dbl_in1.val, xnp1);
+
+			xn = xnp1.val;
+		end
+
+		// mul in1 * in1^(-1/2) = in1^(1/2)
+		float.fmul(in1, xnp1.val, sqrt_o);
+
+		// result
+		out.val = is_nan_1  ? {1'b0, {F_EXP+1{1'b1}}, {F_FLAC-1{1'b0}}} :		// Nan  -> Nan
+			  is_zero_1 ? {sign_1, {F_EXP{1'b0}}, {F_FLAC{1'b0}}} :			// zero -> zero
+			  is_inf_1  ? {sign_1, {F_EXP{1'b1}}, {F_FLAC{1'b0}}} :			// inf  -> inf
+						   sqrt_o.val;
+
+		out.invalid = is_nan_1 ? 1'b1 : sqrt_o.invalid;
+		out.inexact = sqrt_o.inexact;
+	endtask
+
 endclass : FDIV_SQRT
 
 `endif	// _fdiv_sqrt_sv_
