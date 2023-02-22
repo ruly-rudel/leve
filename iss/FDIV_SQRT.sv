@@ -143,7 +143,8 @@ class FDIV_SQRT
 		bit [F_WIDTH-1:0]	x0;
 		bit [F_EXP:0]		unbias_exp;
 		bit [F_EXP:0]		half_exp;
-		bit [F_EXP:0]		bias_half_exp;
+		bit [F_EXP:0]		inv_half_exp;
+		bit [F_EXP:0]		bias_inv_half_exp;
 		bit [F_WIDTH-1+EXTRA:0]	xn;
 		bit [F_WIDTH-1+EXTRA:0]	xn_half;
 		bit [F_EXP-1:0]		xn_half_exp;
@@ -153,6 +154,7 @@ class FDIV_SQRT
 		S			three_minus_xn_dbl_in1;
 		S			xnp1;
 		S			sqrt_o;
+		S			double_sqrt_o;
 
 		// parse
 		parse(in1, in1);
@@ -166,22 +168,18 @@ class FDIV_SQRT
 `else
 		unbias_exp    = {1'h0, exp_1} - ((1 << (F_EXP -1)) - 1);
 		half_exp      = $signed(unbias_exp) >>> 1;
-		bias_half_exp = half_exp + ((1 << (F_EXP -1)) - 1) - 'b1;
-		xn            = {sign_1, bias_half_exp[F_EXP-1:0], {F_FLAC+EXTRA{1'b0}}};
+		inv_half_exp  = ~half_exp + 'b1;
+		bias_inv_half_exp = inv_half_exp + ((1 << (F_EXP -1)) - 1) - 'b1;
+		xn            = {sign_1, bias_inv_half_exp[F_EXP-1:0], {F_FLAC+EXTRA{1'b0}}};
 `endif
-		$display("[INFO] sqrt exp %4h, unbias exp %4d, half %4d", exp_1, unbias_exp, half_exp);
-
 		// 2. iteration
 		for(int i = 0; i < 6; i = i + 1) begin
 			$display("[INFO] sqrt xn = %1b.%2h.%6h", xn[F_WIDTH-1+EXTRA], xn[F_WIDTH-2+EXTRA:F_FLAC+EXTRA], xn[F_FLAC-1+EXTRA:0]);
 			xn_half_exp = xn[F_WIDTH-2+EXTRA:F_FLAC+EXTRA] - 'b1;
 			xn_half = {xn[F_WIDTH-1+EXTRA], xn_half_exp, xn[F_FLAC-1+EXTRA:0]};
-			//$display("[INFO] sqrt xn_half = %1b.%2h.%6h", xn_half[F_WIDTH-1+EXTRA], xn_half[F_WIDTH-2+EXTRA:F_FLAC+EXTRA], xn_half[F_FLAC-1+EXTRA:0]);
 			float.fmul(xn, xn, xn_dbl);
-			//$display("[INFO] sqrt xn_dbl = %1b.%2h.%6h", xn_dbl.val[F_WIDTH-1+EXTRA], xn_dbl.val[F_WIDTH-2+EXTRA:F_FLAC+EXTRA], xn_dbl.val[F_FLAC-1+EXTRA:0]);
 			float.fmul(xn_dbl.val, {in1, {EXTRA{1'b0}}}, xn_dbl_in1);
 			three = {1'b0, {1'b1, {F_EXP-1{1'b0}}}, {1'b1, {F_FLAC-1+EXTRA{1'b0}}}};
-			//$display("[INFO] sqrt three = %1b.%2h.%6h", three[F_WIDTH-1+EXTRA], three[F_WIDTH-2+EXTRA:F_FLAC+EXTRA], three[F_FLAC-1+EXTRA:0]);
 			float.fsub(three, xn_dbl_in1.val, three_minus_xn_dbl_in1);
 			float.fmul(xn_half, three_minus_xn_dbl_in1.val, xnp1);
 
@@ -191,14 +189,20 @@ class FDIV_SQRT
 		// mul in1 * in1^(-1/2) = in1^(1/2)
 		float.fmul({in1, {EXTRA{1'b0}}}, xnp1.val, sqrt_o);
 
+		// kenzan
+		float.fmul(sqrt_o.val, sqrt_o.val, double_sqrt_o);
+
 		// result
 		out.val = is_nan_1  ? {1'b0, {F_EXP+1{1'b1}}, {F_FLAC-1{1'b0}}} :		// Nan  -> Nan
 			  is_zero_1 ? {sign_1, {F_EXP{1'b0}}, {F_FLAC{1'b0}}} :			// zero -> zero
 			  is_inf_1  ? {sign_1, {F_EXP{1'b1}}, {F_FLAC{1'b0}}} :			// inf  -> inf
+			  is_num_1 && sign_1 ? {1'b0, {F_EXP+1{1'b1}}, {F_FLAC-1{1'b0}}} :	// -num -> NaN
 						   sqrt_o.val[F_WIDTH-1+EXTRA:EXTRA] + {{F_WIDTH-1{1'b0}}, sqrt_o.val[EXTRA-1]};
 
-		out.invalid = is_nan_1 ? 1'b1 : sqrt_o.invalid;
-		out.inexact = sqrt_o.inexact;
+		out.invalid = is_nan_1 || is_num_1 && sign_1 ? 1'b1 : sqrt_o.invalid;
+		out.inexact = is_nan_1 || is_num_1 && sign_1 ? 1'b0 :
+			double_sqrt_o.val[F_WIDTH-1+EXTRA:EXTRA] == in1 ? double_sqrt_o.inexact : 1'b1;
+		$display("[INFO] sqrt^2  = %1b.%2h.%6h", double_sqrt_o.val[F_WIDTH-1+EXTRA], double_sqrt_o.val[F_WIDTH-1+EXTRA-1:F_FLAC+EXTRA], double_sqrt_o.val[F_FLAC+EXTRA-1:EXTRA]);
 	endtask
 
 endclass : FDIV_SQRT
