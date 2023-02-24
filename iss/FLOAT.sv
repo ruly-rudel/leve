@@ -255,7 +255,6 @@ class FLOAT
 		norm_exp  = mul_exp + 'b1 - first_1_shift;
 		norm_flac = mul_flac << first_1_shift;
 		norm_exp_abs = norm_exp[F_EXP+1] ? ~norm_exp + 'b1 : norm_exp;
-		$display("[INFO] mul norm_exp %d, first_1 %d", $signed(norm_exp), first_1_shift);
 
 		// normalize
 		/*
@@ -293,9 +292,6 @@ class FLOAT
 			round_exp[F_EXP+1]          ? {mul_sign, {F_EXP{1'b0}}, round_flac[F_FLAC:1]} :		// subnormal number
 						      {mul_sign, round_exp[F_EXP-1:0], round_flac[F_FLAC-1:0]};
 
-		$display("[INFO] mul is_zero_1 %b, is_zero_2 %b", is_zero_1, is_zero_2);
-		$display("[INFO] mul a x b: %8h x %8h = %8h", in1, in2, mul_f);
-	
 		out.val = mul_f;
 		out.invalid = is_inf_1  && is_zero_2	? 1'b0 :
 		              is_inf_2  && is_zero_1	? 1'b0 :

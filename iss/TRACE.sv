@@ -229,16 +229,16 @@ class TRACE;
 
 			7'b00_001_11: begin	// LOAD-FP: I type
 				case (funct3)
-				3'b010: $display("pc=%016H: %08H, FLW,    rd0 = x%d, rs1 = x%d, imm = %08H", pc, inst, rd0, rs1, imm_i );
-				3'b011: $display("pc=%016H: %08H, FLD,    rd0 = x%d, rs1 = x%d, imm = %08H", pc, inst, rd0, rs1, imm_i );
+				3'b010: $display("pc=%016H: %08H, FLW,    rd0 = f%d, rs1 = x%d, imm = %08H", pc, inst, rd0, rs1, imm_i );
+				3'b011: $display("pc=%016H: %08H, FLD,    rd0 = f%d, rs1 = x%d, imm = %08H", pc, inst, rd0, rs1, imm_i );
 				default: $display("pc=%016H: %08H, ???,    rd0 = x%d, rs1 = x%d, imm = %08H", pc, inst, rd0, rs1, imm_i );
 				endcase
 			end
 			7'b01_001_11: begin	// STORE-FP: S type
 				case (funct3)
-				3'b010: $display("pc=%016H: %08H, FSW,    rs1 = x%d, rs2 = x%d, imm = %08H", pc, inst, rs1, rs2, imm_s );
-				3'b011: $display("pc=%016H: %08H, FSD,    rs1 = x%d, rs2 = x%d, imm = %08H", pc, inst, rs1, rs2, imm_s );
-				default: $display("pc=%016H: %08H, ???,    rs1 = x%d, rs2 = x%d, imm = %08H", pc, inst, rs1, rs2, imm_s );
+				3'b010: $display("pc=%016H: %08H, FSW,    rs1 = x%d, rs2 = f%d, imm = %08H", pc, inst, rs1, rs2, imm_s );
+				3'b011: $display("pc=%016H: %08H, FSD,    rs1 = x%d, rs2 = f%d, imm = %08H", pc, inst, rs1, rs2, imm_s );
+				default: $display("pc=%016H: %08H, ???,    rs1 = x%d, rs2 = f%d, imm = %08H", pc, inst, rs1, rs2, imm_s );
 				endcase
 			end
 			7'b10_001_11: begin	// MSUB: R4 type
@@ -353,71 +353,71 @@ class TRACE;
 				case (funct3)
 				3'b000: begin
 					case (funct7)
-					7'b0000000: $display("pc=%016H: %08H, ADD,  rd0 = x%d, rs1 = x%d, rs2 = x%d", pc, inst, rd0, rs1, rs2 );
-					7'b0000001: $display("pc=%016H: %08H, MUL,  rd0 = x%d, rs1 = x%d, rs2 = x%d", pc, inst, rd0, rs1, rs2 );
-					7'b0100000: $display("pc=%016H: %08H, SUB,  rd0 = x%d, rs1 = x%d, rs2 = x%d", pc, inst, rd0, rs1, rs2 );
-					default: $display("pc=%016H: %08H, ???,  rd0 = x%d, rs1 = x%d, rs2 = x%d", pc, inst, rd0, rs1, rs2 );
+					7'b0000000: $display("pc=%016H: %08H, ADD,    rd0 = x%d, rs1 = x%d, rs2 = x%d", pc, inst, rd0, rs1, rs2 );
+					7'b0000001: $display("pc=%016H: %08H, MUL,    rd0 = x%d, rs1 = x%d, rs2 = x%d", pc, inst, rd0, rs1, rs2 );
+					7'b0100000: $display("pc=%016H: %08H, SUB,    rd0 = x%d, rs1 = x%d, rs2 = x%d", pc, inst, rd0, rs1, rs2 );
+					default: $display("pc=%016H: %08H, ???,    rd0 = x%d, rs1 = x%d, rs2 = x%d", pc, inst, rd0, rs1, rs2 );
 					endcase
 				end
 				3'b001: begin
 					case (funct7)
-					7'b0000000: $display("pc=%016H: %08H, SLL,  rd0 = x%d, rs1 = x%d, rs2 = x%d", pc, inst, rd0, rs1, rs2 );
-					7'b0000001: $display("pc=%016H: %08H, MULH, rd0 = x%d, rs1 = x%d, rs2 = x%d", pc, inst, rd0, rs1, rs2 );
-					default: $display("pc=%016H: %08H, ???,  rd0 = x%d, rs1 = x%d, rs2 = x%d", pc, inst, rd0, rs1, rs2 );
+					7'b0000000: $display("pc=%016H: %08H, SLL,    rd0 = x%d, rs1 = x%d, rs2 = x%d", pc, inst, rd0, rs1, rs2 );
+					7'b0000001: $display("pc=%016H: %08H, MULH,   rd0 = x%d, rs1 = x%d, rs2 = x%d", pc, inst, rd0, rs1, rs2 );
+					default: $display("pc=%016H: %08H, ???,    rd0 = x%d, rs1 = x%d, rs2 = x%d", pc, inst, rd0, rs1, rs2 );
 					endcase
 				end
 				3'b010: begin
 					case (funct7)
-					7'b0000000: $display("pc=%016H: %08H, SLT,  rd0 = x%d, rs1 = x%d, rs2 = x%d", pc, inst, rd0, rs1, rs2 );
+					7'b0000000: $display("pc=%016H: %08H, SLT,    rd0 = x%d, rs1 = x%d, rs2 = x%d", pc, inst, rd0, rs1, rs2 );
 					7'b0000001: $display("pc=%016H: %08H, MULHSU, rd0 = x%d, rs1 = x%d, rs2 = x%d", pc, inst, rd0, rs1, rs2 );
 					default: $display("pc=%016H: %08H, ???,  rd0 = x%d, rs1 = x%d, rs2 = x%d", pc, inst, rd0, rs1, rs2 );
 					endcase
 				end
 				3'b011: begin
 					case (funct7)
-					7'b0000000: $display("pc=%016H: %08H, SLTU, rd0 = x%d, rs1 = x%d, rs2 = x%d", pc, inst, rd0, rs1, rs2 );
-					7'b0000001: $display("pc=%016H: %08H, MULHU,rd0 = x%d, rs1 = x%d, rs2 = x%d", pc, inst, rd0, rs1, rs2 );
+					7'b0000000: $display("pc=%016H: %08H, SLTU,   rd0 = x%d, rs1 = x%d, rs2 = x%d", pc, inst, rd0, rs1, rs2 );
+					7'b0000001: $display("pc=%016H: %08H, MULHU,  rd0 = x%d, rs1 = x%d, rs2 = x%d", pc, inst, rd0, rs1, rs2 );
 					default: $display("pc=%016H: %08H, ???,  rd0 = x%d, rs1 = x%d, rs2 = x%d", pc, inst, rd0, rs1, rs2 );
 					endcase
 				end
 				3'b100: begin
 					case (funct7)
-					7'b0000000: $display("pc=%016H: %08H, XOR,  rd0 = x%d, rs1 = x%d, rs2 = x%d", pc, inst, rd0, rs1, rs2 );
-					7'b0000001: $display("pc=%016H: %08H, DIV,  rd0 = x%d, rs1 = x%d, rs2 = x%d", pc, inst, rd0, rs1, rs2 );
-					default: $display("pc=%016H: %08H, ???,  rd0 = x%d, rs1 = x%d, rs2 = x%d", pc, inst, rd0, rs1, rs2 );
+					7'b0000000: $display("pc=%016H: %08H, XOR,    rd0 = x%d, rs1 = x%d, rs2 = x%d", pc, inst, rd0, rs1, rs2 );
+					7'b0000001: $display("pc=%016H: %08H, DIV,    rd0 = x%d, rs1 = x%d, rs2 = x%d", pc, inst, rd0, rs1, rs2 );
+					default: $display("pc=%016H: %08H, ???,    rd0 = x%d, rs1 = x%d, rs2 = x%d", pc, inst, rd0, rs1, rs2 );
 					endcase
 				end
 				3'b101: begin
 					case (funct7)
-					7'b0000000: $display("pc=%016H: %08H, SRL,  rd0 = x%d, rs1 = x%d, rs2 = x%d", pc, inst, rd0, rs1, rs2 );
-					7'b0000001: $display("pc=%016H: %08H, DIVU, rd0 = x%d, rs1 = x%d, rs2 = x%d", pc, inst, rd0, rs1, rs2 );
-					7'b0100000: $display("pc=%016H: %08H, SRA,  rd0 = x%d, rs1 = x%d, rs2 = x%d", pc, inst, rd0, rs1, rs2 );
-					default: $display("pc=%016H: %08H, ???,  rd0 = x%d, rs1 = x%d, rs2 = x%d", pc, inst, rd0, rs1, rs2 );
+					7'b0000000: $display("pc=%016H: %08H, SRL,    rd0 = x%d, rs1 = x%d, rs2 = x%d", pc, inst, rd0, rs1, rs2 );
+					7'b0000001: $display("pc=%016H: %08H, DIVU,   rd0 = x%d, rs1 = x%d, rs2 = x%d", pc, inst, rd0, rs1, rs2 );
+					7'b0100000: $display("pc=%016H: %08H, SRA,    rd0 = x%d, rs1 = x%d, rs2 = x%d", pc, inst, rd0, rs1, rs2 );
+					default: $display("pc=%016H: %08H, ???,    rd0 = x%d, rs1 = x%d, rs2 = x%d", pc, inst, rd0, rs1, rs2 );
 					endcase
 				end
 				3'b110: begin
 					case (funct7)
-					7'b0000000: $display("pc=%016H: %08H, OR,   rd0 = x%d, rs1 = x%d, rs2 = x%d", pc, inst, rd0, rs1, rs2 );
-					7'b0000001: $display("pc=%016H: %08H, REM,  rd0 = x%d, rs1 = x%d, rs2 = x%d", pc, inst, rd0, rs1, rs2 );
-					default: $display("pc=%016H: %08H, ???,  rd0 = x%d, rs1 = x%d, rs2 = x%d", pc, inst, rd0, rs1, rs2 );
+					7'b0000000: $display("pc=%016H: %08H, OR,     rd0 = x%d, rs1 = x%d, rs2 = x%d", pc, inst, rd0, rs1, rs2 );
+					7'b0000001: $display("pc=%016H: %08H, REM,    rd0 = x%d, rs1 = x%d, rs2 = x%d", pc, inst, rd0, rs1, rs2 );
+					default: $display("pc=%016H: %08H, ???,    rd0 = x%d, rs1 = x%d, rs2 = x%d", pc, inst, rd0, rs1, rs2 );
 					endcase
 				end
 				3'b111: begin
 					case (funct7)
-					7'b0000000: $display("pc=%016H: %08H, AND,  rd0 = x%d, rs1 = x%d, rs2 = x%d", pc, inst, rd0, rs1, rs2 );
-					7'b0000001: $display("pc=%016H: %08H, REMU, rd0 = x%d, rs1 = x%d, rs2 = x%d", pc, inst, rd0, rs1, rs2 );
-					default: $display("pc=%016H: %08H, ???,  rd0 = x%d, rs1 = x%d, rs2 = x%d", pc, inst, rd0, rs1, rs2 );
+					7'b0000000: $display("pc=%016H: %08H, AND,    rd0 = x%d, rs1 = x%d, rs2 = x%d", pc, inst, rd0, rs1, rs2 );
+					7'b0000001: $display("pc=%016H: %08H, REMU,   rd0 = x%d, rs1 = x%d, rs2 = x%d", pc, inst, rd0, rs1, rs2 );
+					default: $display("pc=%016H: %08H, ???,    rd0 = x%d, rs1 = x%d, rs2 = x%d", pc, inst, rd0, rs1, rs2 );
 					endcase
 				end
-				default: $display("pc=%016H: %08H, ???,  rd0 = x%d, rs1 = x%d, rs2 = x%d", pc, inst, rd0, rs1, rs2 );
+				default: $display("pc=%016H: %08H, ???,    rd0 = x%d, rs1 = x%d, rs2 = x%d", pc, inst, rd0, rs1, rs2 );
 				endcase
 			end
 			7'b10_100_11: begin	// OP-FP: R type
 				case(funct7)
-				7'b00000_00: $display("pc=%016H: %08H, FADD.S,    rm = %03B,  rd = x%d, rs1 = x%d, rs2 = x%d", pc, inst, rm, rd0, rs1, rs2);
-				7'b00001_00: $display("pc=%016H: %08H, FSUB.S,    rm = %03B,  rd = x%d, rs1 = x%d, rs2 = x%d", pc, inst, rm, rd0, rs1, rs2);
-				7'b00010_00: $display("pc=%016H: %08H, FMUL.S,    rm = %03B,  rd = x%d, rs1 = x%d, rs2 = x%d", pc, inst, rm, rd0, rs1, rs2);
-				7'b00011_00: $display("pc=%016H: %08H, FDIV.S,    rm = %03B,  rd = x%d, rs1 = x%d, rs2 = x%d", pc, inst, rm, rd0, rs1, rs2);
+				7'b00000_00: $display("pc=%016H: %08H, FADD.S,    rm = %03B,  rd = f%d, rs1 = f%d, rs2 = f%d", pc, inst, rm, rd0, rs1, rs2);
+				7'b00001_00: $display("pc=%016H: %08H, FSUB.S,    rm = %03B,  rd = f%d, rs1 = f%d, rs2 = f%d", pc, inst, rm, rd0, rs1, rs2);
+				7'b00010_00: $display("pc=%016H: %08H, FMUL.S,    rm = %03B,  rd = f%d, rs1 = f%d, rs2 = f%d", pc, inst, rm, rd0, rs1, rs2);
+				7'b00011_00: $display("pc=%016H: %08H, FDIV.S,    rm = %03B,  rd = f%d, rs1 = f%d, rs2 = f%d", pc, inst, rm, rd0, rs1, rs2);
 				7'b01011_00: begin
 					case (rs2)
 					5'b00000: $display("pc=%016H: %08H, FSQRT.S,   rm = %03B,  rd = x%d, rs1 = x%d", pc, inst, rm, rd0, rs1);
@@ -426,40 +426,40 @@ class TRACE;
 				end
 				7'b00100_00: begin
 					case (funct3)
-					3'b000: $display("pc=%016H: %08H, FSGNJ.S,    rd = x%d, rs1 = x%d, rs2 = x%d", pc, inst, rd0, rs1, rs2);
-					3'b001: $display("pc=%016H: %08H, FSGNJN.S,   rd = x%d, rs1 = x%d, rs2 = x%d", pc, inst, rd0, rs1, rs2);
-					3'b010: $display("pc=%016H: %08H, FSGNJX.S,   rd = x%d, rs1 = x%d, rs2 = x%d", pc, inst, rd0, rs1, rs2);
-					default: $display("pc=%016H: %08H, ???,        rd = x%d, rs1 = x%d, rs2 = x%d", pc, inst, rd0, rs1, rs2);
+					3'b000: $display("pc=%016H: %08H, FSGNJ.S,    rd = f%d, rs1 = f%d, rs2 = f%d", pc, inst, rd0, rs1, rs2);
+					3'b001: $display("pc=%016H: %08H, FSGNJN.S,   rd = f%d, rs1 = f%d, rs2 = f%d", pc, inst, rd0, rs1, rs2);
+					3'b010: $display("pc=%016H: %08H, FSGNJX.S,   rd = f%d, rs1 = f%d, rs2 = f%d", pc, inst, rd0, rs1, rs2);
+					default: $display("pc=%016H: %08H, ???,        rd = f%d, rs1 = f%d, rs2 = f%d", pc, inst, rd0, rs1, rs2);
 					endcase
 				end
 				7'b00101_00: begin
 					case (funct3)
-					3'b000: $display("pc=%016H: %08H, FMIN.S,     rd = x%d, rs1 = x%d, rs2 = x%d", pc, inst, rd0, rs1, rs2);
-					3'b001: $display("pc=%016H: %08H, FMAX.S,     rd = x%d, rs1 = x%d, rs2 = x%d", pc, inst, rd0, rs1, rs2);
-					default: $display("pc=%016H: %08H, ???,        rd = x%d, rs1 = x%d, rs2 = x%d", pc, inst, rd0, rs1, rs2);
+					3'b000: $display("pc=%016H: %08H, FMIN.S,     rd = f%d, rs1 = f%d, rs2 = f%d", pc, inst, rd0, rs1, rs2);
+					3'b001: $display("pc=%016H: %08H, FMAX.S,     rd = f%d, rs1 = f%d, rs2 = f%d", pc, inst, rd0, rs1, rs2);
+					default: $display("pc=%016H: %08H, ???,        rd = f%d, rs1 = f%d, rs2 = f%d", pc, inst, rd0, rs1, rs2);
 					endcase
 				end
 				7'b01000_00: begin
 					case (rs2)
-					5'b00001: $display("pc=%016H: %08H, FCVT.S.D,  rm = %03B,  rd = x%d, rs1 = x%d", pc, inst, rm, rd0, rs1);
+					5'b00001: $display("pc=%016H: %08H, FCVT.S.D,  rm = %03B,  rd = f%d, rs1 = x%d", pc, inst, rm, rd0, rs1);
 					default: $display("pc=%016H: %08H, ???,       rm = %03B,  rd = x%d, rs1 = x%d", pc, inst, rm, rd0, rs1);
 					endcase
 				end
 				7'b11000_00: begin
 					case (rs2)
-					5'b00000: $display("pc=%016H: %08H, FCVT.W.S,  rm = %03B,  rd = x%d, rs1 = x%d", pc, inst, rm, rd0, rs1);
-					5'b00001: $display("pc=%016H: %08H, FCVT.WU.S, rm = %03B,  rd = x%d, rs1 = x%d", pc, inst, rm, rd0, rs1);
-					5'b00010: $display("pc=%016H: %08H, FCVT.L.S,  rm = %03B,  rd = x%d, rs1 = x%d", pc, inst, rm, rd0, rs1);
-					5'b00011: $display("pc=%016H: %08H, FCVT.LU.S, rm = %03B,  rd = x%d, rs1 = x%d", pc, inst, rm, rd0, rs1);
-					default: $display("pc=%016H: %08H, ???,       rm = %03B,  rd = x%d, rs1 = x%d", pc, inst, rm, rd0, rs1);
+					5'b00000: $display("pc=%016H: %08H, FCVT.W.S,  rm = %03B,  rd = x%d, rs1 = f%d", pc, inst, rm, rd0, rs1);
+					5'b00001: $display("pc=%016H: %08H, FCVT.WU.S, rm = %03B,  rd = x%d, rs1 = f%d", pc, inst, rm, rd0, rs1);
+					5'b00010: $display("pc=%016H: %08H, FCVT.L.S,  rm = %03B,  rd = x%d, rs1 = f%d", pc, inst, rm, rd0, rs1);
+					5'b00011: $display("pc=%016H: %08H, FCVT.LU.S, rm = %03B,  rd = x%d, rs1 = f%d", pc, inst, rm, rd0, rs1);
+					default: $display("pc=%016H: %08H, ???,       rm = %03B,  rd = x%d, rs1 = f%d", pc, inst, rm, rd0, rs1);
 					endcase
 				end
 				7'b11100_00: begin
 					case (rs2)
 					5'b00000: begin
 						case (funct3)
-						3'b000: $display("pc=%016H: %08H, FMV.X.W,  rd = x%d, rs1 = x%d", pc, inst, rd0, rs1);
-						3'b001: $display("pc=%016H: %08H, FCLASS.W, rd = x%d, rs1 = x%d", pc, inst, rd0, rs1);
+						3'b000: $display("pc=%016H: %08H, FMV.X.W,  rd = f%d, rs1 = x%d", pc, inst, rd0, rs1);
+						3'b001: $display("pc=%016H: %08H, FCLASS.W, rd = x%d, rs1 = f%d", pc, inst, rd0, rs1);
 						default: $display("pc=%016H: %08H, ???,      rd = x%d, rs1 = x%d", pc, inst, rd0, rs1);
 						endcase
 					end
@@ -468,18 +468,18 @@ class TRACE;
 				end
 				7'b10100_00: begin
 					case (funct3)
-					3'b010: $display("pc=%016H: %08H, FEQ.S,      rd = x%d, rs1 = x%d, rs2 = x%d", pc, inst, rd0, rs1, rs2);
-					3'b001: $display("pc=%016H: %08H, FLT.S,      rd = x%d, rs1 = x%d, rs2 = x%d", pc, inst, rd0, rs1, rs2);
-					3'b000: $display("pc=%016H: %08H, FLE.S,      rd = x%d, rs1 = x%d, rs2 = x%d", pc, inst, rd0, rs1, rs2);
-					default: $display("pc=%016H: %08H, ???,        rd = x%d, rs1 = x%d, rs2 = x%d", pc, inst, rd0, rs1, rs2);
+					3'b010: $display("pc=%016H: %08H, FEQ.S,      rd = x%d, rs1 = f%d, rs2 = f%d", pc, inst, rd0, rs1, rs2);
+					3'b001: $display("pc=%016H: %08H, FLT.S,      rd = x%d, rs1 = f%d, rs2 = f%d", pc, inst, rd0, rs1, rs2);
+					3'b000: $display("pc=%016H: %08H, FLE.S,      rd = x%d, rs1 = f%d, rs2 = f%d", pc, inst, rd0, rs1, rs2);
+					default: $display("pc=%016H: %08H, ???,        rd = x%d, rs1 = f%d, rs2 = f%d", pc, inst, rd0, rs1, rs2);
 					endcase
 				end
 				7'b11010_00: begin
 					case (rs2)
-					5'b00000: $display("pc=%016H: %08H, FCVT.S.W,  rm = %03B,  rd = x%d, rs1 = x%d", pc, inst, rm, rd0, rs1);
-					5'b00001: $display("pc=%016H: %08H, FCVT.S.WU, rm = %03B,  rd = x%d, rs1 = x%d", pc, inst, rm, rd0, rs1);
-					5'b00010: $display("pc=%016H: %08H, FCVT.S.L,  rm = %03B,  rd = x%d, rs1 = x%d", pc, inst, rm, rd0, rs1);
-					5'b00011: $display("pc=%016H: %08H, FCVT.S.LU, rm = %03B,  rd = x%d, rs1 = x%d", pc, inst, rm, rd0, rs1);
+					5'b00000: $display("pc=%016H: %08H, FCVT.S.W,  rm = %03B,  rd = f%d, rs1 = x%d", pc, inst, rm, rd0, rs1);
+					5'b00001: $display("pc=%016H: %08H, FCVT.S.WU, rm = %03B,  rd = f%d, rs1 = x%d", pc, inst, rm, rd0, rs1);
+					5'b00010: $display("pc=%016H: %08H, FCVT.S.L,  rm = %03B,  rd = f%d, rs1 = x%d", pc, inst, rm, rd0, rs1);
+					5'b00011: $display("pc=%016H: %08H, FCVT.S.LU, rm = %03B,  rd = f%d, rs1 = x%d", pc, inst, rm, rd0, rs1);
 					default: $display("pc=%016H: %08H, ???,       rm = %03B,  rd = x%d, rs1 = x%d", pc, inst, rm, rd0, rs1);
 					endcase
 				end
@@ -487,7 +487,7 @@ class TRACE;
 					case (rs2)
 					5'b00000: begin
 						case (funct3)
-						3'b000: $display("pc=%016H: %08H, FMV.W.X,    rd = x%d, rs1 = x%d", pc, inst, rd0, rs1);
+						3'b000: $display("pc=%016H: %08H, FMV.W.X,    rd = x%d, rs1 = f%d", pc, inst, rd0, rs1);
 						default: $display("pc=%016H: %08H, ???,        rd = x%d, rs1 = x%d", pc, inst, rd0, rs1);
 						endcase
 					end
@@ -496,52 +496,52 @@ class TRACE;
 				end
 
 
-				7'b00000_01: $display("pc=%016H: %08H, FADD.D,    rm = %03B,  rd = x%d, rs1 = x%d, rs2 = x%d", pc, inst, rm, rd0, rs1, rs2);
-				7'b00001_01: $display("pc=%016H: %08H, FSUB.D,    rm = %03B,  rd = x%d, rs1 = x%d, rs2 = x%d", pc, inst, rm, rd0, rs1, rs2);
-				7'b00010_01: $display("pc=%016H: %08H, FMUL.D,    rm = %03B,  rd = x%d, rs1 = x%d, rs2 = x%d", pc, inst, rm, rd0, rs1, rs2);
-				7'b00011_01: $display("pc=%016H: %08H, FDIV.D,    rm = %03B,  rd = x%d, rs1 = x%d, rs2 = x%d", pc, inst, rm, rd0, rs1, rs2);
+				7'b00000_01: $display("pc=%016H: %08H, FADD.D,    rm = %03B,  rd = f%d, rs1 = f%d, rs2 = f%d", pc, inst, rm, rd0, rs1, rs2);
+				7'b00001_01: $display("pc=%016H: %08H, FSUB.D,    rm = %03B,  rd = f%d, rs1 = f%d, rs2 = f%d", pc, inst, rm, rd0, rs1, rs2);
+				7'b00010_01: $display("pc=%016H: %08H, FMUL.D,    rm = %03B,  rd = f%d, rs1 = f%d, rs2 = f%d", pc, inst, rm, rd0, rs1, rs2);
+				7'b00011_01: $display("pc=%016H: %08H, FDIV.D,    rm = %03B,  rd = f%d, rs1 = f%d, rs2 = f%d", pc, inst, rm, rd0, rs1, rs2);
 				7'b01011_01: begin
 					case (rs2)
-					5'b00000: $display("pc=%016H: %08H, FSQRT.D,   rm = %03B,  rd = x%d, rs1 = x%d", pc, inst, rm, rd0, rs1);
+					5'b00000: $display("pc=%016H: %08H, FSQRT.D,   rm = %03B,  rd = f%d, rs1 = f%d", pc, inst, rm, rd0, rs1);
 					default: $display("pc=%016H: %08H, ???,       rm = %03B,  rd = x%d, rs1 = x%d", pc, inst, rm, rd0, rs1);
 					endcase
 				end
 				7'b00100_01: begin
 					case (funct3)
-					3'b000: $display("pc=%016H: %08H, FSGNJ.D,    rd = x%d, rs1 = x%d, rs2 = x%d", pc, inst, rd0, rs1, rs2);
-					3'b001: $display("pc=%016H: %08H, FSGNJN.D,   rd = x%d, rs1 = x%d, rs2 = x%d", pc, inst, rd0, rs1, rs2);
-					3'b010: $display("pc=%016H: %08H, FSGNJX.D,   rd = x%d, rs1 = x%d, rs2 = x%d", pc, inst, rd0, rs1, rs2);
-					default: $display("pc=%016H: %08H, ???,        rd = x%d, rs1 = x%d, rs2 = x%d", pc, inst, rd0, rs1, rs2);
+					3'b000: $display("pc=%016H: %08H, FSGNJ.D,    rd = f%d, rs1 = f%d, rs2 = f%d", pc, inst, rd0, rs1, rs2);
+					3'b001: $display("pc=%016H: %08H, FSGNJN.D,   rd = f%d, rs1 = f%d, rs2 = f%d", pc, inst, rd0, rs1, rs2);
+					3'b010: $display("pc=%016H: %08H, FSGNJX.D,   rd = f%d, rs1 = f%d, rs2 = f%d", pc, inst, rd0, rs1, rs2);
+					default: $display("pc=%016H: %08H, ???,        rd = f%d, rs1 = f%d, rs2 = f%d", pc, inst, rd0, rs1, rs2);
 					endcase
 				end
 				7'b00101_01: begin
 					case (funct3)
-					3'b000: $display("pc=%016H: %08H, FMIN.D,     rd = x%d, rs1 = x%d, rs2 = x%d", pc, inst, rd0, rs1, rs2);
-					3'b001: $display("pc=%016H: %08H, FMAX.D,     rd = x%d, rs1 = x%d, rs2 = x%d", pc, inst, rd0, rs1, rs2);
-					default: $display("pc=%016H: %08H, ???,        rd = x%d, rs1 = x%d, rs2 = x%d", pc, inst, rd0, rs1, rs2);
+					3'b000: $display("pc=%016H: %08H, FMIN.D,     rd = f%d, rs1 = f%d, rs2 = f%d", pc, inst, rd0, rs1, rs2);
+					3'b001: $display("pc=%016H: %08H, FMAX.D,     rd = f%d, rs1 = f%d, rs2 = f%d", pc, inst, rd0, rs1, rs2);
+					default: $display("pc=%016H: %08H, ???,        rd = f%d, rs1 = f%d, rs2 = f%d", pc, inst, rd0, rs1, rs2);
 					endcase
 				end
 				7'b01000_01: begin
 					case (rs2)
-					5'b00000: $display("pc=%016H: %08H, FCVT.D.S,  rm = %03B,  rd = x%d, rs1 = x%d", pc, inst, rm, rd0, rs1);
-					default: $display("pc=%016H: %08H, ???,       rm = %03B,  rd = x%d, rs1 = x%d", pc, inst, rm, rd0, rs1);
+					5'b00000: $display("pc=%016H: %08H, FCVT.D.S,  rm = %03B,  rd = f%d, rs1 = f%d", pc, inst, rm, rd0, rs1);
+					default: $display("pc=%016H: %08H, ???,       rm = %03B,  rd = f%d, rs1 = f%d", pc, inst, rm, rd0, rs1);
 					endcase
 				end
 				7'b11000_01: begin
 					case (rs2)
-					5'b00000: $display("pc=%016H: %08H, FCVT.W.D,  rm = %03B,  rd = x%d, rs1 = x%d", pc, inst, rm, rd0, rs1);
-					5'b00001: $display("pc=%016H: %08H, FCVT.WU.D, rm = %03B,  rd = x%d, rs1 = x%d", pc, inst, rm, rd0, rs1);
-					5'b00010: $display("pc=%016H: %08H, FCVT.L.D,  rm = %03B,  rd = x%d, rs1 = x%d", pc, inst, rm, rd0, rs1);
-					5'b00011: $display("pc=%016H: %08H, FCVT.LU.D, rm = %03B,  rd = x%d, rs1 = x%d", pc, inst, rm, rd0, rs1);
-					default: $display("pc=%016H: %08H, ???,       rm = %03B,  rd = x%d, rs1 = x%d", pc, inst, rm, rd0, rs1);
+					5'b00000: $display("pc=%016H: %08H, FCVT.W.D,  rm = %03B,  rd = x%d, rs1 = f%d", pc, inst, rm, rd0, rs1);
+					5'b00001: $display("pc=%016H: %08H, FCVT.WU.D, rm = %03B,  rd = x%d, rs1 = f%d", pc, inst, rm, rd0, rs1);
+					5'b00010: $display("pc=%016H: %08H, FCVT.L.D,  rm = %03B,  rd = x%d, rs1 = f%d", pc, inst, rm, rd0, rs1);
+					5'b00011: $display("pc=%016H: %08H, FCVT.LU.D, rm = %03B,  rd = x%d, rs1 = f%d", pc, inst, rm, rd0, rs1);
+					default: $display("pc=%016H: %08H, ???,       rm = %03B,  rd = x%d, rs1 = f%d", pc, inst, rm, rd0, rs1);
 					endcase
 				end
 				7'b11100_01: begin
 					case (rs2)
 					5'b00000: begin
 						case (funct3)
-						3'b000: $display("pc=%016H: %08H, FMV.X.D,  rd = x%d, rs1 = x%d", pc, inst, rd0, rs1);
-						3'b001: $display("pc=%016H: %08H, FCLASS.D, rd = x%d, rs1 = x%d", pc, inst, rd0, rs1);
+						3'b000: $display("pc=%016H: %08H, FMV.X.D,  rd = x%d, rs1 = f%d", pc, inst, rd0, rs1);
+						3'b001: $display("pc=%016H: %08H, FCLASS.D, rd = x%d, rs1 = x%f", pc, inst, rd0, rs1);
 						default: $display("pc=%016H: %08H, ???,      rd = x%d, rs1 = x%d", pc, inst, rd0, rs1);
 						endcase
 					end
@@ -550,26 +550,26 @@ class TRACE;
 				end
 				7'b10100_01: begin
 					case (funct3)
-					3'b010: $display("pc=%016H: %08H, FEQ.D,      rd = x%d, rs1 = x%d, rs2 = x%d", pc, inst, rd0, rs1, rs2);
-					3'b001: $display("pc=%016H: %08H, FLT.D,      rd = x%d, rs1 = x%d, rs2 = x%d", pc, inst, rd0, rs1, rs2);
-					3'b000: $display("pc=%016H: %08H, FLE.D,      rd = x%d, rs1 = x%d, rs2 = x%d", pc, inst, rd0, rs1, rs2);
-					default: $display("pc=%016H: %08H, ???,        rd = x%d, rs1 = x%d, rs2 = x%d", pc, inst, rd0, rs1, rs2);
+					3'b010: $display("pc=%016H: %08H, FEQ.D,      rd = x%d, rs1 = f%d, rs2 = f%d", pc, inst, rd0, rs1, rs2);
+					3'b001: $display("pc=%016H: %08H, FLT.D,      rd = x%d, rs1 = f%d, rs2 = f%d", pc, inst, rd0, rs1, rs2);
+					3'b000: $display("pc=%016H: %08H, FLE.D,      rd = x%d, rs1 = f%d, rs2 = f%d", pc, inst, rd0, rs1, rs2);
+					default: $display("pc=%016H: %08H, ???,        rd = x%d, rs1 = f%d, rs2 = f%d", pc, inst, rd0, rs1, rs2);
 					endcase
 				end
 				7'b11010_01: begin
 					case (rs2)
-					5'b00000: $display("pc=%016H: %08H, FCVT.D.W,  rm = %03B,  rd = x%d, rs1 = x%d", pc, inst, rm, rd0, rs1);
-					5'b00001: $display("pc=%016H: %08H, FCVT.D.WU, rm = %03B,  rd = x%d, rs1 = x%d", pc, inst, rm, rd0, rs1);
-					5'b00010: $display("pc=%016H: %08H, FCVT.D.L,  rm = %03B,  rd = x%d, rs1 = x%d", pc, inst, rm, rd0, rs1);
-					5'b00011: $display("pc=%016H: %08H, FCVT.D.LU, rm = %03B,  rd = x%d, rs1 = x%d", pc, inst, rm, rd0, rs1);
-					default: $display("pc=%016H: %08H, ???,       rm = %03B,  rd = x%d, rs1 = x%d", pc, inst, rm, rd0, rs1);
+					5'b00000: $display("pc=%016H: %08H, FCVT.D.W,  rm = %03B,  rd = f%d, rs1 = x%d", pc, inst, rm, rd0, rs1);
+					5'b00001: $display("pc=%016H: %08H, FCVT.D.WU, rm = %03B,  rd = f%d, rs1 = x%d", pc, inst, rm, rd0, rs1);
+					5'b00010: $display("pc=%016H: %08H, FCVT.D.L,  rm = %03B,  rd = f%d, rs1 = x%d", pc, inst, rm, rd0, rs1);
+					5'b00011: $display("pc=%016H: %08H, FCVT.D.LU, rm = %03B,  rd = f%d, rs1 = x%d", pc, inst, rm, rd0, rs1);
+					default: $display("pc=%016H: %08H, ???,       rm = %03B,  rd = f%d, rs1 = x%d", pc, inst, rm, rd0, rs1);
 					endcase
 				end
 				7'b11110_01: begin
 					case (rs2)
 					5'b00000: begin
 						case (funct3)
-						3'b000: $display("pc=%016H: %08H, FMV.D.X,    rd = x%d, rs1 = x%d", pc, inst, rd0, rs1);
+						3'b000: $display("pc=%016H: %08H, FMV.D.X,    rd = f%d, rs1 = x%d", pc, inst, rd0, rs1);
 						default: $display("pc=%016H: %08H, ???,        rd = x%d, rs1 = x%d", pc, inst, rd0, rs1);
 						endcase
 					end

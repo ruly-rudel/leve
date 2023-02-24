@@ -1388,6 +1388,7 @@ class ISS;
 						next_pc = pc + 'h4;
 					end
 					7'b0100000: begin	// SUB
+						$display("[INFO] SUB %8h - %8h", rs1_d, rs2_d);
 						rf.write(rd0, rs1_d - rs2_d);
 						next_pc = pc + 'h4;
 					end

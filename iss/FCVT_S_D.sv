@@ -109,18 +109,14 @@ class FCVT_S_D
 		is_inf_f = $signed(exp) > ((1<<F_EXP)-1) ? 1'b1 : 1'b0;
 		is_sub_f = $signed(exp) < 0              ? 1'b1 : 1'b0;
 		exp_f  = is_sub_f ? 8'h00 : exp[7:0];
-		flac_f = is_sub_f ? {1'b1, flac_d[D_FLAC-1:D_FLAC-F_FLAC+1]} >> exp_abs : flac_d[D_FLAC-1:D_FLAC-F_FLAC];
-		//exp_f  = exp[7:0];
-		//flac_f = flac_d[D_FLAC-1:D_FLAC-F_FLAC];
+		flac_f = is_sub_f ? {1'b1, flac_d[D_FLAC-1:D_FLAC-F_FLAC+1]} >> (exp_abs-1) : flac_d[D_FLAC-1:D_FLAC-F_FLAC];
 
 		out.val = 
 			is_zero_d ? {sign_f, {F_EXP{1'b0}},   {F_FLAC{1'b0}}} :		// +-0
 			is_nan_d  ? {1'b0,   {F_EXP+1{1'b1}}, {F_FLAC-1{1'b0}}} :	// NaN
 			is_inf_d  ? {sign_f, {F_EXP{1'b1}},   {F_FLAC{1'b0}}} :		// +-inf
 			is_inf_f  ? {sign_f, {F_EXP{1'b1}},   {F_FLAC{1'b0}}} :		// +-inf
-//			is_sub_f  ? {sign_f, {F_EXP{1'b0}},   {F_FLAC{1'b0}}} :		// +-sub -> +-0
 				    {sign_f, exp_f, flac_f};
-		$display("[INFO] FCVT.S.D %8h", out.val);
 
 		out.inexact = |flac_d[D_FLAC-F_FLAC-1:0] | is_inf_f | is_sub_f;
 		out.invalid = is_snan_d ? 1'b1 : 1'b0;
