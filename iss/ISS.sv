@@ -605,10 +605,10 @@ class ISS;
 		case(op)
 		2'b00: begin
 			case(c_funct3)
-			3'b000: begin			// C.ADDI4SPN
+			3'b000: begin
 				if(c_rdd == 5'h8 && c_addi4spn_imm == 10'h000) begin
 					next_pc = raise_illegal_instruction(pc, inst);
-				end else begin
+				end else begin		// C.ADDI4SPN
 					rs1_d = rf.read(5'h02);
 					tmp =  rs1_d + c_addi4spn_immw;
 					rf.write(c_rdd, tmp);
@@ -617,48 +617,48 @@ class ISS;
 			end
 			3'b001: begin			// C.FLD
 				rs1_d = rf.read(c_rs1d);
-				vat_racc(rs1_d + c_fld_immw, tmp, 2, pc, next_pc);
-				if(tmp != {`XLEN{1'b0}}) begin
-					fp.write(c_rdd, mem.read(tmp));
+				vat_racc(rs1_d + c_fld_immw, pa, 2, pc, next_pc);
+				if(pa != {`XLEN{1'b0}}) begin
+					fp.write(c_rdd, mem.read(pa));
 				end
 			end
 			3'b010: begin			// C.LW
 				rs1_d = rf.read(c_rs1d);
-				vat_racc(rs1_d + c_lw_immw, tmp, 2, pc, next_pc);
-				if(tmp != {`XLEN{1'b0}}) begin
-					rf.write32s(c_rdd, mem.read32(tmp));
+				vat_racc(rs1_d + c_lw_immw, pa, 2, pc, next_pc);
+				if(pa != {`XLEN{1'b0}}) begin
+					rf.write32s(c_rdd, mem.read32(pa));
 				end
 			end
 			3'b011: begin			// C.LD
 				rs1_d = rf.read(c_rs1d);
-				vat_racc(rs1_d + c_fld_immw, tmp, 2, pc, next_pc);
-				if(tmp != {`XLEN{1'b0}}) begin
-					rf.write(c_rdd, mem.read(tmp));
+				vat_racc(rs1_d + c_fld_immw, pa, 2, pc, next_pc);
+				if(pa != {`XLEN{1'b0}}) begin
+					rf.write(c_rdd, mem.read(pa));
 				end
 			end
 			3'b101: begin			// C.FSD
 				rs1_d = rf.read(c_rs1d);
-				vat_wacc(rs1_d + c_fld_immw, tmp, 2, pc, next_pc);
-				if(tmp != {`XLEN{1'b0}}) begin
-					mem.write(tmp, fp.read(c_rs2d));
+				vat_wacc(rs1_d + c_fld_immw, pa, 2, pc, next_pc);
+				if(pa != {`XLEN{1'b0}}) begin
+					mem.write(pa, fp.read(c_rs2d));
 				end
 			end
 			3'b110: begin			// C.SW
 				rs1_d = rf.read(c_rs1d);
 				rs2_d = rf.read(c_rs2d);
-				vat_wacc(rs1_d + c_lw_immw, tmp, 2, pc, next_pc);
-				if(tmp != {`XLEN{1'b0}}) begin
-					mem.write32(tmp, rs2_d[31:0]);
-					tohost_we  = tmp == mem.get_tohost() ? 1'b1 : 1'b0;	// for testbench hack
+				vat_wacc(rs1_d + c_lw_immw, pa, 2, pc, next_pc);
+				if(pa != {`XLEN{1'b0}}) begin
+					mem.write32(pa, rs2_d[31:0]);
+					tohost_we  = pa == mem.get_tohost() ? 1'b1 : 1'b0;	// for testbench hack
 					tohost     = rs2_d[31:0];
 				end
 			end
 			3'b111: begin			// C.SD
 				rs1_d = rf.read(c_rs1d);
 				rs2_d = rf.read(c_rs2d);
-				vat_wacc(rs1_d + c_fld_immw, tmp, 2, pc, next_pc);
-				if(tmp != {`XLEN{1'b0}}) begin
-					mem.write(tmp, rs2_d);
+				vat_wacc(rs1_d + c_fld_immw, pa, 2, pc, next_pc);
+				if(pa != {`XLEN{1'b0}}) begin
+					mem.write(pa, rs2_d);
 				end
 			end
 			default: next_pc = raise_illegal_instruction(pc, inst);
@@ -783,23 +783,23 @@ class ISS;
 			end
 			3'b001: begin
 				rs1_d = rf.read(5'h02);
-				vat_racc(rs1_d + c_fldsp_immw, tmp, 2, pc, next_pc);
-				if(tmp != {64{1'b0}}) begin
-					fp.write(c_rd, mem.read(tmp));
+				vat_racc(rs1_d + c_fldsp_immw, pa, 2, pc, next_pc);
+				if(pa != {64{1'b0}}) begin
+					fp.write(c_rd, mem.read(pa));
 				end
 			end
 			3'b010: begin					// C.LWSP
 				rs1_d = rf.read(5'h02);
-				vat_racc(rs1_d + c_lwsp_immw, tmp, 2, pc, next_pc);
-				if(tmp != {64{1'b0}}) begin
-					rf.write32s(c_rd, mem.read32(tmp));
+				vat_racc(rs1_d + c_lwsp_immw, pa, 2, pc, next_pc);
+				if(pa != {64{1'b0}}) begin
+					rf.write32s(c_rd, mem.read32(pa));
 				end
 			end
 			3'b011: begin					// C.LDSP
 				rs1_d = rf.read(5'h02);
-				vat_racc(rs1_d + c_fldsp_immw, tmp, 2, pc, next_pc);
-				if(tmp != {64{1'b0}}) begin
-					rf.write(c_rd, mem.read(tmp));
+				vat_racc(rs1_d + c_fldsp_immw, pa, 2, pc, next_pc);
+				if(pa != {64{1'b0}}) begin
+					rf.write(c_rd, mem.read(pa));
 				end
 			end
 			3'b100: begin
@@ -835,25 +835,25 @@ class ISS;
 			3'b101: begin					// C.FSDSP
 				rs1_d = rf.read(5'h02);
 				fp_rs2_d = fp.read(c_rs2);
-				vat_wacc(rs1_d + c_fsdsp_immw, tmp, 2, pc, next_pc);
-				if(tmp != {64{1'b0}}) begin
-					mem.write(tmp, fp_rs2_d);
+				vat_wacc(rs1_d + c_fsdsp_immw, pa, 2, pc, next_pc);
+				if(pa != {64{1'b0}}) begin
+					mem.write(pa, fp_rs2_d);
 				end
 			end
 			3'b110: begin					// C.SWSP
 				rs1_d = rf.read(5'h02);
 				rs2_d = rf.read(c_rs2);
-				vat_wacc(rs1_d + c_swsp_immw, tmp, 2, pc, next_pc);
-				if(tmp != {64{1'b0}}) begin
-					mem.write32(tmp, rs2_d[31:0]);
+				vat_wacc(rs1_d + c_swsp_immw, pa, 2, pc, next_pc);
+				if(pa != {64{1'b0}}) begin
+					mem.write32(pa, rs2_d[31:0]);
 				end
 			end
 			3'b111: begin					// C.SDSP
 				rs1_d = rf.read(5'h02);
 				rs2_d = rf.read(c_rs2);
-				vat_wacc(rs1_d + c_fsdsp_immw, tmp, 2, pc, next_pc);
-				if(tmp != {64{1'b0}}) begin
-					mem.write(tmp, rs2_d);
+				vat_wacc(rs1_d + c_fsdsp_immw, pa, 2, pc, next_pc);
+				if(pa != {64{1'b0}}) begin
+					mem.write(pa, rs2_d);
 				end
 			end
 			endcase
@@ -862,45 +862,45 @@ class ISS;
 			7'b00_000_11: begin	// LOAD: I type
 				case (funct3)
 				3'b000: begin			// LB
-					vat_racc(rs1_d + imm_iw, tmp, 4, pc, next_pc);
-					if(tmp != {64{1'b0}}) begin
-						rf.write8s(rd0, mem.read8(tmp));
+					vat_racc(rs1_d + imm_iw, pa, 4, pc, next_pc);
+					if(pa != {64{1'b0}}) begin
+						rf.write8s(rd0, mem.read8(pa));
 					end
 				end
 				3'b001: begin			// LH
-					vat_racc(rs1_d + imm_iw, tmp, 4, pc, next_pc);
-					if(tmp != {64{1'b0}}) begin
-						rf.write16s(rd0, mem.read16(tmp));
+					vat_racc(rs1_d + imm_iw, pa, 4, pc, next_pc);
+					if(pa != {64{1'b0}}) begin
+						rf.write16s(rd0, mem.read16(pa));
 					end
 				end
 				3'b010: begin			// LW
-					vat_racc(rs1_d + imm_iw, tmp, 4, pc, next_pc);
-					if(tmp != {64{1'b0}}) begin
-						rf.write32s(rd0, mem.read32(tmp));
+					vat_racc(rs1_d + imm_iw, pa, 4, pc, next_pc);
+					if(pa != {64{1'b0}}) begin
+						rf.write32s(rd0, mem.read32(pa));
 					end
 				end
 				3'b011: begin			// LD
-					vat_racc(rs1_d + imm_iw, tmp, 4, pc, next_pc);
-					if(tmp != {64{1'b0}}) begin
-						rf.write(rd0, mem.read(tmp));
+					vat_racc(rs1_d + imm_iw, pa, 4, pc, next_pc);
+					if(pa != {64{1'b0}}) begin
+						rf.write(rd0, mem.read(pa));
 					end
 				end
 				3'b100: begin			// LBU
-					vat_racc(rs1_d + imm_iw, tmp, 4, pc, next_pc);
-					if(tmp != {64{1'b0}}) begin
-						rf.write8u(rd0, mem.read8(tmp));
+					vat_racc(rs1_d + imm_iw, pa, 4, pc, next_pc);
+					if(pa != {64{1'b0}}) begin
+						rf.write8u(rd0, mem.read8(pa));
 					end
 				end
 				3'b101: begin			// LHU
-					vat_racc(rs1_d + imm_iw, tmp, 4, pc, next_pc);
-					if(tmp != {64{1'b0}}) begin
-						rf.write16u(rd0, mem.read16(tmp));
+					vat_racc(rs1_d + imm_iw, pa, 4, pc, next_pc);
+					if(pa != {64{1'b0}}) begin
+						rf.write16u(rd0, mem.read16(pa));
 					end
 				end
 				3'b110: begin			// LWU
-					vat_racc(rs1_d + imm_iw, tmp, 4, pc, next_pc);
-					if(tmp != {64{1'b0}}) begin
-						rf.write32u(rd0, mem.read32(tmp));
+					vat_racc(rs1_d + imm_iw, pa, 4, pc, next_pc);
+					if(pa != {64{1'b0}}) begin
+						rf.write32u(rd0, mem.read32(pa));
 					end
 				end
 				default: next_pc = raise_illegal_instruction(pc, inst);
@@ -910,30 +910,30 @@ class ISS;
 			7'b01_000_11: begin	// STORE: S type
 				case (funct3)
 				3'b000: begin			// SB
-					vat_wacc(rs1_d + imm_sw, tmp, 4, pc, next_pc);
-					if(tmp != {64{1'b0}}) begin
-						mem.write8(tmp, rs2_d[7:0]);
+					vat_wacc(rs1_d + imm_sw, pa, 4, pc, next_pc);
+					if(pa != {64{1'b0}}) begin
+						mem.write8(pa, rs2_d[7:0]);
 					end
 				end
 				3'b001: begin			// SH
-					vat_wacc(rs1_d + imm_sw, tmp, 4, pc, next_pc);
-					if(tmp != {64{1'b0}}) begin
-						mem.write16(tmp, rs2_d[15:0]);
+					vat_wacc(rs1_d + imm_sw, pa, 4, pc, next_pc);
+					if(pa != {64{1'b0}}) begin
+						mem.write16(pa, rs2_d[15:0]);
 					end
 				end
 				3'b010: begin			// SW
-					vat_wacc(rs1_d + imm_sw, tmp, 4, pc, next_pc);
-					if(tmp != {64{1'b0}}) begin
-						mem.write32(tmp, rs2_d[31:0]);
-						tohost_we  = tmp == mem.get_tohost() ? 1'b1 : 1'b0;	// for testbench hack
+					vat_wacc(rs1_d + imm_sw, pa, 4, pc, next_pc);
+					if(pa != {64{1'b0}}) begin
+						mem.write32(pa, rs2_d[31:0]);
+						tohost_we  = pa == mem.get_tohost() ? 1'b1 : 1'b0;	// for testbench hack
 						tohost     = rs2_d[31:0];
 					end
 				end
 				3'b011: begin			// SD
-					vat_wacc(rs1_d + imm_sw, tmp, 4, pc, next_pc);
-					if(tmp != {64{1'b0}}) begin
-						mem.write(tmp, rs2_d);
-						tohost_we  = tmp == mem.get_tohost() ? 1'b1 : 1'b0;	// for testbench hack
+					vat_wacc(rs1_d + imm_sw, pa, 4, pc, next_pc);
+					if(pa != {64{1'b0}}) begin
+						mem.write(pa, rs2_d);
+						tohost_we  = pa == mem.get_tohost() ? 1'b1 : 1'b0;	// for testbench hack
 						tohost     = rs2_d[31:0];
 					end
 				end
@@ -984,15 +984,15 @@ class ISS;
 			7'b00_001_11: begin	// LOAD-FP
 				case (funct3)
 				3'b010: begin			// FLW
-					vat_racc(rs1_d + imm_iw, tmp, 4, pc, next_pc);
-					if(tmp != {64{1'b0}}) begin
-						fp.write32u(rd0, mem.read32(tmp));
+					vat_racc(rs1_d + imm_iw, pa, 4, pc, next_pc);
+					if(pa != {64{1'b0}}) begin
+						fp.write32u(rd0, mem.read32(pa));
 					end
 				end
 				3'b011: begin			// FLD
-					vat_racc(rs1_d + imm_iw, tmp, 4, pc, next_pc);
-					if(tmp != {64{1'b0}}) begin
-						fp.write(rd0, mem.read(tmp));
+					vat_racc(rs1_d + imm_iw, pa, 4, pc, next_pc);
+					if(pa != {64{1'b0}}) begin
+						fp.write(rd0, mem.read(pa));
 					end
 				end
 				default: next_pc = raise_illegal_instruction(pc, inst);
@@ -1002,15 +1002,15 @@ class ISS;
 			7'b01_001_11: begin	// STORE-FP
 				case (funct3)
 				3'b010: begin			// FSW
-					vat_wacc(rs1_d + imm_sw, tmp, 4, pc, next_pc);
-					if(tmp != {64{1'b0}}) begin
-						mem.write32(tmp, fp_rs2_d[31:0]);
+					vat_wacc(rs1_d + imm_sw, pa, 4, pc, next_pc);
+					if(pa != {64{1'b0}}) begin
+						mem.write32(pa, fp_rs2_d[31:0]);
 					end
 				end
 				3'b011: begin			// FSD
-					vat_wacc(rs1_d + imm_sw, tmp, 4, pc, next_pc);
-					if(tmp != {64{1'b0}}) begin
-						mem.write(tmp, fp_rs2_d);
+					vat_wacc(rs1_d + imm_sw, pa, 4, pc, next_pc);
+					if(pa != {64{1'b0}}) begin
+						mem.write(pa, fp_rs2_d);
 					end
 				end
 				default: next_pc = raise_illegal_instruction(pc, inst);
@@ -1090,19 +1090,19 @@ class ISS;
 					5'b00010: begin		// LR.W
 						lrsc_valid = 1'b1;
 						lrsc_addr  = rs1_d;
-						vat_racc(rs1_d, tmp, 4, pc, next_pc);
-						if(tmp != {64{1'b0}}) begin
-							rf.write32s(rd0, mem.read32(tmp));
+						vat_racc(rs1_d, pa, 4, pc, next_pc);
+						if(pa != {64{1'b0}}) begin
+							rf.write32s(rd0, mem.read32(pa));
 						end
 					end
 					5'b00011: begin		// SC.W
 						if(lrsc_valid && lrsc_addr == rs1_d) begin
 							lrsc_valid = 1'b0;
-							vat_rwacc(rs1_d, tmp, 4, pc, next_pc);
-							if(tmp != {64{1'b0}}) begin
-								tmp32 = mem.read32(tmp);
+							vat_rwacc(rs1_d, pa, 4, pc, next_pc);
+							if(pa != {64{1'b0}}) begin
+								tmp32 = mem.read32(pa);
 								rf.write(rd0, {`XLEN{1'b0}});
-								mem.write32(tmp, rs2_d[31:0]);
+								mem.write32(pa, rs2_d[31:0]);
 							end
 						end else begin
 							rf.write(rd0, {{`XLEN-1{1'b0}}, 1'b1});
@@ -1110,74 +1110,74 @@ class ISS;
 						end
 					end
 					5'b00001: begin		// AMOSWAP.W
-						vat_rwacc(rs1_d, tmp, 4, pc, next_pc);
-						if(tmp != {64{1'b0}}) begin
-							rf.write32s(rd0, mem.read32(rs1_d));
-							mem.write32(rs1_d, rs2_d[31:0]);
+						vat_rwacc(rs1_d, pa, 4, pc, next_pc);
+						if(pa != {64{1'b0}}) begin
+							rf.write32s(rd0, mem.read32(pa));
+							mem.write32(pa, rs2_d[31:0]);
 						end
 					end
 					5'b00000: begin		// AMOADD.W
-						vat_rwacc(rs1_d, tmp, 4, pc, next_pc);
-						if(tmp != {64{1'b0}}) begin
-							tmp32 = mem.read32(tmp);
+						vat_rwacc(rs1_d, pa, 4, pc, next_pc);
+						if(pa != {64{1'b0}}) begin
+							tmp32 = mem.read32(pa);
 							rf.write32s(rd0, tmp32);
-							mem.write32(tmp, rs2_d[31:0] + tmp32);
+							mem.write32(pa, rs2_d[31:0] + tmp32);
 						end
 					end
 					5'b00100: begin		// AMOXOR.W
-						vat_rwacc(rs1_d, tmp, 4, pc, next_pc);
-						if(tmp != {64{1'b0}}) begin
-							tmp32 = mem.read32(tmp);
+						vat_rwacc(rs1_d, pa, 4, pc, next_pc);
+						if(pa != {64{1'b0}}) begin
+							tmp32 = mem.read32(pa);
 							rf.write32s(rd0, tmp32);
-							mem.write32(tmp, rs2_d[31:0] ^ tmp32);
+							mem.write32(pa, rs2_d[31:0] ^ tmp32);
 						end
 					end
 					5'b01100: begin		// AMOAND.W
-						vat_rwacc(rs1_d, tmp, 4, pc, next_pc);
-						if(tmp != {64{1'b0}}) begin
-							tmp32 = mem.read32(tmp);
+						vat_rwacc(rs1_d, pa, 4, pc, next_pc);
+						if(pa != {64{1'b0}}) begin
+							tmp32 = mem.read32(pa);
 							rf.write32s(rd0, tmp32);
-							mem.write32(tmp, rs2_d[31:0] & tmp32);
+							mem.write32(pa, rs2_d[31:0] & tmp32);
 						end
 					end
 					5'b01000: begin		// AMOOR.W
-						vat_rwacc(rs1_d, tmp, 4, pc, next_pc);
-						if(tmp != {64{1'b0}}) begin
-							tmp32 = mem.read32(tmp);
+						vat_rwacc(rs1_d, pa, 4, pc, next_pc);
+						if(pa != {64{1'b0}}) begin
+							tmp32 = mem.read32(pa);
 							rf.write32s(rd0, tmp32);
-							mem.write32(tmp, rs2_d[31:0] | tmp32);
+							mem.write32(pa, rs2_d[31:0] | tmp32);
 						end
 					end
 					5'b10000: begin		// AMOMIN.W
-						vat_rwacc(rs1_d, tmp, 4, pc, next_pc);
-						if(tmp != {64{1'b0}}) begin
-							tmp32 = mem.read32(tmp);
+						vat_rwacc(rs1_d, pa, 4, pc, next_pc);
+						if(pa != {64{1'b0}}) begin
+							tmp32 = mem.read32(pa);
 							rf.write32s(rd0, tmp32);
-							mem.write32(tmp, $signed(rs2_d[31:0]) < $signed(tmp32) ? rs2_d[31:0] : tmp32);
+							mem.write32(pa, $signed(rs2_d[31:0]) < $signed(tmp32) ? rs2_d[31:0] : tmp32);
 						end
 					end
 					5'b10100: begin		// AMOMAX.W
-						vat_rwacc(rs1_d, tmp, 4, pc, next_pc);
-						if(tmp != {64{1'b0}}) begin
-							tmp32 = mem.read32(tmp);
+						vat_rwacc(rs1_d, pa, 4, pc, next_pc);
+						if(pa != {64{1'b0}}) begin
+							tmp32 = mem.read32(pa);
 							rf.write32s(rd0, tmp32);
-							mem.write32(tmp, $signed(rs2_d[31:0]) > $signed(tmp32) ? rs2_d[31:0] : tmp32);
+							mem.write32(pa, $signed(rs2_d[31:0]) > $signed(tmp32) ? rs2_d[31:0] : tmp32);
 						end
 					end
 					5'b11000: begin		// AMOMINU.W
-						vat_rwacc(rs1_d, tmp, 4, pc, next_pc);
-						if(tmp != {64{1'b0}}) begin
-							tmp32 = mem.read32(tmp);
+						vat_rwacc(rs1_d, pa, 4, pc, next_pc);
+						if(pa != {64{1'b0}}) begin
+							tmp32 = mem.read32(pa);
 							rf.write32s(rd0, tmp32);
-							mem.write32(tmp, rs2_d[31:0] < tmp32 ? rs2_d[31:0] : tmp32);
+							mem.write32(pa, rs2_d[31:0] < tmp32 ? rs2_d[31:0] : tmp32);
 						end
 					end
 					5'b11100: begin		// AMOMAXU.W
-						vat_rwacc(rs1_d, tmp, 4, pc, next_pc);
-						if(tmp != {64{1'b0}}) begin
-							tmp32 = mem.read32(tmp);
+						vat_rwacc(rs1_d, pa, 4, pc, next_pc);
+						if(pa != {64{1'b0}}) begin
+							tmp32 = mem.read32(pa);
 							rf.write32s(rd0, tmp32);
-							mem.write32(tmp, rs2_d[31:0] > tmp32 ? rs2_d[31:0] : tmp32);
+							mem.write32(pa, rs2_d[31:0] > tmp32 ? rs2_d[31:0] : tmp32);
 						end
 					end
 					default: next_pc = raise_illegal_instruction(pc, inst);
