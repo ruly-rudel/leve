@@ -56,6 +56,15 @@ class FLOAT
 		return {F_EXP{1'b1}};
 	endfunction
 
+	function [F_EXP:0] first_1_x2(input [(F_FLAC+1)*2-1:0] in);
+		for(integer i = 0; i < (F_FLAC + 1) * 2 - 1; i = i + 1) begin
+			if(|(1 << ((F_FLAC + 1) * 2 - 1 - i) & in)) begin
+				return i[F_EXP:0];
+			end
+		end
+		return {F_EXP+1{1'b1}};
+	endfunction
+
 	function last_n_dirty(input [F_FLAC-1:0] in, input [F_EXP-1:0] mag_shift);
 		bit [F_FLAC-1:0]	mask = ('b1 << mag_shift) - 'b1;
 		return |(in & mask);
@@ -220,9 +229,13 @@ class FLOAT
 		bit			mul_sign;
 		bit [F_EXP+1:0]		mul_exp;
 		bit [(F_FLAC+1)*2-1:0]	mul_flac;
+
+		bit [F_EXP:0]		first_1_shift;
 	
 		bit [F_EXP+1:0]		norm_exp;
 		bit [(F_FLAC+1)*2-1:0]	norm_flac;
+
+		bit [F_EXP+1:0]		norm_exp_abs;
 	
 		bit [F_EXP+1:0]		round_exp;
 		bit [F_FLAC+1:0]	round_flac;
@@ -235,9 +248,17 @@ class FLOAT
 		// multiply
 		mul_sign  = sign_1 ^ sign_2;
 		mul_exp   = {1'h0, exp_1} + {1'h0, exp_2} - ((1 << (F_EXP -1)) - 1);
-		mul_flac  = {1'b1, flac_1} * {1'b1, flac_2};
+		mul_flac  = {~is_sub_1, flac_1} * {~is_sub_2, flac_2};
 	
+		first_1_shift = first_1_x2(mul_flac);
+
+		norm_exp  = mul_exp + 'b1 - first_1_shift;
+		norm_flac = mul_flac << first_1_shift;
+		norm_exp_abs = norm_exp[F_EXP+1] ? ~norm_exp + 'b1 : norm_exp;
+		$display("[INFO] mul norm_exp %d, first_1 %d", $signed(norm_exp), first_1_shift);
+
 		// normalize
+		/*
 		if(mul_flac[(F_FLAC+1)*2-1]) begin
 			norm_exp  = mul_exp + 'b1;
 			norm_flac = mul_flac;
@@ -248,10 +269,13 @@ class FLOAT
 			$display("FMUL internal error.");
 			$finish;
 		end
+		*/
 	
 		// round
-		round_exp  = norm_exp;
-		round_flac = norm_flac[(F_FLAC+1)*2-1:(F_FLAC+1)*2-F_FLAC-1] + {{F_FLAC{1'b0}}, norm_flac[(F_FLAC+1)*2-F_FLAC-2]};
+		round_exp  = norm_exp[F_EXP+1] ? {F_EXP+2{1'b0}} : norm_exp;
+		round_flac = norm_exp[F_EXP+1] ? 
+			(norm_flac[(F_FLAC+1)*2-1:(F_FLAC+1)*2-F_FLAC-1] + {{F_FLAC{1'b0}}, norm_flac[(F_FLAC+1)*2-F_FLAC-2]}) >> norm_exp_abs : 
+			norm_flac[(F_FLAC+1)*2-1:(F_FLAC+1)*2-F_FLAC-1] + {{F_FLAC{1'b0}}, norm_flac[(F_FLAC+1)*2-F_FLAC-2]};
 
 		if(round_flac[F_FLAC+1]) begin
 			round_exp = norm_exp + 'b1;
@@ -268,6 +292,9 @@ class FLOAT
 						    ? {mul_sign, {F_EXP{1'b1}}, {F_FLAC{1'b0}}} :
 			round_exp[F_EXP+1]          ? {mul_sign, {F_EXP{1'b0}}, round_flac[F_FLAC:1]} :		// subnormal number
 						      {mul_sign, round_exp[F_EXP-1:0], round_flac[F_FLAC-1:0]};
+
+		$display("[INFO] mul is_zero_1 %b, is_zero_2 %b", is_zero_1, is_zero_2);
+		$display("[INFO] mul a x b: %8h x %8h = %8h", in1, in2, mul_f);
 	
 		out.val = mul_f;
 		out.invalid = is_inf_1  && is_zero_2	? 1'b0 :
