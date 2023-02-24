@@ -148,9 +148,12 @@ class FDIV_SQRT
 		bit [F_WIDTH-1+EXTRA:0]	xn;
 		bit [F_WIDTH-1+EXTRA:0]	xn_half;
 		bit [F_EXP-1:0]		xn_half_exp;
+		bit [F_WIDTH-1+EXTRA:0]	in1_half;
+		bit [F_EXP-1:0]		in1_half_exp;
 		S			xn_dbl;
 		S			xn_dbl_in1;
 		bit [F_WIDTH-1+EXTRA:0]	three;
+		bit [F_WIDTH-1+EXTRA:0]	three_half;
 		S			three_minus_xn_dbl_in1;
 		S			xnp1;
 		S			sqrt_o;
@@ -158,7 +161,7 @@ class FDIV_SQRT
 
 		// parse
 		parse(in1, in1);
-		$display("[INFO] sqrt in1 = %1b.%2h.%6h", sign_1, exp_1, flac_1);
+		//$display("[INFO] sqrt in1 = %1b.%2h.%6h", sign_1, exp_1, flac_1);
 
 		// newton's method
 		// 1. initial value
@@ -173,8 +176,9 @@ class FDIV_SQRT
 		xn            = {sign_1, bias_inv_half_exp[F_EXP-1:0], {F_FLAC+EXTRA{1'b0}}};
 `endif
 		// 2. iteration
-		for(int i = 0; i < 6; i = i + 1) begin
-			$display("[INFO] sqrt xn = %1b.%2h.%6h", xn[F_WIDTH-1+EXTRA], xn[F_WIDTH-2+EXTRA:F_FLAC+EXTRA], xn[F_FLAC-1+EXTRA:0]);
+		for(int i = 0; i < 8; i = i + 1) begin
+			//$display("[INFO] sqrt xn = %1b.%2h.%6h", xn[F_WIDTH-1+EXTRA], xn[F_WIDTH-2+EXTRA:F_FLAC+EXTRA], xn[F_FLAC-1+EXTRA:0]);
+			/*
 			xn_half_exp = xn[F_WIDTH-2+EXTRA:F_FLAC+EXTRA] - 'b1;
 			xn_half = {xn[F_WIDTH-1+EXTRA], xn_half_exp, xn[F_FLAC-1+EXTRA:0]};
 			float.fmul(xn, xn, xn_dbl);
@@ -182,6 +186,15 @@ class FDIV_SQRT
 			three = {1'b0, {1'b1, {F_EXP-1{1'b0}}}, {1'b1, {F_FLAC-1+EXTRA{1'b0}}}};
 			float.fsub(three, xn_dbl_in1.val, three_minus_xn_dbl_in1);
 			float.fmul(xn_half, three_minus_xn_dbl_in1.val, xnp1);
+			*/
+
+			in1_half_exp = exp_1 - 'b1;
+			in1_half = {sign_1, in1_half_exp, flac_1, {EXTRA{1'b0}}};
+			float.fmul(xn, xn, xn_dbl);
+			float.fmul(xn_dbl.val, in1_half, xn_dbl_in1);
+			three_half = {1'b0, {1'b0, {F_EXP-1{1'b1}}}, {1'b1, {F_FLAC-1+EXTRA{1'b0}}}};
+			float.fsub(three_half, xn_dbl_in1.val, three_minus_xn_dbl_in1);
+			float.fmul(xn, three_minus_xn_dbl_in1.val, xnp1);
 
 			xn = xnp1.val;
 		end
@@ -202,7 +215,7 @@ class FDIV_SQRT
 		out.invalid = is_nan_1 || is_num_1 && sign_1 ? 1'b1 : sqrt_o.invalid;
 		out.inexact = is_nan_1 || is_num_1 && sign_1 ? 1'b0 :
 			double_sqrt_o.val[F_WIDTH-1+EXTRA:EXTRA] == in1 ? double_sqrt_o.inexact : 1'b1;
-		$display("[INFO] sqrt^2  = %1b.%2h.%6h", double_sqrt_o.val[F_WIDTH-1+EXTRA], double_sqrt_o.val[F_WIDTH-1+EXTRA-1:F_FLAC+EXTRA], double_sqrt_o.val[F_FLAC+EXTRA-1:EXTRA]);
+		//$display("[INFO] sqrt^2  = %1b.%2h.%6h", double_sqrt_o.val[F_WIDTH-1+EXTRA], double_sqrt_o.val[F_WIDTH-1+EXTRA-1:F_FLAC+EXTRA], double_sqrt_o.val[F_FLAC+EXTRA-1:EXTRA]);
 	endtask
 
 endclass : FDIV_SQRT

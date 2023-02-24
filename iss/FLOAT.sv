@@ -225,7 +225,7 @@ class FLOAT
 		bit [(F_FLAC+1)*2-1:0]	norm_flac;
 	
 		bit [F_EXP+1:0]		round_exp;
-		bit [F_FLAC:0]		round_flac;
+		bit [F_FLAC+1:0]	round_flac;
 	
 		bit [F_WIDTH-1:0]	mul_f;
 
@@ -245,13 +245,18 @@ class FLOAT
 			norm_exp  = mul_exp;
 			norm_flac = {mul_flac[(F_FLAC+1)*2-2:0], 1'b0};
 		end else begin
-			norm_exp  = mul_exp + 1'b1;
-			norm_flac = mul_flac;
+			$display("FMUL internal error.");
+			$finish;
 		end
 	
 		// round
 		round_exp  = norm_exp;
 		round_flac = norm_flac[(F_FLAC+1)*2-1:(F_FLAC+1)*2-F_FLAC-1] + {{F_FLAC{1'b0}}, norm_flac[(F_FLAC+1)*2-F_FLAC-2]};
+
+		if(round_flac[F_FLAC+1]) begin
+			round_exp = norm_exp + 'b1;
+			round_flac = round_flac >> 1;
+		end
 
 		// result
 		mul_f = is_nan_1  || is_nan_2       ? {1'b0, {F_EXP+1{1'b1}}, {F_FLAC-1{1'b0}}} :		// NaN   * any   = NaN, any * NaN = NaN
