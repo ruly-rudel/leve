@@ -514,7 +514,16 @@ class ISS;
 		// 1. instruction fetch
 		virtual_address_translation(pc, `PTE_X, pc, tmp, trap_pc);
 		if(tmp != {64{1'b0}}) begin
-			inst   = mem.read32(tmp);
+			inst[15:0]  = mem.read16(tmp);
+			trace.print(pc, inst);
+		end else begin
+			next_pc     = trap_pc;
+			return ;
+		end
+
+		virtual_address_translation(pc + 'h2, `PTE_X, pc, tmp, trap_pc);
+		if(tmp != {64{1'b0}}) begin
+			inst[31:16] = mem.read16(tmp);
 			trace.print(pc, inst);
 		end else begin
 			next_pc     = trap_pc;
