@@ -19,7 +19,11 @@ class REG_FILE_FP;
 	endfunction
 
 	function [32-1:0] read32 (input [4:0] addr);
-		return reg_file[addr][31:0];
+		if(&reg_file[addr][`FLEN-1:32]) begin
+			return reg_file[addr][31:0];
+		end else begin			// illegal NaN Boxing
+			return 32'h7fc0_0000;	// canonical NaN
+		end
 	endfunction
 endclass : REG_FILE_FP;
 

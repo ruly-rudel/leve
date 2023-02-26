@@ -458,7 +458,7 @@ class TRACE;
 					case (rs2)
 					5'b00000: begin
 						case (funct3)
-						3'b000: $display("pc=%016H: %08H, FMV.X.W,  rd = f%d, rs1 = x%d", pc, inst, rd0, rs1);
+						3'b000: $display("pc=%016H: %08H, FMV.X.W,  rd = x%d, rs1 = f%d", pc, inst, rd0, rs1);
 						3'b001: $display("pc=%016H: %08H, FCLASS.W, rd = x%d, rs1 = f%d", pc, inst, rd0, rs1);
 						default: $display("pc=%016H: %08H, ???,      rd = x%d, rs1 = x%d", pc, inst, rd0, rs1);
 						endcase
@@ -487,7 +487,7 @@ class TRACE;
 					case (rs2)
 					5'b00000: begin
 						case (funct3)
-						3'b000: $display("pc=%016H: %08H, FMV.W.X,    rd = x%d, rs1 = f%d", pc, inst, rd0, rs1);
+						3'b000: $display("pc=%016H: %08H, FMV.W.X,    rd = f%d, rs1 = x%d", pc, inst, rd0, rs1);
 						default: $display("pc=%016H: %08H, ???,        rd = x%d, rs1 = x%d", pc, inst, rd0, rs1);
 						endcase
 					end
@@ -541,7 +541,7 @@ class TRACE;
 					5'b00000: begin
 						case (funct3)
 						3'b000: $display("pc=%016H: %08H, FMV.X.D,  rd = x%d, rs1 = f%d", pc, inst, rd0, rs1);
-						3'b001: $display("pc=%016H: %08H, FCLASS.D, rd = x%d, rs1 = x%f", pc, inst, rd0, rs1);
+						3'b001: $display("pc=%016H: %08H, FCLASS.D, rd = x%d, rs1 = f%d", pc, inst, rd0, rs1);
 						default: $display("pc=%016H: %08H, ???,      rd = x%d, rs1 = x%d", pc, inst, rd0, rs1);
 						endcase
 					end

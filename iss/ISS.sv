@@ -1510,18 +1510,24 @@ class ISS;
 
 				case(funct7)
 				7'b00000_00: begin		// FADD.S
+						fp_rs1_d[31:0] = fp.read32(rs1);
+						fp_rs2_d[31:0] = fp.read32(rs2);
 						float.fadd(fp_rs1_d[31:0], fp_rs2_d[31:0], out);
 						fp.write32u(rd0, out.val);
 						csr_c.set_fflags({out.invalid, 3'h0, out.inexact});
 						next_pc = pc + 'h4;
 				end
 				7'b00001_00: begin		// FSUB.S
+						fp_rs1_d[31:0] = fp.read32(rs1);
+						fp_rs2_d[31:0] = fp.read32(rs2);
 						float.fsub(fp_rs1_d[31:0], fp_rs2_d[31:0], out);
 						fp.write32u(rd0, out.val);
 						csr_c.set_fflags({out.invalid, 3'h0, out.inexact});
 						next_pc = pc + 'h4;
 				end
 				7'b00010_00: begin		// FMUL.S
+						fp_rs1_d[31:0] = fp.read32(rs1);
+						fp_rs2_d[31:0] = fp.read32(rs2);
 						float.fmul(fp_rs1_d[31:0], fp_rs2_d[31:0], out);
 						fp.write32u(rd0, out.val);
 						csr_c.set_fflags({out.invalid, 3'h0, out.inexact});
@@ -1529,6 +1535,8 @@ class ISS;
 				end
 				7'b00011_00: begin		// FDIV.S
 						float_d_t	fdout;
+						fp_rs1_d[31:0] = fp.read32(rs1);
+						fp_rs2_d[31:0] = fp.read32(rs2);
 						float_fdiv.fdiv(fp_rs1_d[31:0], fp_rs2_d[31:0], out);
 						fp.write32u(rd0, out.val);
 						csr_c.set_fflags({out.invalid, 3'h0, out.inexact});
@@ -1537,6 +1545,7 @@ class ISS;
 				7'b01011_00: begin
 					case (rs2)
 					5'b00000: begin		// FSQRT.S
+						fp_rs1_d[31:0] = fp.read32(rs1);
 						float_fdiv.fsqrt(fp_rs1_d[31:0], out);
 						fp.write32u(rd0, out.val);
 						csr_c.set_fflags({out.invalid, 3'h0, out.inexact});
@@ -1548,15 +1557,20 @@ class ISS;
 				7'b00100_00: begin
 					case (funct3)
 					3'b000: begin		// FSGNJ.S
-						$display("[INFO] FSGNJ.S: %08h, %08h", fp_rs1_d[31:0], fp_rs2_d[31:0]);
+						fp_rs1_d[31:0] = fp.read32(rs1);
+						fp_rs2_d[31:0] = fp.read32(rs2);
 						fp.write32u(rd0, {fp_rs2_d[31], fp_rs1_d[30:0]});
 						next_pc = pc + 'h4;
 					end
 					3'b001: begin		// FSGNJN.S
+						fp_rs1_d[31:0] = fp.read32(rs1);
+						fp_rs2_d[31:0] = fp.read32(rs2);
 						fp.write32u(rd0, {~fp_rs2_d[31], fp_rs1_d[30:0]});
 						next_pc = pc + 'h4;
 					end
 					3'b010: begin		// FSGNJX.S
+						fp_rs1_d[31:0] = fp.read32(rs1);
+						fp_rs2_d[31:0] = fp.read32(rs2);
 						fp.write32u(rd0, {fp_rs1_d[31] ^ fp_rs2_d[31], fp_rs1_d[30:0]});
 						next_pc = pc + 'h4;
 					end
@@ -1566,12 +1580,16 @@ class ISS;
 				7'b00101_00: begin
 					case (funct3)
 					3'b000: begin		// FMIN.S
+						fp_rs1_d[31:0] = fp.read32(rs1);
+						fp_rs2_d[31:0] = fp.read32(rs2);
 						float.fmin(fp_rs1_d[31:0], fp_rs2_d[31:0], out);
 						fp.write32u(rd0, out.val);
 						csr_c.set_fflags({out.invalid, 3'h0, out.inexact});
 						next_pc = pc + 'h4;
 					end
 					3'b001: begin		// FMAX.S
+						fp_rs1_d[31:0] = fp.read32(rs1);
+						fp_rs2_d[31:0] = fp.read32(rs2);
 						float.fmax(fp_rs1_d[31:0], fp_rs2_d[31:0], out);
 						fp.write32u(rd0, out.val);
 						csr_c.set_fflags({out.invalid, 3'h0, out.inexact});
@@ -1594,24 +1612,28 @@ class ISS;
 				7'b11000_00: begin
 					case (rs2)
 					5'b00000: begin		// FCVT.W.S
+							fp_rs1_d[31:0] = fp.read32(rs1);
 							fcvt_w_s.int_from_real(fp_rs1_d[31:0], wout);
 							rf.write32s(rd0, wout.val);
 							csr_c.set_fflags({wout.invalid, 3'h0, wout.inexact});
 							next_pc = pc + 'h4;
 					end
 					5'b00001: begin		// FCVT.WU.S
+							fp_rs1_d[31:0] = fp.read32(rs1);
 							fcvt_w_s.uint_from_real(fp_rs1_d[31:0], wout);
 							rf.write32s(rd0, wout.val);
 							csr_c.set_fflags({wout.invalid, 3'h0, wout.inexact});
 							next_pc = pc + 'h4;
 					end
 					5'b00010: begin		// FCVT.L.S
+							fp_rs1_d[31:0] = fp.read32(rs1);
 							fcvt_l_s.int_from_real(fp_rs1_d[31:0], lout);
 							rf.write(rd0, lout.val);
 							csr_c.set_fflags({lout.invalid, 3'h0, lout.inexact});
 							next_pc = pc + 'h4;
 					end
 					5'b00011: begin		// FCVT.LU.S
+							fp_rs1_d[31:0] = fp.read32(rs1);
 							fcvt_l_s.uint_from_real(fp_rs1_d[31:0], lout);
 							rf.write(rd0, lout.val);
 							csr_c.set_fflags({lout.invalid, 3'h0, lout.inexact});
@@ -1641,18 +1663,24 @@ class ISS;
 				7'b10100_00: begin
 					case (funct3)
 					3'b010: begin 		// FEQ.S
+							fp_rs1_d[31:0] = fp.read32(rs1);
+							fp_rs2_d[31:0] = fp.read32(rs2);
 							float.feq(fp_rs1_d[31:0], fp_rs2_d[31:0], out);
 							rf.write(rd0, {{32{1'b0}}, out.val});
 							csr_c.set_fflags({out.invalid, 3'h0, out.inexact});
 							next_pc = pc + 'h4;
 					end
 					3'b001: begin 		// FLT.S
+							fp_rs1_d[31:0] = fp.read32(rs1);
+							fp_rs2_d[31:0] = fp.read32(rs2);
 							float.flt(fp_rs1_d[31:0], fp_rs2_d[31:0], out);
 							rf.write(rd0, {{32{1'b0}}, out.val});
 							csr_c.set_fflags({out.invalid, 3'h0, out.inexact});
 							next_pc = pc + 'h4;
 					end
 					3'b000: begin		// FLE.S
+							fp_rs1_d[31:0] = fp.read32(rs1);
+							fp_rs2_d[31:0] = fp.read32(rs2);
 							float.fle(fp_rs1_d[31:0], fp_rs2_d[31:0], out);
 							rf.write(rd0, {{32{1'b0}}, out.val});
 							csr_c.set_fflags({out.invalid, 3'h0, out.inexact});
@@ -1695,7 +1723,7 @@ class ISS;
 					5'b00000: begin
 						case (funct3)
 						3'b000: begin	// FMV.W.X
-							fp.write(rd0, rs1_d);
+							fp.write32u(rd0, rs1_d[31:0]);
 							next_pc = pc + 'h4;
 						end
 						default: next_pc = raise_illegal_instruction(pc, inst);
