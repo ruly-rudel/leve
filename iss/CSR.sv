@@ -220,7 +220,7 @@ class CSR;
 			end
 			12'h302: return medeleg;
 			12'h305: return mtvec;
-			12'h341: return {mepc[`XLEN-1:2], 2'h0};
+			12'h341: return {mepc[`XLEN-1:1], 1'b0};
 			12'h342: return mcause;
 			12'h343: return mtval;
 			12'h100: begin
@@ -228,7 +228,7 @@ class CSR;
 					xs, fs, 2'h0, vs, spp, 1'b0, ube, spie, 3'h0, sie, 1'b0};
 			end
 			12'h105: return stvec;
-			12'h141: return {sepc[`XLEN-1:2], 2'h0};
+			12'h141: return {sepc[`XLEN-1:1], 1'b0};
 			12'h142: return scause;
 			12'h143: return stval;
 			default: return csr_reg[addr];
@@ -304,7 +304,7 @@ class CSR;
 		mode = {1'b0, spp};
 		spp = 1'b0;	// mode U
 		print_mode();
-		return {sepc[`MXLEN-1:2], 2'h0};
+		return {sepc[`MXLEN-1:1], 1'b0};
 	endfunction
 
 	function void print_mode();
