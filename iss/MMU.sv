@@ -4,6 +4,7 @@
 `include "CSR.sv"
 `include "PMA.sv"
 `include "ELF.sv"
+`include "FRAG_MEMORY.sv"
 
 `define PTE_VB	0
 `define PTE_RB	1
@@ -26,9 +27,9 @@
 `define PTE_D	8'h80
 
 class MMU;
-	CSR	csr_c;
-	PMA	pma;
-	ELF	mem;
+	PMA		pma = new;
+	FRAG_MEMORY	mem;
+	CSR		csr;
 
 	typedef struct packed {
 		bit			is_success;
@@ -46,23 +47,22 @@ class MMU;
 		} result;
 	} vret_t;
 
-	function new (input CSR csr, PMA p, ELF elf);
-		csr_c = csr;
-		pma = p;
-		mem = elf;
+	function new (input CSR c, input FRAG_MEMORY fm);
+		csr = c;
+		mem = fm;
 	endfunction
 
-	task virtual_address_translation(input [`XLEN-1:0] va, input [3:0] acc, input [`XLEN-1:0] pc, output [`XLEN-1:0] pa, output [`XLEN-1:0] trap_pc);
-		trap_pc = {`XLEN{1'b0}};
-		if(csr_c.get_satp_mode() == 4'h00) begin
-			pa = va;
+	task virtual_address_translation(input [`XLEN-1:0] va, input [3:0] acc, input [`XLEN-1:0] pc, output vat_t pa);
+		if(csr.get_satp_mode() == 4'h00) begin
+			pa.is_success  = 1'b1;
+			pa.result.addr = va;
 			return;
-		end else if(csr_c.get_satp_mode() == 4'd08) begin	// Sv39
-			bit [1:0] ldst_mode = csr_c.get_ldst_mode();
+		end else if(csr.get_satp_mode() == 4'd08) begin	// Sv39
+			bit [1:0] ldst_mode = csr.get_ldst_mode();
 			if((acc[`PTE_RB] || acc[`PTE_WB]) && (ldst_mode == `MODE_S || ldst_mode == `MODE_U) ||
-			    acc[`PTE_XB] && (csr_c.get_mode() == `MODE_S || csr_c.get_mode() == `MODE_U)) begin
+			    acc[`PTE_XB] && (csr.get_mode() == `MODE_S || csr.get_mode() == `MODE_U)) begin
 				// 1. read satp
-				bit [`XLEN-1:0]	a = {8'h00, csr_c.get_satp_ppn(), 12'h000};
+				bit [`XLEN-1:0]	a = {8'h00, csr.get_satp_ppn(), 12'h000};
 				bit [8:0]		va_vpn2 = va[38:30];
 				bit [8:0]		va_vpn1 = va[29:21];
 				bit [8:0]		va_vpn0 = va[20:12];
@@ -84,8 +84,8 @@ class MMU;
 
 				// virtual address check
 				if((~va[38] | ~&va[63:39]) & (va[38] | |va[63:39])) begin
-					trap_pc = raise_page_fault(va, acc, pc);
-					pa = {64{1'b0}};
+					pa.is_success = 1'b0;
+					pa.result.trap_pc = raise_page_fault(va, acc, pc);
 					return;
 				end
 //				$display("[INFO] a: %16h", a);
@@ -94,18 +94,18 @@ class MMU;
 				pte_a = a + va_vpn2 * 8;
 //				$display("[INFO] pte_a: %16h", pte_a);
 				if(~pma.is_readable(pte_a)) begin
-					trap_pc = raise_page_fault(va, `PTE_R, pc);
-					pa = {64{1'b0}};
+					pa.is_success = 1'b0;
+					pa.result.trap_pc = raise_page_fault(va, `PTE_R, pc);
 					return;
 				end
 
 				// 1st page table entry
-				pte = mem.read(pte_a);
+				pte = mem.read64(pte_a);
 //				$display("[INFO] 1st pte: %16h:%16h", pte_a, pte);
 				// 3. pte check
 				if(~pte[`PTE_VB] || ~pte[`PTE_RB] & pte[`PTE_WB] || pte[9:8] != 2'h0 || |pte[63:54]) begin
-					trap_pc = raise_page_fault(va, acc, pc);
-					pa = {64{1'b0}};
+					pa.is_success = 1'b0;
+					pa.result.trap_pc = raise_page_fault(va, acc, pc);
 					return;
 				end
 
@@ -116,18 +116,18 @@ class MMU;
 					// 2. 2nd page table entry address
 					pte_a = a + va_vpn1 * 8;
 					if(~pma.is_readable(pte_a)) begin
-						trap_pc = raise_page_fault(va, `PTE_R, pc);
-						pa = {64{1'b0}};
+						pa.is_success = 1'b0;
+						pa.result.trap_pc = raise_page_fault(va, `PTE_R, pc);
 						return;
 					end
 
 					// 2nd page table entry
-					pte = mem.read(pte_a);
+					pte = mem.read64(pte_a);
 //					$display("[INFO] 2nd pte: %16h:%16h", pte_a, pte);
 					// 3. pte check
 					if(~pte[`PTE_VB] || ~pte[`PTE_RB] & pte[`PTE_WB] || pte[9:8] != 2'h0 || |pte[63:54]) begin
-						trap_pc = raise_page_fault(va, acc, pc);
-						pa = {64{1'b0}};
+						pa.is_success = 1'b0;
+						pa.result.trap_pc = raise_page_fault(va, acc, pc);
 						return;
 					end
 					// 4. leaf check
@@ -137,25 +137,25 @@ class MMU;
 						// 2. 3rd page table entry address
 						pte_a = a + va_vpn0 * 8;
 						if(~pma.is_readable(pte_a)) begin
-							trap_pc = raise_page_fault(va, `PTE_R, pc);
-							pa = {64{1'b0}};
+							pa.is_success = 1'b0;
+							pa.result.trap_pc = raise_page_fault(va, `PTE_R, pc);
 							return;
 						end
 
 						// 3rd page table entry
-						pte = mem.read(pte_a);
+						pte = mem.read64(pte_a);
 //						$display("[INFO] 3rd pte: %16h:%16h, a:%8h, va_vpn0 = %8h", pte_a, pte, a, va_vpn0);
 						// 3. pte check
 						if(~pte[`PTE_VB] || ~pte[`PTE_RB] & pte[`PTE_WB] || pte[9:8] != 2'h0 || |pte[63:54]) begin
-							trap_pc = raise_page_fault(va, acc, pc);
-							pa = {64{1'b0}};
+							pa.is_success = 1'b0;
+							pa.result.trap_pc = raise_page_fault(va, acc, pc);
 							return;
 						end
 						// 4. leaf check
 						if(~pte[`PTE_RB] && ~pte[`PTE_XB]) begin	// not leaf
 							$display("[INFO] 3rd pte is not leaf.");
-							trap_pc = raise_page_fault(va, acc, pc);
-							pa = {64{1'b0}};
+							pa.is_success = 1'b0;
+							pa.result.trap_pc = raise_page_fault(va, acc, pc);
 							return;
 						end
 					end
@@ -171,22 +171,22 @@ class MMU;
 					acc[`PTE_RB] && ~pte[`PTE_RB] ||
 					acc[`PTE_WB] && ~pte[`PTE_WB] ||
 					acc[`PTE_XB] && ~pte[`PTE_XB] ||
-				        acc[`PTE_XB] && ~pte[`PTE_RB] && csr_c.get_mxr()
+				        acc[`PTE_XB] && ~pte[`PTE_RB] && csr.get_mxr()
 				) begin
 					$display("[INFO] access type check fails: acc %b", acc);
-					trap_pc = raise_page_fault(va, acc, pc);
-					pa = {64{1'b0}};
+					pa.is_success = 1'b0;
+					pa.result.trap_pc = raise_page_fault(va, acc, pc);
 					return ;
 				end
 
 				// current privilege mode check
-				if(~(csr_c.get_ldst_mode() == `MODE_M && ~pte[`PTE_UB] ||
-				     csr_c.get_ldst_mode() == `MODE_U &&  pte[`PTE_UB] ||
-				     csr_c.get_ldst_mode() == `MODE_S && ~pte[`PTE_UB] ||
-				     csr_c.get_ldst_mode() == `MODE_S &&  pte[`PTE_UB] && csr_c.get_sum())) begin
-					$display("[INFO] current privilege mode: %d check fails.", csr_c.get_mode());
-					trap_pc = raise_page_fault(va, acc, pc);
-					pa = {64{1'b0}};
+				if(~(csr.get_ldst_mode() == `MODE_M && ~pte[`PTE_UB] ||
+				     csr.get_ldst_mode() == `MODE_U &&  pte[`PTE_UB] ||
+				     csr.get_ldst_mode() == `MODE_S && ~pte[`PTE_UB] ||
+				     csr.get_ldst_mode() == `MODE_S &&  pte[`PTE_UB] && csr.get_sum())) begin
+					$display("[INFO] current privilege mode: %d check fails.", csr.get_mode());
+					pa.is_success = 1'b0;
+					pa.result.trap_pc = raise_page_fault(va, acc, pc);
 					return ;
 				end
 
@@ -194,34 +194,34 @@ class MMU;
 				if(i == 2 && (|pte_ppn1 || |pte_ppn0) ||
 				   i == 1 &&               |pte_ppn0) begin
 					$display("[INFO] misaligned superpage.");
-					trap_pc = raise_page_fault(va, acc, pc);
-					pa = {64{1'b0}};
+					pa.is_success = 1'b0;
+					pa.result.trap_pc = raise_page_fault(va, acc, pc);
 					return ;
 				end
 
 				// 7. pte.a == 0, or store access and pte.d ==0
 				if(~pte[`PTE_AB] || acc[`PTE_WB] && ~pte[`PTE_DB]) begin
 					$display("[INFO] pte.a == 0 or pte.d == 0 at store.");
-					trap_pc = raise_page_fault(va, acc, pc);
-					$display("[INFO] trap_pc = %16h", trap_pc);
-					pa = {64{1'b0}};
+					pa.is_success = 1'b0;
+					pa.result.trap_pc = raise_page_fault(va, acc, pc);
+					$display("[INFO] trap_pc = %16h", pa.result.trap_pc);
 					return ;
 				end
 
 				va_vpn = i == 2 ? va_vpn2 : i == 1 ? va_vpn1 : va_vpn0;
 				pte_cmp_a = a + va_vpn * 8;
-				pte_cmp = mem.read(pte_cmp_a);
+				pte_cmp = mem.read64(pte_cmp_a);
 				if(pte == pte_cmp) begin
 					pte = pte | {{56{1'b0}}, `PTE_A};
 					if(acc[`PTE_WB]) begin
 						pte = pte | {{56{1'b0}}, `PTE_D};
 					end
 					if(!pma.is_writeable(pte_a)) begin
-						trap_pc = raise_page_fault(pte_a, `PTE_W, pc);
-						pa = {64{1'b0}};
+						pa.is_success = 1'b0;
+						pa.result.trap_pc = raise_page_fault(pte_a, `PTE_W, pc);
 						return ;
 					end else begin
-						mem.write(pte_a, pte);
+						mem.write64(pte_a, pte);
 					end
 				end else begin
 					$display("[ERROR] virtual address translation internal error.");
@@ -244,96 +244,64 @@ class MMU;
 				end
 
 //				$display("[INFO] va -> pa: %16h -> %16h", va, {8'h00, pa_ppn2, pa_ppn1, pa_ppn0, va_ofs});
-				pa = {8'h00, pa_ppn2, pa_ppn1, pa_ppn0, va_ofs};
+				pa.is_success  = 1'b1;
+				pa.result.addr = {8'h00, pa_ppn2, pa_ppn1, pa_ppn0, va_ofs};
 				return ;
 
 			end else begin	// no addresds translation
-				pa = va;
+				pa.is_success  = 1'b1;
+				pa.result.addr = va;
 				return ;
 			end
 		end else begin	// not implemented yet.
-			pa = va;
+			pa.is_success  = 1'b1;
+			pa.result.addr = va;
 			return;
 		end
 	endtask
 
 	function [`XLEN-1:0] raise_page_fault(input [`XLEN-1:0] va, input [3:0] acc, input [`XLEN-1:0] pc);
 		if(acc[`PTE_WB]) begin
-			return csr_c.raise_exception(`EX_SPFAULT, pc, va);
+			return csr.raise_exception(`EX_SPFAULT, pc, va);
 		end else if(acc[`PTE_RB]) begin
-			return csr_c.raise_exception(`EX_LPFAULT, pc, va);
+			return csr.raise_exception(`EX_LPFAULT, pc, va);
 		end else if(acc[`PTE_XB]) begin
-			return csr_c.raise_exception(`EX_IPFAULT, pc, va);
+			return csr.raise_exception(`EX_IPFAULT, pc, va);
 		end else begin
 			return {`XLEN{1'b0}};
 		end
 	endfunction
 
 	task vat_facc(input [`XLEN-1:0] va, input [`XLEN-1:0] pc, output vat_t out);
-		bit [`XLEN-1:0]	trap_pc;
-		virtual_address_translation(va, `PTE_X, pc, out.result.addr, trap_pc);
-		if(out.result.addr != {64{1'b0}}) begin
-			if(pma.is_readable(out.result.addr)) begin
-				out.is_success = 1'b1;
-			end else begin
+		virtual_address_translation(va, `PTE_X, pc, out);
+		if(out.is_success) begin
+			if(!pma.is_executable(out.result.addr)) begin
 				out.is_success = 1'b0;
-				out.result.trap_pc = csr_c.raise_exception(`EX_IAFAULT, pc, out.result.addr);
+				out.result.trap_pc = csr.raise_exception(`EX_IAFAULT, pc, out.result.addr);
 			end
-		end else begin
-			out.is_success = 1'b0;
-			out.result.trap_pc = trap_pc;
+		end
+	endtask
+
+	task vat_acc(input [`XLEN-1:0] va, input [`XLEN-1:0] pc, input [3:0] acc, input [3:0] fault, output vat_t out);
+		virtual_address_translation(va, acc, pc, out);
+		if(out.is_success) begin
+			if(!pma.is_accessable(out.result.addr, acc)) begin
+				out.is_success = 1'b0;
+				out.result.trap_pc = csr.raise_exception(fault, pc, out.result.addr);
+			end
 		end
 	endtask
 
 	task vat_racc(input [`XLEN-1:0] va, input [`XLEN-1:0] pc, output vat_t out);
-		bit [`XLEN-1:0]	trap_pc;
-		virtual_address_translation(va, `PTE_R, pc, out.result.addr, trap_pc);
-		if(out.result.addr != {64{1'b0}}) begin
-			if(pma.is_readable(out.result.addr)) begin
-				out.is_success = 1'b1;
-			end else begin
-				out.is_success = 1'b0;
-				out.result.trap_pc = csr_c.raise_exception(`EX_LAFAULT, pc, out.result.addr);
-			end
-		end else begin
-			out.is_success = 1'b0;
-			out.result.trap_pc = trap_pc;
-		end
+		vat_acc(va, pc, `PTE_R, `EX_LAFAULT, out);
 	endtask
 
 	task vat_wacc(input [`XLEN-1:0] va, input [`XLEN-1:0] pc, output vat_t out);
-		bit [`XLEN-1:0]	trap_pc;
-		virtual_address_translation(va, `PTE_W, pc, out.result.addr, trap_pc);
-		if(out.result.addr != {64{1'b0}}) begin
-			if(pma.is_writeable(out.result.addr)) begin
-				out.is_success = 1'b1;
-			end else begin
-				out.is_success = 1'b0;
-				out.result.trap_pc = csr_c.raise_exception(`EX_SAFAULT, pc, out.result.addr);
-			end
-		end else begin
-			out.is_success = 1'b0;
-			out.result.trap_pc = trap_pc;
-		end
+		vat_acc(va, pc, `PTE_W, `EX_SAFAULT, out);
 	endtask
 
 	task vat_rwacc(input [`XLEN-1:0] va, input [`XLEN-1:0] pc, output vat_t out);
-		bit [`XLEN-1:0]	trap_pc;
-		virtual_address_translation(va, `PTE_R | `PTE_W, pc, out.result.addr, trap_pc);
-		if(out.result.addr != {64{1'b0}}) begin
-			if(!pma.is_readable(out.result.addr)) begin
-				out.is_success = 1'b0;
-				out.result.trap_pc = csr_c.raise_exception(`EX_LAFAULT, pc, out.result.addr);
-			end else if(!pma.is_writeable(out.result.addr)) begin
-				out.is_success = 1'b0;
-				out.result.trap_pc = csr_c.raise_exception(`EX_SAFAULT, pc, out.result.addr);
-			end else begin
-				out.is_success = 1'b1;
-			end
-		end else begin
-			out.is_success = 1'b0;
-			out.result.trap_pc = trap_pc;
-		end
+		vat_acc(va, pc, `PTE_R | `PTE_W, `EX_SAFAULT, out);
 	endtask
 
 	task vat_write64(input [`XLEN-1:0] va, input [`XLEN-1:0] data, input [`XLEN-1:0] pc, output vret_t out);

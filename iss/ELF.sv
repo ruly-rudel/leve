@@ -3,11 +3,11 @@
 
 `include "defs.vh"
 
-`include "FLAG_MEMORY.sv"
+`include "FRAG_MEMORY.sv"
 
 class ELF;
 	string				filename;
-	FRAG_MEMORY			mem = new;
+	FRAG_MEMORY			mem;
 	bit [63:0]			tohost;
 
 	// elf header
@@ -52,8 +52,10 @@ class ELF;
 		bit [63:0]		sh_entsize;
 	} shdr[];
 
-	function new(string fn);
+	function new(string fn, FRAG_MEMORY fm);
 		integer fd;
+
+		mem = fm;
 		filename = fn;
 		$display("[ELF] read %s", filename);
 		fd = $fopen(filename, "r");
@@ -298,101 +300,6 @@ class ELF;
 
 
 
-	function void write (input [`XLEN-1:0] addr, input [`XLEN-1:0] data);
-		case (addr[1:0])
-			2'h0: begin
-				mem.write(addr, data[31:0]);
-				mem.write(addr + 'h4, data[63:32]);
-			end
-			default: begin
-				write32(addr, data[31:0]);
-				write32(addr + 'h4, data[63:32]);
-			end
-		endcase
-	endfunction
-
-	function void write32 (input [`XLEN-1:0] addr, input [32-1:0] data);
-		case (addr[1:0])
-			2'h0: mem.write(addr, data);
-			default: begin
-				write16(addr, data[15:0]);
-				write16(addr + 'h2, data[31:16]);
-			end
-		endcase
-	endfunction
-
-	function void write16 (input [`XLEN-1:0] addr, input [16-1:0] data);
-		bit [31:0]	tmp32;
-		tmp32 = mem.read(addr);
-		case (addr[1:0])
-			2'h0 : mem.write(addr, {tmp32[31:16], data});
-			2'h1 : mem.write(addr, {tmp32[31:24], data, tmp32[7:0]});
-			2'h2 : mem.write(addr, {data, tmp32[15:0]});
-			2'h3 : begin
-				mem.write(addr, {data[7:0], tmp32[23:0]});
-				tmp32 = mem.read(addr + 'h4);
-				mem.write(addr + 'h4,  {tmp32[31:8], data[15:8]});
-			end
-		endcase
-	endfunction
-
-	function void write8 (input [`XLEN-1:0] addr, input [8-1:0] data);
-		bit [31:0]	tmp32;
-		tmp32 = mem.read(addr);
-		case (addr[1:0])
-			2'h0 : mem.write(addr, {tmp32[31:8], data});
-			2'h1 : mem.write(addr, {tmp32[31:16], data, tmp32[7:0]});
-			2'h2 : mem.write(addr, {tmp32[31:24], data, tmp32[15:0]});
-			2'h3 : mem.write(addr, {data, tmp32[23:0]});
-		endcase
-	endfunction
-
-	function [`XLEN-1:0] read (input [`XLEN-1:0] addr);
-		bit [95:0] tmp;
-		tmp[31:0]  = mem.read(addr);
-		tmp[63:32] = mem.read(addr + 'h4);
-		tmp[95:64] = mem.read(addr + 'h8);
-		case(addr[1:0])
-			2'h0 : return tmp[63:0];
-			2'h1 : return tmp[71:8];
-			2'h2 : return tmp[79:16];
-			2'h3 : return tmp[87:24];
-		endcase
-	endfunction
-
-	function [32-1:0] read32 (input [`XLEN-1:0] addr);
-		bit [63:0] tmp;
-		tmp[31:0]  = mem.read(addr);
-		tmp[63:32] = mem.read(addr + 'h4);
-		case(addr[1:0])
-			2'h0 : return tmp[31:0];
-			2'h1 : return tmp[39:8];
-			2'h2 : return tmp[47:16];
-			2'h3 : return tmp[55:24];
-		endcase
-	endfunction
-
-	function [16-1:0] read16 (input [`XLEN-1:0] addr);
-		bit [63:0] tmp;
-		tmp[31:0]  = mem.read(addr);
-		tmp[63:32] = mem.read(addr + 'h4);
-		case(addr[1:0])
-			2'h0 : return tmp[15:0];
-			2'h1 : return tmp[23:8];
-			2'h2 : return tmp[31:16];
-			2'h3 : return tmp[39:24];
-		endcase
-	endfunction
-
-	function [8-1:0] read8 (input [`XLEN-1:0] addr);
-		bit [31:0] tmp32 = mem.read(addr);
-		case(addr[1:0])
-			2'h0 : return tmp32[7:0];
-			2'h1 : return tmp32[15:8];
-			2'h2 : return tmp32[23:16];
-			2'h3 : return tmp32[31:24];
-		endcase
-	endfunction
 
 	function [63:0] get_entry_point();
 		return e_entry;

@@ -16,6 +16,10 @@ class PMA;
 	function bit is_executable(input [`XLEN-1:0] addr);
 			return 1'b1;
 	endfunction
+
+	function bit is_accessable(input [`XLEN-1:0] addr, input [3:0] acc);
+			return 1'b1;
+	endfunction
 endclass : PMA;
 
 `endif	// _pma_sv_
