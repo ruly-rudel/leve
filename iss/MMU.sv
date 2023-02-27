@@ -32,13 +32,19 @@ class MMU;
 
 	typedef struct packed {
 		bit			is_success;
-		bit [`XLEN-1:0]		addr;
+		union packed {
+			bit [`XLEN-1:0]	addr;
+			bit [`XLEN-1:0]	trap_pc;
+		} result;
 	} vat_t;
 
 	typedef struct packed {
 		bit			is_success;
-		bit [`XLEN-1:0]		data;
-	} vread_t;
+		union packed {
+			bit [`XLEN-1:0]	data;
+			bit [`XLEN-1:0]	trap_pc;
+		} result;
+	} vret_t;
 
 	function new (input CSR csr, PMA p, ELF elf);
 		csr_c = csr;
@@ -265,106 +271,222 @@ class MMU;
 
 	task vat_facc(input [`XLEN-1:0] va, input [`XLEN-1:0] pc, output vat_t out);
 		bit [`XLEN-1:0]	trap_pc;
-		virtual_address_translation(va, `PTE_X, pc, out.addr, trap_pc);
-		if(out.addr != {64{1'b0}}) begin
-			if(pma.is_readable(out.addr)) begin
+		virtual_address_translation(va, `PTE_X, pc, out.result.addr, trap_pc);
+		if(out.result.addr != {64{1'b0}}) begin
+			if(pma.is_readable(out.result.addr)) begin
 				out.is_success = 1'b1;
 			end else begin
 				out.is_success = 1'b0;
-				out.addr = csr_c.raise_exception(`EX_IAFAULT, pc, out.addr);
+				out.result.trap_pc = csr_c.raise_exception(`EX_IAFAULT, pc, out.result.addr);
 			end
 		end else begin
 			out.is_success = 1'b0;
-			out.addr = trap_pc;
+			out.result.trap_pc = trap_pc;
 		end
 	endtask
 
 	task vat_racc(input [`XLEN-1:0] va, input [`XLEN-1:0] pc, output vat_t out);
 		bit [`XLEN-1:0]	trap_pc;
-		virtual_address_translation(va, `PTE_R, pc, out.addr, trap_pc);
-		if(out.addr != {64{1'b0}}) begin
-			if(pma.is_readable(out.addr)) begin
+		virtual_address_translation(va, `PTE_R, pc, out.result.addr, trap_pc);
+		if(out.result.addr != {64{1'b0}}) begin
+			if(pma.is_readable(out.result.addr)) begin
 				out.is_success = 1'b1;
 			end else begin
 				out.is_success = 1'b0;
-				out.addr = csr_c.raise_exception(`EX_LAFAULT, pc, out.addr);
+				out.result.trap_pc = csr_c.raise_exception(`EX_LAFAULT, pc, out.result.addr);
 			end
 		end else begin
 			out.is_success = 1'b0;
-			out.addr = trap_pc;
+			out.result.trap_pc = trap_pc;
 		end
 	endtask
 
 	task vat_wacc(input [`XLEN-1:0] va, input [`XLEN-1:0] pc, output vat_t out);
 		bit [`XLEN-1:0]	trap_pc;
-		virtual_address_translation(va, `PTE_W, pc, out.addr, trap_pc);
-		if(out.addr != {64{1'b0}}) begin
-			if(pma.is_writeable(out.addr)) begin
+		virtual_address_translation(va, `PTE_W, pc, out.result.addr, trap_pc);
+		if(out.result.addr != {64{1'b0}}) begin
+			if(pma.is_writeable(out.result.addr)) begin
 				out.is_success = 1'b1;
 			end else begin
 				out.is_success = 1'b0;
-				out.addr = csr_c.raise_exception(`EX_SAFAULT, pc, out.addr);
+				out.result.trap_pc = csr_c.raise_exception(`EX_SAFAULT, pc, out.result.addr);
 			end
 		end else begin
 			out.is_success = 1'b0;
-			out.addr = trap_pc;
+			out.result.trap_pc = trap_pc;
 		end
 	endtask
 
 	task vat_rwacc(input [`XLEN-1:0] va, input [`XLEN-1:0] pc, output vat_t out);
 		bit [`XLEN-1:0]	trap_pc;
-		virtual_address_translation(va, `PTE_R | `PTE_W, pc, out.addr, trap_pc);
-		if(out.addr != {64{1'b0}}) begin
-			if(!pma.is_readable(out.addr)) begin
+		virtual_address_translation(va, `PTE_R | `PTE_W, pc, out.result.addr, trap_pc);
+		if(out.result.addr != {64{1'b0}}) begin
+			if(!pma.is_readable(out.result.addr)) begin
 				out.is_success = 1'b0;
-				out.addr = csr_c.raise_exception(`EX_LAFAULT, pc, out.addr);
-			end else if(!pma.is_writeable(out.addr)) begin
+				out.result.trap_pc = csr_c.raise_exception(`EX_LAFAULT, pc, out.result.addr);
+			end else if(!pma.is_writeable(out.result.addr)) begin
 				out.is_success = 1'b0;
-				out.addr = csr_c.raise_exception(`EX_SAFAULT, pc, out.addr);
+				out.result.trap_pc = csr_c.raise_exception(`EX_SAFAULT, pc, out.result.addr);
 			end else begin
 				out.is_success = 1'b1;
 			end
 		end else begin
 			out.is_success = 1'b0;
-			out.addr = trap_pc;
+			out.result.trap_pc = trap_pc;
 		end
 	endtask
 
-	task vat_read64(input [`XLEN-1:0] va, input [`XLEN-1:0] pc, output vread_t out);
-		vat_t	vat;
-		vat_racc(va, pc, vat);
-		if(vat.is_success) begin
-			out.is_success = 1'b1;
-			out.data = mem.read(vat.addr);
+	task vat_write64(input [`XLEN-1:0] va, input [`XLEN-1:0] data, input [`XLEN-1:0] pc, output vret_t out);
+		vret_t	vat1, vat2;
+		vat_write32(va, data[31:0], pc, vat1);
+		if(vat1.is_success) begin
+			vat_write32(va + 'h4, data[63:32], pc, vat2);
+			if(vat2.is_success) begin
+				out.is_success = 1'b1;
+				out.result.data = {`XLEN{1'b0}};
+			end else begin
+				out = vat2;
+			end
 		end else begin
-			out.is_success = 1'b0;
-			out.data = vat.addr;
+			out = vat1;
 		end
 	endtask
 
-	task vat_read32u(input [`XLEN-1:0] va, input [`XLEN-1:0] pc, output vread_t out);
-		vat_t	vat;
-		vat_racc(va, pc, vat);
-		if(vat.is_success) begin
-			out.is_success = 1'b1;
-			out.data = {{`XLEN-32{1'b0}}, mem.read32(vat.addr)};
+	task vat_write32(input [`XLEN-1:0] va, input [31:0] data, input [`XLEN-1:0] pc, output vret_t out);
+		vret_t	vat1, vat2;
+		vat_write16(va, data[15:0], pc, vat1);
+		if(vat1.is_success) begin
+			vat_write16(va + 'h2, data[31:16], pc, vat2);
+			if(vat2.is_success) begin
+				out.is_success = 1'b1;
+				out.result.data = {`XLEN{1'b0}};
+			end else begin
+				out = vat2;
+			end
 		end else begin
-			out.is_success = 1'b0;
-			out.data = vat.addr;
+			out = vat1;
 		end
 	endtask
 
-	task vat_read32s(input [`XLEN-1:0] va, input [`XLEN-1:0] pc, output vread_t out);
+	task vat_write16(input [`XLEN-1:0] va, input [15:0] data, input [`XLEN-1:0] pc, output vret_t out);
+		vret_t	vat1, vat2;
+		vat_write8(va, data[7:0], pc, vat1);
+		if(vat1.is_success) begin
+			vat_write8(va + 'b1, data[15:8], pc, vat2);
+			if(vat2.is_success) begin
+				out.is_success = 1'b1;
+				out.result.data = {`XLEN{1'b0}};
+			end else begin
+				out = vat2;
+			end
+		end else begin
+			out = vat1;
+		end
+	endtask
+
+	task vat_write8(input [`XLEN-1:0] va, input [7:0] data, input [`XLEN-1:0] pc, output vret_t out);
 		vat_t	vat;
-		bit [31:0] od;
+		bit [7:0] od;
+		vat_wacc(va, pc, vat);
+		if(vat.is_success) begin
+			out.is_success = 1'b1;
+			mem.write8(vat.result.addr, data);
+			out.result.data = {`XLEN{1'b0}};
+		end else begin
+			out.is_success = 1'b0;
+			out.result.trap_pc = vat.result.trap_pc;
+		end
+	endtask
+
+	task vat_read64(input [`XLEN-1:0] va, input [`XLEN-1:0] pc, output vret_t out);
+		vret_t	vat1, vat2;
+		vat_read32(va, pc, vat1);
+		if(vat1.is_success) begin
+			vat_read32(va + 'h4, pc, vat2);
+			if(vat2.is_success) begin
+				out.is_success = 1'b1;
+				out.result.data = {vat2.result.data[31:0], vat1.result.data[31:0]};
+			end else begin
+				out = vat2;
+			end
+		end else begin
+			out = vat1;
+		end
+	endtask
+
+	task vat_read32(input [`XLEN-1:0] va, input [`XLEN-1:0] pc, output vret_t out);
+		vret_t	vat1, vat2;
+		vat_read16(va, pc, vat1);
+		if(vat1.is_success) begin
+			vat_read16(va + 'h2, pc, vat2);
+			if(vat2.is_success) begin
+				out.is_success = 1'b1;
+				out.result.data = {{`XLEN-32{1'b0}}, vat2.result.data[15:0], vat1.result.data[15:0]};
+			end else begin
+				out = vat2;
+			end
+		end else begin
+			out = vat1;
+		end
+	endtask
+
+	task vat_read16(input [`XLEN-1:0] va, input [`XLEN-1:0] pc, output vret_t out);
+		vret_t	vat1, vat2;
+		vat_read8(va, pc, vat1);
+		if(vat1.is_success) begin
+			vat_read8(va + 'b1, pc, vat2);
+			if(vat2.is_success) begin
+				out.is_success = 1'b1;
+				out.result.data = {{`XLEN-16{1'b0}}, vat2.result.data[7:0], vat1.result.data[7:0]};
+			end else begin
+				out = vat2;
+			end
+		end else begin
+			out = vat1;
+		end
+	endtask
+
+	task vat_read8(input [`XLEN-1:0] va, input [`XLEN-1:0] pc, output vret_t out);
+		vat_t	vat;
+		bit [7:0] od;
 		vat_racc(va, pc, vat);
 		if(vat.is_success) begin
 			out.is_success = 1'b1;
-			od = mem.read32(vat.addr);
-			out.data = {{`XLEN-32{od[31]}}, od};
+			od = mem.read8(vat.result.addr);
+			out.result.data = {{`XLEN-8{1'b0}}, od};
 		end else begin
 			out.is_success = 1'b0;
-			out.data = vat.addr;
+			out.result.trap_pc = vat.result.trap_pc;
+		end
+	endtask
+
+	task vat_fetch32(input [`XLEN-1:0] pc, output vret_t out);
+		vret_t	vat1, vat2;
+		vat_fetch16(pc, pc, vat1);
+		if(vat1.is_success) begin
+			vat_fetch16(pc + 'h2, pc, vat2);
+			if(vat2.is_success) begin
+				out.is_success = 1'b1;
+				out.result.data = {{`XLEN-32{1'b0}}, vat2.result.data[15:0], vat1.result.data[15:0]};
+			end else begin
+				out = vat2;
+			end
+		end else begin
+			out = vat1;
+		end
+	endtask
+
+	task vat_fetch16(input [`XLEN-1:0] va, input [`XLEN-1:0] pc, output vret_t out);
+		vat_t	vat;
+		bit [15:0] od;
+		vat_facc(va, pc, vat);
+		if(vat.is_success) begin
+			out.is_success = 1'b1;
+			od = mem.read16(vat.result.addr);
+			out.result.data = {{`XLEN-16{1'b0}}, od};
+		end else begin
+			out.is_success = 1'b0;
+			out.result.trap_pc = vat.result.trap_pc;
 		end
 	endtask
 
