@@ -363,10 +363,8 @@ class ISS;
 				rs2_d = rf.read(c_rs2d);
 				mmu.vat_write32(rs1_d + c_lw_immw, rs2_d[31:0], pc, vr);
 				if(vr.is_success) begin
-					MMU::vat_t	vat;
-					mmu.vat_wacc(rs1_d + c_lw_immw, pc, vat);
 					next_pc = pc + 'h2;
-					tohost_we  = vat.result.addr == elf.get_tohost() ? 1'b1 : 1'b0;	// for testbench hack
+					tohost_we  = vr.result.data == elf.get_tohost() ? 1'b1 : 1'b0;	// for testbench hack
 					tohost     = rs2_d[31:0];
 				end else begin
 					next_pc = vr.result.trap_pc;
@@ -377,10 +375,8 @@ class ISS;
 				rs2_d = rf.read(c_rs2d);
 				mmu.vat_write64(rs1_d + c_fld_immw, rs2_d, pc, vr);
 				if(vr.is_success) begin
-					MMU::vat_t	vat;
-					mmu.vat_wacc(rs1_d + c_fld_immw, pc, vat);
 					next_pc = pc + 'h2;
-					tohost_we  = vat.result.addr == elf.get_tohost() ? 1'b1 : 1'b0;	// for testbench hack
+					tohost_we  = vr.result.data == elf.get_tohost() ? 1'b1 : 1'b0;	// for testbench hack
 					tohost     = rs2_d[31:0];
 				end else begin
 					next_pc = vr.result.trap_pc;
@@ -692,10 +688,8 @@ class ISS;
 				3'b010: begin			// SW
 					mmu.vat_write32(rs1_d + imm_sw, rs2_d[31:0], pc, vr);
 					if(vr.is_success) begin
-						MMU::vat_t	vat;
-						mmu.vat_wacc(rs1_d + imm_sw, pc, vat);
 						next_pc = pc + 'h4;
-						tohost_we  = vat.result.addr == elf.get_tohost() ? 1'b1 : 1'b0;	// for testbench hack
+						tohost_we  = vr.result.data == elf.get_tohost() ? 1'b1 : 1'b0;	// for testbench hack
 						tohost     = rs2_d[31:0];
 					end else begin
 						next_pc = vr.result.trap_pc;
@@ -704,10 +698,8 @@ class ISS;
 				3'b011: begin			// SD
 					mmu.vat_write64(rs1_d + imm_sw, rs2_d, pc, vr);
 					if(vr.is_success) begin
-						MMU::vat_t	vat;
-						mmu.vat_wacc(rs1_d + imm_sw, pc, vat);
 						next_pc = pc + 'h4;
-						tohost_we  = vat.result.addr == elf.get_tohost() ? 1'b1 : 1'b0;	// for testbench hack
+						tohost_we  = vr.result.data == elf.get_tohost() ? 1'b1 : 1'b0;	// for testbench hack
 						tohost     = rs2_d[31:0];
 					end else begin
 						next_pc = vr.result.trap_pc;
@@ -881,7 +873,7 @@ class ISS;
 					5'b00010: begin		// LR.W
 						lrsc_valid = 1'b1;
 						lrsc_addr  = rs1_d;
-						mmu.vat_racc(rs1_d, pc, vat);
+						mmu.vat_racc(rs1_d, rs1_d, pc, vat);
 						if(vat.is_success) begin
 							rf.write32s(rd0, mem.read32(vat.result.addr));
 							next_pc = pc + 'h4;
@@ -892,7 +884,7 @@ class ISS;
 					5'b00011: begin		// SC.W
 						if(lrsc_valid && lrsc_addr == rs1_d) begin
 							lrsc_valid = 1'b0;
-							mmu.vat_rwacc(rs1_d, pc, vat);
+							mmu.vat_rwacc(rs1_d, rs1_d, pc, vat);
 							if(vat.is_success) begin
 								tmp32 = mem.read32(vat.result.addr);
 								rf.write(rd0, {`XLEN{1'b0}});
@@ -907,7 +899,7 @@ class ISS;
 						end
 					end
 					5'b00001: begin		// AMOSWAP.W
-						mmu.vat_rwacc(rs1_d, pc, vat);
+						mmu.vat_rwacc(rs1_d, rs1_d, pc, vat);
 						if(vat.is_success) begin
 							rf.write32s(rd0, mem.read32(vat.result.addr));
 							mem.write32(vat.result.addr, rs2_d[31:0]);
@@ -917,7 +909,7 @@ class ISS;
 						end
 					end
 					5'b00000: begin		// AMOADD.W
-						mmu.vat_rwacc(rs1_d, pc, vat);
+						mmu.vat_rwacc(rs1_d, rs1_d, pc, vat);
 						if(vat.is_success) begin
 							tmp32 = mem.read32(vat.result.addr);
 							rf.write32s(rd0, tmp32);
@@ -928,7 +920,7 @@ class ISS;
 						end
 					end
 					5'b00100: begin		// AMOXOR.W
-						mmu.vat_rwacc(rs1_d, pc, vat);
+						mmu.vat_rwacc(rs1_d, rs1_d, pc, vat);
 						if(vat.is_success) begin
 							tmp32 = mem.read32(vat.result.addr);
 							rf.write32s(rd0, tmp32);
@@ -939,7 +931,7 @@ class ISS;
 						end
 					end
 					5'b01100: begin		// AMOAND.W
-						mmu.vat_rwacc(rs1_d, pc, vat);
+						mmu.vat_rwacc(rs1_d, rs1_d, pc, vat);
 						if(vat.is_success) begin
 							tmp32 = mem.read32(vat.result.addr);
 							rf.write32s(rd0, tmp32);
@@ -950,7 +942,7 @@ class ISS;
 						end
 					end
 					5'b01000: begin		// AMOOR.W
-						mmu.vat_rwacc(rs1_d, pc, vat);
+						mmu.vat_rwacc(rs1_d, rs1_d, pc, vat);
 						if(vat.is_success) begin
 							tmp32 = mem.read32(vat.result.addr);
 							rf.write32s(rd0, tmp32);
@@ -961,7 +953,7 @@ class ISS;
 						end
 					end
 					5'b10000: begin		// AMOMIN.W
-						mmu.vat_rwacc(rs1_d, pc, vat);
+						mmu.vat_rwacc(rs1_d, rs1_d, pc, vat);
 						if(vat.is_success) begin
 							tmp32 = mem.read32(vat.result.addr);
 							rf.write32s(rd0, tmp32);
@@ -972,7 +964,7 @@ class ISS;
 						end
 					end
 					5'b10100: begin		// AMOMAX.W
-						mmu.vat_rwacc(rs1_d, pc, vat);
+						mmu.vat_rwacc(rs1_d, rs1_d, pc, vat);
 						if(vat.is_success) begin
 							tmp32 = mem.read32(vat.result.addr);
 							rf.write32s(rd0, tmp32);
@@ -983,7 +975,7 @@ class ISS;
 						end
 					end
 					5'b11000: begin		// AMOMINU.W
-						mmu.vat_rwacc(rs1_d, pc, vat);
+						mmu.vat_rwacc(rs1_d, rs1_d, pc, vat);
 						if(vat.is_success) begin
 							tmp32 = mem.read32(vat.result.addr);
 							rf.write32s(rd0, tmp32);
@@ -994,7 +986,7 @@ class ISS;
 						end
 					end
 					5'b11100: begin		// AMOMAXU.W
-						mmu.vat_rwacc(rs1_d, pc, vat);
+						mmu.vat_rwacc(rs1_d, rs1_d, pc, vat);
 						if(vat.is_success) begin
 							tmp32 = mem.read32(vat.result.addr);
 							rf.write32s(rd0, tmp32);
@@ -1012,7 +1004,7 @@ class ISS;
 					5'b00010: begin		// LR.D
 						lrsc_valid = 1'b1;
 						lrsc_addr  = rs1_d;
-						mmu.vat_racc(rs1_d, pc, vat);
+						mmu.vat_racc(rs1_d, rs1_d, pc, vat);
 						if(vat.is_success) begin
 							rf.write(rd0, mem.read64(vat.result.addr));
 							next_pc = pc + 'h4;
@@ -1023,7 +1015,7 @@ class ISS;
 					5'b00011: begin		// SC.D
 						if(lrsc_valid && lrsc_addr == rs1_d) begin
 							lrsc_valid = 1'b0;
-							mmu.vat_rwacc(rs1_d, pc, vat);
+							mmu.vat_rwacc(rs1_d, rs1_d, pc, vat);
 							if(vat.is_success) begin
 								tmp = mem.read64(vat.result.addr);
 								rf.write(rd0, {`XLEN{1'b0}});
@@ -1038,7 +1030,7 @@ class ISS;
 						end
 					end
 					5'b00001: begin		// AMOSWAP.D
-						mmu.vat_rwacc(rs1_d, pc, vat);
+						mmu.vat_rwacc(rs1_d, rs1_d, pc, vat);
 						if(vat.is_success) begin
 							tmp = mem.read64(vat.result.addr);
 							rf.write(rd0, tmp);
@@ -1049,7 +1041,7 @@ class ISS;
 						end
 					end
 					5'b00000: begin		// AMOADD.D
-						mmu.vat_rwacc(rs1_d, pc, vat);
+						mmu.vat_rwacc(rs1_d, rs1_d, pc, vat);
 						if(vat.is_success) begin
 							tmp = mem.read64(vat.result.addr);
 							rf.write(rd0, tmp);
@@ -1060,7 +1052,7 @@ class ISS;
 						end
 					end
 					5'b00100: begin		// AMOXOR.D
-						mmu.vat_rwacc(rs1_d, pc, vat);
+						mmu.vat_rwacc(rs1_d, rs1_d, pc, vat);
 						if(vat.is_success) begin
 							tmp = mem.read64(vat.result.addr);
 							rf.write(rd0, tmp);
@@ -1072,7 +1064,7 @@ class ISS;
 						end
 					end
 					5'b01100: begin		// AMOAND.D
-						mmu.vat_rwacc(rs1_d, pc, vat);
+						mmu.vat_rwacc(rs1_d, rs1_d, pc, vat);
 						if(vat.is_success) begin
 							tmp = mem.read64(vat.result.addr);
 							rf.write(rd0, tmp);
@@ -1084,7 +1076,7 @@ class ISS;
 						end
 					end
 					5'b01000: begin		// AMOOR.D
-						mmu.vat_rwacc(rs1_d, pc, vat);
+						mmu.vat_rwacc(rs1_d, rs1_d, pc, vat);
 						if(vat.is_success) begin
 							tmp = mem.read64(vat.result.addr);
 							rf.write(rd0, tmp);
@@ -1096,7 +1088,7 @@ class ISS;
 						end
 					end
 					5'b10000: begin		// AMOMIN.D
-						mmu.vat_rwacc(rs1_d, pc, vat);
+						mmu.vat_rwacc(rs1_d, rs1_d, pc, vat);
 						if(vat.is_success) begin
 							tmp = mem.read64(vat.result.addr);
 							rf.write(rd0, tmp);
@@ -1108,7 +1100,7 @@ class ISS;
 						end
 					end
 					5'b10100: begin		// AMOMAX.D
-						mmu.vat_rwacc(rs1_d, pc, vat);
+						mmu.vat_rwacc(rs1_d, rs1_d, pc, vat);
 						if(vat.is_success) begin
 							tmp = mem.read64(vat.result.addr);
 							rf.write(rd0, tmp);
@@ -1120,7 +1112,7 @@ class ISS;
 						end
 					end
 					5'b11000: begin		// AMOMINU.D
-						mmu.vat_rwacc(rs1_d, pc, vat);
+						mmu.vat_rwacc(rs1_d, rs1_d, pc, vat);
 						if(vat.is_success) begin
 							tmp = mem.read64(vat.result.addr);
 							rf.write(rd0, tmp);
@@ -1132,7 +1124,7 @@ class ISS;
 						end
 					end
 					5'b11100: begin		// AMOMAXU.D
-						mmu.vat_rwacc(rs1_d, pc, vat);
+						mmu.vat_rwacc(rs1_d, rs1_d, pc, vat);
 						if(vat.is_success) begin
 							tmp = mem.read64(vat.result.addr);
 							rf.write(rd0, tmp);
