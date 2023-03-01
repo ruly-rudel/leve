@@ -272,16 +272,6 @@ class MMU;
 		end
 	endfunction
 
-	task vat_facc(input [`XLEN-1:0] va, input [`XLEN-1:0] va_fault, input [`XLEN-1:0] pc, output vat_t out);
-		virtual_address_translation(va, va_fault, `PTE_X, pc, out);
-		if(out.is_success) begin
-			if(!pma.is_executable(out.result.addr)) begin
-				out.is_success = 1'b0;
-				out.result.trap_pc = csr.raise_exception(`EX_IAFAULT, pc, out.result.addr);
-			end
-		end
-	endtask
-
 	task vat_acc(input [`XLEN-1:0] va, input [`XLEN-1:0] va_fault, input [`XLEN-1:0] pc, input [3:0] acc, input [3:0] fault, output vat_t out);
 		virtual_address_translation(va, va_fault, acc, pc, out);
 		if(out.is_success) begin
@@ -302,6 +292,10 @@ class MMU;
 
 	task vat_rwacc(input [`XLEN-1:0] va, input [`XLEN-1:0] va_fault, input [`XLEN-1:0] pc, output vat_t out);
 		vat_acc(va, va_fault, pc, `PTE_R | `PTE_W, `EX_SAFAULT, out);
+	endtask
+
+	task vat_facc(input [`XLEN-1:0] va, input [`XLEN-1:0] va_fault, input [`XLEN-1:0] pc, output vat_t out);
+		vat_acc(va, va_fault, pc, `PTE_X, `EX_IAFAULT, out);
 	endtask
 
 	task vat_write64(input [`XLEN-1:0] va, input [`XLEN-1:0] data, input [`XLEN-1:0] pc, output vret_t out);
