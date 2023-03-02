@@ -10,4 +10,9 @@
 `define FP_NUM_REG 32
 `define NUM_CSR 4096
 
+//`define PTE_V	4'h1
+`define PTE_R	4'h2
+`define PTE_W	4'h4
+`define PTE_X	4'h8
+
 `endif // _defs_vh_

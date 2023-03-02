@@ -15,12 +15,6 @@
 `define PTE_AB	6
 `define PTE_DB	7
 
-//`define PTE_V	4'h1
-`define PTE_R	4'h2
-`define PTE_W	4'h4
-`define PTE_X	4'h8
-`define PTE_X	4'h8
-
 `define PTE_U	8'h10
 `define PTE_G	8'h20
 `define PTE_A	8'h40
