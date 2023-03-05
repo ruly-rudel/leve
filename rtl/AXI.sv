@@ -23,36 +23,6 @@ interface AXI
 	parameter AWADDR_W	= 32,
 	parameter WDATA_W	= 128,
 	parameter WSTRB_W	= 16
-)
-(
-	/*
-	input			ARVALID,
-	output			ARREADY,
-	input	[ARADDR_W-1:0]	ARADDR,
-	input 	[1:0]		ARBURST,
-	input 	[7:0]		ARLEN,
-
-	output			RVALID,
-	input			RREADY,
-	output	[RDATA_W-1:0]	RDATA,
-	output	[1:0]		RRESP,
-	output			RLAST,
-
-	input			AWVALID,
-	output			AWREADY,
-	input	[AWADDR_W-1:0]	AWADDR,
-	input 	[1:0]		AWBURST,
-	input 	[7:0]		AWLEN,
-
-	input			WVALID,
-	output			WREADY,
-	input	[WDATA_W-1:0]	WDATA,
-	input	[WSTRB_W-1:0]	WSTRB,
-
-	output			BVALID,
-	input			BREADY,
-	output			BRESP
-	*/
 );
 	logic			ARVALID;
 	logic			ARREADY;
@@ -79,7 +49,7 @@ interface AXI
 
 	logic			BVALID;
 	logic			BREADY;
-	logic			BRESP;
+	logic	[1:0]		BRESP;
 
 	modport	r_init
 	(

@@ -3,7 +3,7 @@ ISS_SRC = sc_main.cpp tb_iss.sv $(wildcard ../iss/*.sv) ../conf/defs.vh
 RTL_SRC = sc_rtl_main.cpp tb_rtl.sv $(wildcard ../iss/*.sv) $(wildcard ../rtl/*.sv) TB_RAM.sv ../conf/defs.vh
 
 obj_dir/Vtb_rtl:	$(RTL_SRC)
-	verilator --sc --exe --build -I../conf -I../iss -I../rtl sc_rtl_main.cpp tb_rtl.sv ../rtl/LEVE1.sv
+	verilator --sc --trace --timing --exe --build -I../conf -I../iss -I../rtl sc_rtl_main.cpp tb_rtl.sv ../rtl/LEVE1.sv
 
 obj_dir/Vtb_iss:	$(ISS_SRC)
 	verilator --sc --exe --build -I../conf -I../iss sc_main.cpp tb_iss.sv ../iss/RV64GC_ISS.sv

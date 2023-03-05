@@ -128,6 +128,12 @@ class FRAG_MEMORY;
 
 
 
+	function void write128 (input [`XLEN-1:0] addr, input [127:0] data);
+		write(addr, data[31:0]);
+		write(addr + 'h4, data[63:32]);
+		write(addr + 'h8, data[95:64]);
+		write(addr + 'hc, data[127:96]);
+	endfunction
 
 	function void write64 (input [`XLEN-1:0] addr, input [`XLEN-1:0] data);
 		write(addr, data[31:0]);
@@ -157,6 +163,10 @@ class FRAG_MEMORY;
 			2'h3 : write(addr, {data, tmp32[23:0]});
 		endcase
 	endfunction
+
+	task read128 (input [`XLEN-1:0] addr, output[127:0] out);
+		out = {read(addr + 'hc), read(addr + 'h8), read(addr + 'h4), read(addr)};
+	endtask
 
 	function [`XLEN-1:0] read64 (input [`XLEN-1:0] addr);
 		return {read(addr + 'h4), read(addr)};

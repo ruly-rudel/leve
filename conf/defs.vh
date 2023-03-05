@@ -15,4 +15,6 @@
 `define PTE_W	4'h4
 `define PTE_X	4'h8
 
+`define	TPD	#1
+
 `endif // _defs_vh_

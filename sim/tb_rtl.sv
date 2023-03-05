@@ -28,6 +28,7 @@ module tb_rtl
 		.RSTn		(RSTn),
 
 		.RT		(axii),
+		.WT		(axii),
 		.init_file	(init_file)
 	);
 

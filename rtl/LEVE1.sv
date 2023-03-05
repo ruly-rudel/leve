@@ -15,13 +15,15 @@ module LEVE1
 		if(!RSTn) begin
 			cnt <= 32'h8000_0000;
 		end else if(RII.ARVALID && RII.ARREADY) begin
-			cnt <= cnt + 'h10;
+			cnt <= `TPD cnt + 'h40;
 		end
 	end
 
 	// read address
 	assign RII.ARADDR = cnt;
 	assign RII.ARVALID = 1'b1;
+	assign RII.ARBURST = `AXI_BURST_WRAP;
+	assign RII.ARLEN   = 'h3;
 
 
 	assign RII.RREADY = 1'b1;

@@ -23,7 +23,7 @@ int sc_main(int argc, char** argv)
 #if VM_TRACE
 	Verilated::traceEverOn(true);
 	VerilatedVcdSc* tfp = new VerilatedVcdSc;
-	tb_iss->trace(tfp, 99);
+	tb_rtl->trace(tfp, 99);
 	tfp->open("simx.vcd");
 #endif
 	
