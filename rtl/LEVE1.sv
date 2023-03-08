@@ -1,36 +1,50 @@
 
 `include "defs.vh"
 `include "AXI.sv"
+`include "PC.sv"
+`include "HS.sv"
 
 module LEVE1
 (
 	input			CLK,
 	input			RSTn,
-	AXI.r_init		RII
+	AXIR.init		RII	// read initiator: instruction
 );
+	AXIR			axiri;
+	PC			pc;
+	HS #(.WIDTH(32))	inst;
 
+	LEVE_IBB		LEVE_IBB
+	(
+		.CLK		(CLK),
+		.RSTn		(RSTn),
+		.RII		(axiri),
+		.PC		(pc),
+		.INST		(inst)
+	);
 
-	reg [31:0]	cnt;
-	always_ff @(posedge CLK or negedge RSTn) begin
-		if(!RSTn) begin
-			cnt <= 32'h8000_0000;
-		end else if(RII.ARVALID && RII.ARREADY) begin
-			cnt <= `TPD cnt + 'h40;
-		end
+	always_comb begin
+		RII.ARVALID	= axiri.ARVALID;
+		axiri.ARREADY	= RII.ARREADY;
+		RII.ARADDR	= axiri.ARADDR;
+		RII.ARBURST	= axiri.ARBURST;
+		RII.ARLEN	= axiri.ARLEN;
+
+		axiri.RVALID	= RII.RVALID;
+		RII.RREADY	= axiri.RREADY;
+		axiri.RDATA	= RII.RDATA;
+		axiri.RLAST	= RII.RLAST;
 	end
 
-	// read address
-	assign RII.ARADDR = cnt;
-	assign RII.ARVALID = 1'b1;
-	assign RII.ARBURST = `AXI_BURST_WRAP;
-	assign RII.ARLEN   = 'h3;
+	always_comb begin
+		pc.VALID	= 1'b1;
+	end
 
-
-	assign RII.RREADY = 1'b1;
-
-	always @(posedge CLK) begin
-		if(RII.RVALID && RII.RREADY) begin
-			$display("[INFO] RDATA = %h", RII.RDATA);
+	always_ff @(posedge CLK or negedge RSTn) begin
+		if(!RSTn) begin
+			pc.PC <= 64'h0000_0000_8000_0000;
+		end else if(pc.est()) begin
+			pc.PC <= `TPD pc.PC + 'h40;
 		end
 	end
 

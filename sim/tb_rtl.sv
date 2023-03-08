@@ -11,7 +11,9 @@ module tb_rtl
 	wire [32-1:0]	tohost;
 	string		init_file;
 
-	AXI	axii;
+	AXIR	axiri;		// AXI read: instruction
+	AXIR	axird;		// AXI read: data
+	AXIW	axiwd;		// AXI write: data
 
 
 	LEVE1	LEVE1
@@ -19,7 +21,7 @@ module tb_rtl
 		.CLK		(CLK),
 		.RSTn		(RSTn),
 
-		.RII		(axii)
+		.RII		(axiri)
 	);
 
 	TB_RAM	TB_RAM
@@ -27,8 +29,8 @@ module tb_rtl
 		.CLK		(CLK),
 		.RSTn		(RSTn),
 
-		.RT		(axii),
-		.WT		(axii),
+		.RT		(axiri),
+		.WT		(axiwd),
 		.init_file	(init_file)
 	);
 

@@ -8,8 +8,8 @@ module TB_RAM
 (
 	input			CLK,
 	input			RSTn,
-	AXI.r_target		RT,
-	AXI.w_target		WT,
+	AXIR.target		RT,		// read target
+	AXIW.target		WT,		// write target
 	input string		init_file
 );
 
@@ -38,7 +38,7 @@ module TB_RAM
 		end else begin
 			case(r_st)
 			1'b0: begin
-				if(RT.ARVALID && RT.ARREADY) begin
+				if(RT.ar_est()) begin
 					r_st <= `TPD 1'b1;
 				end
 			end
@@ -59,13 +59,13 @@ module TB_RAM
 		end else begin
 			case(r_st)
 			1'b0: begin
-				if(RT.ARVALID && RT.ARREADY) begin
+				if(RT.ar_est()) begin
 					r_cnt  <= `TPD RT.ARLEN;
 					r_addr <= `TPD RT.ARADDR;
 				end
 			end
 			1'b1: begin
-				if(RT.RVALID && RT.RREADY) begin
+				if(RT.r_est()) begin
 					r_cnt  <= `TPD r_cnt - 'b1;
 					r_addr <= `TPD r_addr + 'h10;
 				end
@@ -95,7 +95,7 @@ module TB_RAM
 		end else begin
 			case(w_st)
 			2'h0: begin
-				if(WT.AWVALID && WT.AWREADY) begin
+				if(WT.aw_est()) begin
 					w_st <= `TPD 2'h1;
 				end
 			end
@@ -105,7 +105,7 @@ module TB_RAM
 				end
 			end
 			2'h2: begin
-				if(WT.BVALID && WT.BREADY) begin
+				if(WT.b_est()) begin
 					w_st <= `TPD 2'h0;
 				end
 			end
@@ -122,13 +122,13 @@ module TB_RAM
 		end else begin
 			case(w_st)
 			2'b0: begin
-				if(WT.AWVALID && WT.AWREADY) begin
+				if(WT.aw_est()) begin
 					w_cnt  <= `TPD WT.AWLEN;
 					w_addr <= `TPD WT.AWADDR;
 				end
 			end
 			2'b1: begin
-				if(WT.WVALID && WT.WREADY) begin
+				if(WT.w_est()) begin
 					w_cnt  <= `TPD w_cnt - 'b1;
 					w_addr <= `TPD w_addr + 'h10;
 				end
@@ -154,7 +154,7 @@ module TB_RAM
 		logic [127:0]	wdata;
 		logic [127:0]	mask;
 		if(RSTn) begin
-			if(w_st == 2'h1 && WT.WVALID && WT.WREADY) begin
+			if(w_st == 2'h1 && WT.w_est()) begin
 				mem.read128({{32{1'b0}}, w_addr}, rdata);
 				mask = {
 					{8{WT.WSTRB[15]}},

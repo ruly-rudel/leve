@@ -16,13 +16,10 @@
 `define AXI_RESP_SLVERR		2'h2
 `define AXI_RESP_DECERR		2'h3
 
-interface AXI
+interface AXIR
 #(
 	parameter ARADDR_W	= 32,
-	parameter RDATA_W	= 128,
-	parameter AWADDR_W	= 32,
-	parameter WDATA_W	= 128,
-	parameter WSTRB_W	= 16
+	parameter RDATA_W	= 128
 );
 	logic			ARVALID;
 	logic			ARREADY;
@@ -36,6 +33,55 @@ interface AXI
 	logic	[1:0]		RRESP;
 	logic			RLAST;
 
+	modport	init
+	(
+		output		ARVALID,
+		input		ARREADY,
+		output		ARADDR,
+		output 		ARBURST,
+		output 		ARLEN,
+	
+		input		RVALID,
+		output		RREADY,
+		input		RDATA,
+		input		RRESP,
+		input		RLAST,
+		import		ar_est,
+		import		r_est
+	);
+
+	modport target
+	(
+		input		ARVALID,
+		output		ARREADY,
+		input		ARADDR,
+		input 		ARBURST,
+		input 		ARLEN,
+	
+		output		RVALID,
+		input		RREADY,
+		output		RDATA,
+		output		RRESP,
+		output		RLAST,
+		import		ar_est,
+		import		r_est
+	);
+
+	function logic ar_est();
+		return ARVALID && ARREADY ? 1'b1 : 1'b0;
+	endfunction
+
+	function logic r_est();
+		return RVALID && RREADY ? 1'b1 : 1'b0;
+	endfunction
+endinterface
+
+interface AXIW
+#(
+	parameter AWADDR_W	= 32,
+	parameter WDATA_W	= 128,
+	parameter WSTRB_W	= 16
+);
 	logic			AWVALID;
 	logic			AWREADY;
 	logic	[AWADDR_W-1:0]	AWADDR;
@@ -51,37 +97,7 @@ interface AXI
 	logic			BREADY;
 	logic	[1:0]		BRESP;
 
-	modport	r_init
-	(
-		output		ARVALID,
-		input		ARREADY,
-		output		ARADDR,
-		output 		ARBURST,
-		output 		ARLEN,
-	
-		input		RVALID,
-		output		RREADY,
-		input		RDATA,
-		input		RRESP,
-		input		RLAST
-	);
-
-	modport r_target
-	(
-		input		ARVALID,
-		output		ARREADY,
-		input		ARADDR,
-		input 		ARBURST,
-		input 		ARLEN,
-	
-		output		RVALID,
-		input		RREADY,
-		output		RDATA,
-		output		RRESP,
-		output		RLAST
-	);
-
-	modport w_init
+	modport init
 	(
 		input		AWVALID,
 		output		AWREADY,
@@ -96,10 +112,14 @@ interface AXI
 	
 		output		BVALID,
 		input		BREADY,
-		output		BRESP
+		output		BRESP,
+
+		import		aw_est,
+		import		w_est,
+		import		b_est
 	);
 
-	modport w_target
+	modport target
 	(
 		input		AWVALID,
 		output		AWREADY,
@@ -114,9 +134,24 @@ interface AXI
 	
 		output		BVALID,
 		input		BREADY,
-		output		BRESP
+		output		BRESP,
+
+		import		aw_est,
+		import		w_est,
+		import		b_est
 	);
 
+	function logic aw_est();
+		return AWVALID && AWREADY ? 1'b1 : 1'b0;
+	endfunction
+
+	function logic w_est();
+		return WVALID && WREADY ? 1'b1 : 1'b0;
+	endfunction
+
+	function logic b_est();
+		return BVALID && BREADY ? 1'b1 : 1'b0;
+	endfunction
 endinterface
 
 `endif // _axi_sv_
