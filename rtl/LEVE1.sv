@@ -34,6 +34,8 @@ module LEVE1
 		RII.RREADY	= axiri.RREADY;
 		axiri.RDATA	= RII.RDATA;
 		axiri.RLAST	= RII.RLAST;
+
+		inst.READY	= 1'b1;
 	end
 
 	always_comb begin
@@ -44,7 +46,13 @@ module LEVE1
 		if(!RSTn) begin
 			pc.PC <= 64'h0000_0000_8000_0000;
 		end else if(pc.est()) begin
-			pc.PC <= `TPD pc.PC + 'h40;
+			pc.PC <= `TPD pc.PC + 'h4;
+		end
+	end
+
+	always @(posedge CLK) begin
+		if(inst.est()) begin
+			$display("[INFO] PC:INST = %h:%h", pc.PC, inst.PAYLOAD);
 		end
 	end
 
