@@ -11,17 +11,21 @@ module LEVE_ALU
 	input logic [`XLEN-1:0]		RS1_D,
 	input logic [`XLEN-1:0]		RS2_D,
 
-	output logic			ALU_OUT_VALID,
+	output logic			RD_WE,
+	output logic [`XLEN-1:0]	RD_D,
+	output logic			PC_BR,
 	output logic [`XLEN-1:0]	ALU_OUT
 );
 
 
 	always_ff @(posedge CLK or negedge RSTn) begin
 		if(!RSTn) begin
-			ALU_OUT_VALID	<= `TPD 1'b0;
+			RD_WE		<= `TPD 1'b0;
 		end else begin
-			ALU_OUT_VALID	<= `TPD RS_D_VALID;
-			ALU_OUT		<= `TPD RS1_D + RS2_D;
+			RD_WE		<= `TPD RS_D_VALID;
+			RD_D		<= `TPD RS1_D + RS2_D;
+
+			PC_BR		<= `TPD 1'b0;
 		end
 	end
 

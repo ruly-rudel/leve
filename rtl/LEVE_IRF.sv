@@ -9,19 +9,23 @@ module LEVE_IRF		// integer register files
 
 	input logic			RS1_VALID,
 	input logic [4:0]		RS1,
+	input logic [2:0]		RS1EXT,
 	input logic			RS2_VALID,
 	input logic [4:0]		RS2,
 	input logic [2:0]		RS2EXT,
 
 	input logic [`XLEN-1:0]		IMM_I,
+	input logic [`XLEN-1:0]		IMM_W,
 
-	output logic			RS_D_VALID,
 	output logic [`XLEN-1:0]	RS1_D,
 	output logic [`XLEN-1:0]	RS2_D,
 
 	input logic			RD_WE,
 	input logic [4:0]		RD,
-	input logic [`XLEN-1:0]		ALU_OUT
+	input logic [`XLEN-1:0]		RD_D,
+
+	input logic			CSR_WE,
+	input logic [`XLEN-1:0]		CSR_D
 
 );
 
@@ -31,7 +35,12 @@ module LEVE_IRF		// integer register files
 		if(!RSTn) begin
 			RS1_D		<= {`XLEN{1'b0}};
 		end else if(RS1_VALID) begin
-			RS1_D		<= `TPD RS1 == 5'h00 ? {`XLEN{1'b0}} : reg_file[RS1];
+			case (RS1EXT)
+			`IRF_REG:	RS1_D	<= `TPD RS1 == 5'h00 ? {`XLEN{1'b0}} : reg_file[RS1];
+			`IRF_IMM_I:	RS1_D	<= `TPD IMM_I;
+			`IRF_IMM_W:	RS1_D	<= `TPD IMM_W;
+			default: ;
+			endcase
 		end
 	end
 
@@ -40,25 +49,18 @@ module LEVE_IRF		// integer register files
 			RS2_D		<= {`XLEN{1'b0}};
 		end else if(RS2_VALID) begin
 			case (RS2EXT)
-			3'h0: RS2_D	<= `TPD RS2 == 5'h00 ? {`XLEN{1'b0}} : reg_file[RS2];
-			3'h1: RS2_D	<= `TPD IMM_I;
+			`IRF_REG:	RS2_D	<= `TPD RS2 == 5'h00 ? {`XLEN{1'b0}} : reg_file[RS2];
+			`IRF_IMM_I:	RS2_D	<= `TPD IMM_I;
+			`IRF_IMM_W:	RS2_D	<= `TPD IMM_W;
 			default: ;
 			endcase
 		end
 	end
 
 	always @(posedge CLK or negedge RSTn) begin
-		if(!RSTn) begin
-			RS_D_VALID	<= 1'b0;
-		end else begin
-			RS_D_VALID	<= `TPD RS1_VALID | RS2_VALID;
-		end
-	end
-
-	always @(posedge CLK or negedge RSTn) begin
 		if(RSTn && RD_WE) begin
 			if(RD != 5'h00) begin
-				reg_file[RD] <= `TPD ALU_OUT;
+				reg_file[RD] <= `TPD CSR_WE ? CSR_D : RD_D;
 			end
 		end
 	end
