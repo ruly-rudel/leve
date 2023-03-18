@@ -16,13 +16,20 @@ module LEVE1
 	PC			pc;
 	HS #(.WIDTH(32))	inst;
 
+	logic [pc.WIDTH-1:0]	pcp4_s1;
+	logic [6:0]		opcode_s1;
+	logic [2:0]		funct3_s1;
+	logic [`XLEN-1:0]	imm_j_s1;
+	logic			jal_s1;
+
+	logic			valid_s2;
+	logic [inst.WIDTH-1:0]	inst_s2;
+	logic [pc.WIDTH-1:0]	pc_s2;
+	logic [pc.WIDTH-1:0]	pcp4_s2;
 	logic [6:0]		opcode_s2;
 	logic [2:0]		funct3_s2;
-	logic [`XLEN-1:0]	imm_j_s2;
-	logic			jal_s2;
 	logic [2:0]		rs2ext_s2;
 	logic [2:0]		rs3ext_s2;
-	logic [pc.WIDTH-1:0]	pcp4_s2;
 
 	logic			valid_s3;
 	logic [inst.WIDTH-1:0]	inst_s3;
@@ -74,11 +81,11 @@ module LEVE1
 		.RSTn		(RSTn),
 		.PC		(pc),
 
-		.IMM_J		(imm_j_s2),
-		.JAL		(jal_s2),
+		.IMM_J		(imm_j_s1),
+		.JAL		(jal_s1),
 		.PC_BR		(pc_br_s5),
 		.ALU_OUT	(alu_out_s5),
-		.PCp4		(pcp4_s2)
+		.PCp4		(pcp4_s1)
 
 	);
 
@@ -109,13 +116,14 @@ module LEVE1
 		inst.READY	= 1'b1;
 	end
 
-	// decode
+	// decode JAL
 	always_comb begin
-		opcode_s2	= inst.PAYLOAD[6:0];
-		funct3_s2	= inst.PAYLOAD[14:12];
-		imm_j_s2	= {{11+32{inst.PAYLOAD[31]}}, inst.PAYLOAD[31], inst.PAYLOAD[19:12], inst.PAYLOAD[20], inst.PAYLOAD[30:21], 1'b0};
+		opcode_s1	= inst.PAYLOAD[6:0];
+		funct3_s1	= inst.PAYLOAD[14:12];
+		imm_j_s1	= {{11+32{inst.PAYLOAD[31]}}, inst.PAYLOAD[31], inst.PAYLOAD[19:12], inst.PAYLOAD[20], inst.PAYLOAD[30:21], 1'b0};
 
-		jal_s2		= opcode_s2 == 7'b11_011_11 ? 1'b1 : 1'b0;	// JAL
+		jal_s1		= opcode_s1 == 7'b11_011_11 ? 1'b1 : 1'b0;	// JAL
+
 		rs2ext_s2	= opcode_s2 == 7'b11_100_11 && funct3_s2 != 3'b000 && funct3_s2 != 3'b100 ? `IRF_IMM_W :
 				  `IRF_REG;
 		rs3ext_s2	= opcode_s2 == 7'b00_100_11 ? `IRF_IMM_I :	// OP-IMM
@@ -124,16 +132,40 @@ module LEVE1
 
 	always_ff @(posedge CLK or negedge RSTn) begin
 		if(!RSTn) begin
+			valid_s2	<= 1'b0;
+		end else begin
+			valid_s2	<= `TPD inst.VALID;
+			inst_s2		<= `TPD inst.PAYLOAD;
+			pc_s2		<= `TPD pc.PC;
+			pcp4_s2		<= `TPD pcp4_s1;
+		end
+	end
+
+	//////////////////////////////////////////////////////////////////////////////
+	// STAGE 2: Decode
+
+	always_comb begin
+		opcode_s2	= inst_s2[6:0];
+		funct3_s2	= inst_s2[14:12];
+
+		rs2ext_s2	= opcode_s2 == 7'b11_100_11 && funct3_s2 != 3'b000 && funct3_s2 != 3'b100 ? `IRF_IMM_W :
+				  `IRF_REG;
+		rs3ext_s2	= opcode_s2 == 7'b00_100_11 ? `IRF_IMM_I :	// OP-IMM
+							      `IRF_REG;
+	end
+	always_ff @(posedge CLK or negedge RSTn) begin
+		if(!RSTn) begin
 			valid_s3	<= 1'b0;
 		end else begin
-			valid_s3	<= `TPD inst.VALID;
-			inst_s3		<= `TPD inst.PAYLOAD;
-			pc_s3		<= `TPD pc.PC;
+			valid_s3	<= `TPD valid_s2;
+			inst_s3		<= `TPD inst_s2;
+			pc_s3		<= `TPD pc_s2;
 			pcp4_s3		<= `TPD pcp4_s2;
 			rs2ext_s3	<= `TPD rs2ext_s2;
 			rs3ext_s3	<= `TPD rs3ext_s2;
 		end
 	end
+
 
 	//////////////////////////////////////////////////////////////////////////////
 	// STAGE 3: Register File Read
@@ -240,6 +272,8 @@ module LEVE1
 		end
 	end
 
+	//////////////////////////////////////////////////////////////////////////////
+	// STAGE 5: Memory Access
 
 	// TRACE output
 	always @(posedge CLK) begin
