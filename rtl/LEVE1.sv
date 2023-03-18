@@ -16,56 +16,56 @@ module LEVE1
 	PC			pc;
 	HS #(.WIDTH(32))	inst;
 
-	logic [6:0]		opcode_s1;
-	logic [2:0]		funct3_s1;
-	logic [`XLEN-1:0]	imm_j_s1;
-	logic			jal_s1;
-	logic [2:0]		rs1ext_s1;
-	logic [2:0]		rs2ext_s1;
-	logic [pc.WIDTH-1:0]	pcp4_s1;
-
-	logic			valid_s2;
-	logic [inst.WIDTH-1:0]	inst_s2;
-	logic [pc.WIDTH-1:0]	pc_s2;
-	logic [pc.WIDTH-1:0]	pcp4_s2;
-	logic [2:0]		rs1ext_s2;
-	logic [2:0]		rs2ext_s2;
-
-	logic [4:0]		rs1_s2;
-	logic [4:0]		rs2_s2;
-	logic [`XLEN-1:0]	imm_i_s2;
-	logic [`XLEN-1:0]	imm_s_s2;
-	logic [`XLEN-1:0]	imm_b_s2;
-	logic [`XLEN-1:0]	imm_u_s2;
-	logic [`XLEN-1:0]	uimm_w_s2;
 	logic [6:0]		opcode_s2;
 	logic [2:0]		funct3_s2;
-	logic [1:0]		csr_cmd_s2;
+	logic [`XLEN-1:0]	imm_j_s2;
+	logic			jal_s2;
+	logic [2:0]		rs2ext_s2;
+	logic [2:0]		rs3ext_s2;
+	logic [pc.WIDTH-1:0]	pcp4_s2;
 
 	logic			valid_s3;
 	logic [inst.WIDTH-1:0]	inst_s3;
-	logic [`XLEN-1:0]	rs1_d_s3;
-	logic [`XLEN-1:0]	rs2_d_s3;
 	logic [pc.WIDTH-1:0]	pc_s3;
 	logic [pc.WIDTH-1:0]	pcp4_s3;
+	logic [2:0]		rs2ext_s3;
+	logic [2:0]		rs3ext_s3;
 
+	logic [4:0]		rs2_s3;
+	logic [4:0]		rs3_s3;
+	logic [`XLEN-1:0]	imm_i_s3;
+	logic [`XLEN-1:0]	imm_s_s3;
+	logic [`XLEN-1:0]	imm_b_s3;
+	logic [`XLEN-1:0]	imm_u_s3;
+	logic [`XLEN-1:0]	uimm_w_s3;
+	logic [6:0]		opcode_s3;
+	logic [2:0]		funct3_s3;
 	logic [1:0]		csr_cmd_s3;
-	logic [11:0]		csr_s3;
 
 	logic			valid_s4;
-	logic			pc_br_s4;
-	logic [`XLEN-1:0]	alu_out_s4;
-	logic			rd_we_s4;
-	logic [4:0]		rd_s4;
-	logic [`XLEN-1:0]	rd_d_s4;
+	logic [inst.WIDTH-1:0]	inst_s4;
+	logic [`XLEN-1:0]	rs2_d_s4;
+	logic [`XLEN-1:0]	rs3_d_s4;
+	logic [pc.WIDTH-1:0]	pc_s4;
+	logic [pc.WIDTH-1:0]	pcp4_s4;
 
-	logic			csr_we_s4;
-	logic [`MXLEN-1:0]	csr_d_s4;
+	logic [1:0]		csr_cmd_s4;
+	logic [11:0]		csr_s4;
+
+	logic			valid_s5;
+	logic			pc_br_s5;
+	logic [`XLEN-1:0]	alu_out_s5;
+	logic			rd_we_s5;
+	logic [4:0]		rd_s5;
+	logic [`XLEN-1:0]	rd_d_s5;
+
+	logic			csr_we_s5;
+	logic [`MXLEN-1:0]	csr_d_s5;
 
 	TRACE			trace = new;
 
 	//////////////////////////////////////////////////////////////////////////////
-	// STAGE 1: Instruction Fetch & Decode
+	// STAGE 1: Instruction Fetch
 
 	// PC + Branch prediction
 	LEVE_BRP		LEVE_BRP
@@ -74,11 +74,11 @@ module LEVE1
 		.RSTn		(RSTn),
 		.PC		(pc),
 
-		.IMM_J		(imm_j_s1),
-		.JAL		(jal_s1),
-		.PC_BR		(pc_br_s4),
-		.ALU_OUT	(alu_out_s4),
-		.PCp4		(pcp4_s1)
+		.IMM_J		(imm_j_s2),
+		.JAL		(jal_s2),
+		.PC_BR		(pc_br_s5),
+		.ALU_OUT	(alu_out_s5),
+		.PCp4		(pcp4_s2)
 
 	);
 
@@ -111,46 +111,46 @@ module LEVE1
 
 	// decode
 	always_comb begin
-		opcode_s1	= inst.PAYLOAD[6:0];
-		funct3_s1	= inst.PAYLOAD[14:12];
-		imm_j_s1	= {{11+32{inst.PAYLOAD[31]}}, inst.PAYLOAD[31], inst.PAYLOAD[19:12], inst.PAYLOAD[20], inst.PAYLOAD[30:21], 1'b0};
+		opcode_s2	= inst.PAYLOAD[6:0];
+		funct3_s2	= inst.PAYLOAD[14:12];
+		imm_j_s2	= {{11+32{inst.PAYLOAD[31]}}, inst.PAYLOAD[31], inst.PAYLOAD[19:12], inst.PAYLOAD[20], inst.PAYLOAD[30:21], 1'b0};
 
-		jal_s1		= opcode_s1 == 7'b11_011_11 ? 1'b1 : 1'b0;	// JAL
-		rs1ext_s1	= opcode_s1 == 7'b11_100_11 && funct3_s1 != 3'b000 && funct3_s1 != 3'b100 ? `IRF_IMM_W :
+		jal_s2		= opcode_s2 == 7'b11_011_11 ? 1'b1 : 1'b0;	// JAL
+		rs2ext_s2	= opcode_s2 == 7'b11_100_11 && funct3_s2 != 3'b000 && funct3_s2 != 3'b100 ? `IRF_IMM_W :
 				  `IRF_REG;
-		rs2ext_s1	= opcode_s1 == 7'b00_100_11 ? `IRF_IMM_I :	// OP-IMM
+		rs3ext_s2	= opcode_s2 == 7'b00_100_11 ? `IRF_IMM_I :	// OP-IMM
 							      `IRF_REG;
 	end
 
 	always_ff @(posedge CLK or negedge RSTn) begin
 		if(!RSTn) begin
-			valid_s2	<= 1'b0;
+			valid_s3	<= 1'b0;
 		end else begin
-			valid_s2	<= `TPD inst.VALID;
-			inst_s2		<= `TPD inst.PAYLOAD;
-			pc_s2		<= `TPD pc.PC;
-			pcp4_s2		<= `TPD pcp4_s1;
-			rs1ext_s2	<= `TPD rs1ext_s1;
-			rs2ext_s2	<= `TPD rs2ext_s1;
+			valid_s3	<= `TPD inst.VALID;
+			inst_s3		<= `TPD inst.PAYLOAD;
+			pc_s3		<= `TPD pc.PC;
+			pcp4_s3		<= `TPD pcp4_s2;
+			rs2ext_s3	<= `TPD rs2ext_s2;
+			rs3ext_s3	<= `TPD rs3ext_s2;
 		end
 	end
 
 	//////////////////////////////////////////////////////////////////////////////
-	// STAGE 2: Register File Read
-	// STAGE 4-n: Register Writeback
+	// STAGE 3: Register File Read
+	// STAGE 6-n: Register Writeback
 
 	always_comb begin
-		opcode_s2	= inst_s2[6:0];
-		funct3_s2	= inst_s2[14:12];
-		rs1_s2		= inst_s2[19:15];
-		rs2_s2		= inst_s2[24:20];
-		imm_i_s2	= {{20+32{inst_s2[31]}}, inst_s2[31:20]};
-		imm_s_s2	= {{20+32{inst_s2[31]}}, inst_s2[31:25], inst_s2[11:7]};
-		imm_b_s2	= {{19+32{inst_s2[31]}}, inst_s2[31], inst_s2[7], inst_s2[30:25], inst_s2[11:8], 1'b0};
-		imm_u_s2	= {{   32{inst_s2[31]}}, inst_s2[31:12], 12'h000};
-		uimm_w_s2	= {{`XLEN-5{1'b0}}, rs1_s2};
+		opcode_s3	= inst_s3[6:0];
+		funct3_s3	= inst_s3[14:12];
+		rs2_s3		= inst_s3[19:15];
+		rs3_s3		= inst_s3[24:20];
+		imm_i_s3	= {{20+32{inst_s3[31]}}, inst_s3[31:20]};
+		imm_s_s3	= {{20+32{inst_s3[31]}}, inst_s3[31:25], inst_s3[11:7]};
+		imm_b_s3	= {{19+32{inst_s3[31]}}, inst_s3[31], inst_s3[7], inst_s3[30:25], inst_s3[11:8], 1'b0};
+		imm_u_s3	= {{   32{inst_s3[31]}}, inst_s3[31:12], 12'h000};
+		uimm_w_s3	= {{`XLEN-5{1'b0}}, rs2_s3};
 
-		csr_cmd_s2	= opcode_s2 == 7'b11_100_11 ? funct3_s2[1:0] : `CSR_NONE;
+		csr_cmd_s3	= opcode_s3 == 7'b11_100_11 ? funct3_s3[1:0] : `CSR_NONE;
 	end
 
 	// register fils
@@ -159,41 +159,41 @@ module LEVE1
 		.CLK		(CLK),
 		.RSTn		(RSTn),
 
-		.RS1_VALID	(valid_s2),
-		.RS1		(rs1_s2),
-		.RS1EXT		(rs1ext_s2),
-		.RS2_VALID	(valid_s2),
-		.RS2		(rs2_s2),
-		.RS2EXT		(rs2ext_s2),
+		.RS1_VALID	(valid_s3),
+		.RS1		(rs2_s3),
+		.RS1EXT		(rs2ext_s3),
+		.RS2_VALID	(valid_s3),
+		.RS2		(rs3_s3),
+		.RS2EXT		(rs3ext_s3),
 
-		.IMM_I		(imm_i_s2),
-		.IMM_W		(uimm_w_s2),
+		.IMM_I		(imm_i_s3),
+		.IMM_W		(uimm_w_s3),
 
-		.RS1_D		(rs1_d_s3),
-		.RS2_D		(rs2_d_s3),
+		.RS1_D		(rs2_d_s4),
+		.RS2_D		(rs3_d_s4),
 
-		.RD_WE		(rd_we_s4),
-		.RD		(rd_s4),
-		.RD_D		(rd_d_s4),
+		.RD_WE		(rd_we_s5),
+		.RD		(rd_s5),
+		.RD_D		(rd_d_s5),
 
-		.CSR_WE		(csr_we_s4),
-		.CSR_D		(csr_d_s4)
+		.CSR_WE		(csr_we_s5),
+		.CSR_D		(csr_d_s5)
 	);
 
 	always_ff @(posedge CLK or negedge RSTn) begin
 		if(!RSTn) begin
-			valid_s3	<= 1'b0;
+			valid_s4	<= 1'b0;
 		end else begin
-			valid_s3	<= `TPD valid_s2;
-			pc_s3		<= `TPD pc_s2;
-			pcp4_s3		<= `TPD pcp4_s2;
-			inst_s3		<= `TPD inst_s2;
-			csr_cmd_s3	<= `TPD csr_cmd_s2;
+			valid_s4	<= `TPD valid_s3;
+			pc_s4		<= `TPD pc_s3;
+			pcp4_s4		<= `TPD pcp4_s3;
+			inst_s4		<= `TPD inst_s3;
+			csr_cmd_s4	<= `TPD csr_cmd_s3;
 		end
 	end
 
 	//////////////////////////////////////////////////////////////////////////////
-	// STAGE 3: Execute
+	// STAGE 4: Execute
 
 	// ALU
 	LEVE_ALU		LEVE_ALU
@@ -201,15 +201,15 @@ module LEVE1
 		.CLK		(CLK),
 		.RSTn		(RSTn),
 
-		.RS_D_VALID	(valid_s3),
-		.RS1_D		(rs1_d_s3),
-		.RS2_D		(rs2_d_s3),
+		.RS_D_VALID	(valid_s4),
+		.RS1_D		(rs2_d_s4),
+		.RS2_D		(rs3_d_s4),
 
-		.RD_WE		(rd_we_s4),
-		.RD_D		(rd_d_s4),
+		.RD_WE		(rd_we_s5),
+		.RD_D		(rd_d_s5),
 
-		.PC_BR		(pc_br_s4),
-		.ALU_OUT	(alu_out_s4)
+		.PC_BR		(pc_br_s5),
+		.ALU_OUT	(alu_out_s5)
 	);
 
 	// CSR regs
@@ -218,25 +218,25 @@ module LEVE1
 		.CLK		(CLK),
 		.RSTn		(RSTn),
 
-		.CMD		(csr_cmd_s3),
-		.CSR		(csr_s3),
-		.CSR_WD		(rs1_d_s3),
-		.CSR_RD		(csr_d_s4),
+		.CMD		(csr_cmd_s4),
+		.CSR		(csr_s4),
+		.CSR_WD		(rs2_d_s4),
+		.CSR_RD		(csr_d_s5),
 
-		.RETIRE		(rd_we_s4 | pc_br_s4)
+		.RETIRE		(rd_we_s5 | pc_br_s5)
 	);
 
 	always_comb begin
-		csr_s3		= inst_s3[31:20];
+		csr_s4		= inst_s4[31:20];
 	end
 
 	always_ff @(posedge CLK or negedge RSTn) begin
 		if(!RSTn) begin
-			valid_s4	<= 1'b0;
+			valid_s5	<= 1'b0;
 		end else begin
-			valid_s4	<= `TPD valid_s3;
-			rd_s4		<= `TPD inst_s3[11:7];
-			csr_we_s4	<= `TPD |csr_cmd_s3;
+			valid_s5	<= `TPD valid_s4;
+			rd_s5		<= `TPD inst_s4[11:7];
+			csr_we_s5	<= `TPD |csr_cmd_s4;
 		end
 	end
 
@@ -257,9 +257,9 @@ endmodule
 		opcode		= inst.PAYLOAD[6:0];
 		rd		= inst.PAYLOAD[11:7];
 		funct3		= inst.PAYLOAD[14:12];
-		rs1		= inst.PAYLOAD[19:15];
-		rs2		= inst.PAYLOAD[24:20];
-		rs3		= inst.PAYLOAD[31:27];
+		rs2		= inst.PAYLOAD[19:15];
+		rs3		= inst.PAYLOAD[24:20];
+		rs4		= inst.PAYLOAD[31:27];
 		funct7		= inst.PAYLOAD[31:25];
 		funct5		= inst.PAYLOAD[31:27];
 		funct2		= inst.PAYLOAD[26:25];
@@ -273,7 +273,7 @@ endmodule
 		imm_u		= {{   32{inst.PAYLOAD[31]}}, inst.PAYLOAD[31:12], 12'h000};
 		imm_j		= {{11+32{inst.PAYLOAD[31]}}, inst.PAYLOAD[31], inst.PAYLOAD[19:12], inst.PAYLOAD[20], inst.PAYLOAD[30:21], 1'b0};
 
-		uimm_w		= {{`XLEN-5{1'b0}}, rs1};
+		uimm_w		= {{`XLEN-5{1'b0}}, rs2};
 
 		csr		= inst.PAYLOAD[31:20];
 		shamt		= imm_i[5:0];
@@ -284,9 +284,9 @@ endmodule
 	logic [6:0]		opcode;
 	logic [4:0]		rd;
 	logic [2:0]		funct3;
-	logic [4:0]		rs1;
 	logic [4:0]		rs2;
 	logic [4:0]		rs3;
+	logic [4:0]		rs4;
 	logic [6:0]		funct7;
 	logic [4:0]		funct5;
 	logic [1:0]		funct2;
