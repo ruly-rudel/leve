@@ -7,7 +7,7 @@ module LEVE_CSR
 	input logic			RSTn,
 
 	input [1:0]			CMD,
-	input [11:0]			CSR,
+	input [11:0]			CSR_A,
 	input [`XLEN-1:0]		CSR_WD,
 	output [`XLEN-1:0]		CSR_RD,
 
@@ -64,7 +64,7 @@ module LEVE_CSR
 	logic [`MXLEN-1:0]	csr_wd;
 
 	always_comb begin
-		case (CSR)
+		case (CSR_A)
 			12'h001: csr_rd = {{`XLEN-5{1'b0}}, fflags};
 			12'h002: csr_rd = {{`XLEN-3{1'b0}}, frm};
 			12'h003: csr_rd = {{`XLEN-5-3{1'b0}}, frm, fflags};
@@ -160,7 +160,7 @@ module LEVE_CSR
 			satp_asid	= {16{1'b0}};
 			satp_mode	= {4{1'b0}};
 		end else if(CMD != `CSR_NONE) begin
-			case (CSR)
+			case (CSR_A)
 			12'h001: fflags = csr_wd[4:0];
 			12'h002: frm = csr_wd[2:0];
 			12'h003: begin	// fcsr

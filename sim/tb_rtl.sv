@@ -1,5 +1,6 @@
 
 `include "defs.vh"
+`include "ISS.sv"
 
 module tb_rtl
 (
@@ -7,9 +8,16 @@ module tb_rtl
 	input		RSTn
 );
 
-	wire		tohost_we;
-	wire [32-1:0]	tohost;
-	string		init_file;
+	wire			pc_en;
+	wire [`XLEN-1:0]	pc;
+	logic [`XLEN-1:0]	pc_iss;
+	logic [`XLEN-1:0]	next_pc;
+	logic			tohost_we;
+	logic [32-1:0]		tohost;
+	string			init_file;
+
+	// ISS
+	ISS			iss = new;
 
 	AXIR	axiri;		// AXI read: instruction
 	AXIR	axird;		// AXI read: data
@@ -21,6 +29,8 @@ module tb_rtl
 		.CLK		(CLK),
 		.RSTn		(RSTn),
 
+		.PC_EN		(pc_en),
+		.PC_CNT		(pc),
 		.RII		(axiri)
 	);
 
@@ -43,8 +53,19 @@ module tb_rtl
 
 	always_ff @(posedge CLK or negedge RSTn)
 	begin
-		if(RSTn)
-		begin
+		if(!RSTn) begin
+			iss.init(init_file);
+			pc_iss = iss.get_entry_point();
+			tohost_we = 1'b0;
+		end else if(pc_en) begin
+			tohost_we = 1'b0;
+			iss.exec(pc_iss, next_pc, tohost_we, tohost);
+			if(pc_iss != pc) begin
+				$display ("[TESTBENCH] [FAIL] PC missmatch at %h", pc_iss);
+				$finish;
+			end
+			pc_iss = next_pc;
+
 			if(tohost_we) begin
 				if(tohost == 32'h0000_0001) begin
 					$display ("[TESTBENCH] [PASS] exit code %08H.", tohost);

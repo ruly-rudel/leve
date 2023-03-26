@@ -22,11 +22,6 @@ module RV64GC_ISS (
 	// main loop
 	always_ff @(posedge CLK or negedge RSTn)
 	begin
-		bit [`XLEN-1:0]	tmp;
-		bit [`XLEN-1:0]	trap_pc;
-		bit [`XLEN-1:0]	next_pc;
-		bit [32-1:0]	inst;
-
 		if(!RSTn) begin
 			iss.init(init_file);
 			pc = iss.get_entry_point();

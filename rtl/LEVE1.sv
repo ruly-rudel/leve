@@ -10,6 +10,10 @@ module LEVE1
 (
 	input			CLK,
 	input			RSTn,
+
+	output			PC_EN,	// for debug
+	output [`XLEN-1:0]	PC_CNT,
+
 	AXIR.init		RII	// read initiator: instruction
 );
 	AXIR			axiri;
@@ -65,9 +69,17 @@ module LEVE1
 	logic			rd_we_s5;
 	logic [4:0]		rd_s5;
 	logic [`XLEN-1:0]	rd_d_s5;
-
+	logic [pc.WIDTH-1:0]	pc_s5;
 	logic			csr_we_s5;
 	logic [`MXLEN-1:0]	csr_d_s5;
+
+	logic			valid_s6;
+	logic			rd_we_s6;
+	logic [4:0]		rd_s6;
+	logic [`XLEN-1:0]	rd_d_s6;
+	logic [pc.WIDTH-1:0]	pc_s6;
+	logic			csr_we_s6;
+	logic [`MXLEN-1:0]	csr_d_s6;
 
 	TRACE			trace = new;
 
@@ -251,7 +263,7 @@ module LEVE1
 		.RSTn		(RSTn),
 
 		.CMD		(csr_cmd_s4),
-		.CSR		(csr_s4),
+		.CSR_A		(csr_s4),
 		.CSR_WD		(rs2_d_s4),
 		.CSR_RD		(csr_d_s5),
 
@@ -267,6 +279,7 @@ module LEVE1
 			valid_s5	<= 1'b0;
 		end else begin
 			valid_s5	<= `TPD valid_s4;
+			pc_s5		<= `TPD pc_s4;
 			rd_s5		<= `TPD inst_s4[11:7];
 			csr_we_s5	<= `TPD |csr_cmd_s4;
 		end
@@ -275,12 +288,31 @@ module LEVE1
 	//////////////////////////////////////////////////////////////////////////////
 	// STAGE 5: Memory Access
 
+	always_ff @(posedge CLK or negedge RSTn) begin
+		if(!RSTn) begin
+			valid_s6	<= 1'b0;
+		end else begin
+			valid_s6	<= `TPD valid_s5;
+			rd_we_s6	<= `TPD rd_we_s5;
+			rd_s6		<= `TPD rd_s5;
+			rd_d_s6		<= `TPD rd_d_s5;
+			pc_s6		<= `TPD pc_s5;
+			csr_we_s6	<= `TPD csr_we_s5;
+			csr_d_s6	<= `TPD csr_d_s5;
+		end
+	end
+
+
 	// TRACE output
+	/*
 	always @(posedge CLK) begin
-		if(inst.est()) begin
+		if(valid_s6) begin
 			trace.print(pc.PC, inst.PAYLOAD);
 		end
 	end
+	*/
+	assign	PC_EN  = valid_s6;
+	assign 	PC_CNT = pc_s6;
 
 endmodule
 
