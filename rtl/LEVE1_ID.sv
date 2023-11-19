@@ -121,9 +121,11 @@ module LEVE1_ID
 			OINSTR	<= IINSTR;
 			RS1	<= rs1 == 5'h00 ? '0 :
 				   ex_valid && rs1 == ex_rd0 ? FWD_RD :
+				   WB_IWE && rs1 == w_rd0 ? WB_IRD :
 				   reg_file[rs1];
 			RS2	<= rs2 == 5'h00 ? '0 :
 				   ex_valid && rs2 == ex_rd0 ? FWD_RD :
+				   WB_IWE && rs2 == w_rd0 ? WB_IRD :
 				   reg_file[rs2];
 		end
 	end

@@ -120,6 +120,7 @@ module LEVE1_EX
 	end
 
 	logic id_we;
+	logic [127:0] tmp128;
 	always_comb begin
 						next_pc = IPC + 'h4;
 						id_we	= IVALID;
@@ -323,6 +324,126 @@ module LEVE1_EX
 			end
 
 			default:		id_we	= 1'b0;
+
+			7'b01_100_11: begin	// OP
+						id_we	= IVALID;
+				case (funct3)
+				3'b000: begin
+					case (funct7)
+					7'b0000000: 
+						FWD_RD	= IRS1 + IRS2;	// ADD
+					7'b0000001:
+						FWD_RD	= $bits(FWD_RD)'(IRS1 * IRS2);	// MUL
+					7'b0100000:
+						FWD_RD	= IRS1 - IRS2;	// SUB
+					default: id_we	= 1'b0;
+					endcase
+				end
+				3'b001: begin
+					case (funct7)
+					7'b0000000:
+						FWD_RD	= IRS1 << IRS2[5:0];	// SLL
+					7'b0000001: begin
+						tmp128	= $signed(IRS1) * $signed(IRS2);	// MULH
+						FWD_RD	= tmp128[`XLEN*2-1:`XLEN];
+					end
+					default: id_we	= 1'b0;
+					endcase
+				end
+				/*
+				3'b010: begin
+					case (funct7)
+					7'b0000000: begin	// SLT
+						rf.write(rd0, $signed(rs1_d) < $signed(rs2_d) ? {{63{1'b0}}, 1'b1} : {64{1'b0}});
+						next_pc = pc + 'h4;
+					end
+					7'b0000001: begin	// MULHSU
+						tmp128 = absXLEN(rs1_d) * rs2_d;
+						tmp128 = twoscompXLENx2(rs1_d[`XLEN-1], tmp128);
+						rf.write(rd0, tmp128[`XLEN*2-1:`XLEN]);
+						next_pc = pc + 'h4;
+					end
+					default: next_pc = raise_illegal_instruction(pc, inst);
+					endcase
+				end
+				3'b011: begin
+					case (funct7)
+					7'b0000000: begin	// SLTU
+						rf.write(rd0, rs1_d < rs2_d ? {{63{1'b0}}, 1'b1} : {64{1'b0}});
+						next_pc = pc + 'h4;
+					end
+					7'b0000001: begin	// MULHU
+						tmp128 = rs1_d * rs2_d;
+						rf.write(rd0, tmp128[`XLEN*2-1:`XLEN]);
+						next_pc = pc + 'h4;
+					end
+					default: next_pc = raise_illegal_instruction(pc, inst);
+					endcase
+				end
+				3'b100: begin
+					case (funct7)
+					7'b0000000: begin	// XOR
+					 	rf.write(rd0, rs1_d ^ rs2_d);
+						next_pc = pc + 'h4;
+					end
+					7'b0000001: begin	// DIV
+						tmp = absXLEN(rs1_d) / absXLEN(rs2_d);
+						tmp = twoscompXLEN(rs1_d[`XLEN-1] ^ rs2_d[`XLEN-1], tmp);
+						rf.write(rd0, rs2_d == {`XLEN{1'b0}} ? {`XLEN{1'b1}} : tmp);
+						next_pc = pc + 'h4;
+					end
+					default: next_pc = raise_illegal_instruction(pc, inst);
+					endcase
+				end
+				3'b101: begin
+					case (funct7)
+					7'b0000000: begin	// SRL
+						rf.write(rd0, rs1_d >> rs2_d[5:0]);
+						next_pc = pc + 'h4;
+					end
+					7'b0000001: begin	// DIVU
+						rf.write(rd0, rs2_d == {`XLEN{1'b0}} ? {`XLEN{1'b1}} : rs1_d / rs2_d);
+						next_pc = pc + 'h4;
+					end
+					7'b0100000: begin	// SRA
+						rf.write(rd0, $signed(rs1_d) >>> rs2_d[5:0]);
+						next_pc = pc + 'h4;
+					end
+					default: next_pc = raise_illegal_instruction(pc, inst);
+					endcase
+				end
+				3'b110: begin
+					case (funct7)
+					7'b0000000: begin	// OR
+						rf.write(rd0, rs1_d | rs2_d);
+						next_pc = pc + 'h4;
+					end
+					7'b0000001: begin	// REM
+						tmp = absXLEN(rs1_d) % absXLEN(rs2_d);
+						tmp = twoscompXLEN(rs1_d[`XLEN/2-1], tmp);
+						rf.write(rd0, rs2_d == {`XLEN{1'b0}} ? rs1_d : tmp);
+						next_pc = pc + 'h4;
+					end
+					default: next_pc = raise_illegal_instruction(pc, inst);
+					endcase
+				end
+				3'b111: begin
+					case (funct7)
+					7'b0000000: begin	// AND
+						rf.write(rd0, rs1_d & rs2_d);
+						next_pc = pc + 'h4;
+					end
+					7'b0000001: begin	// REMU
+						rf.write(rd0, rs2_d == {`XLEN{1'b0}} ? rs1_d : rs1_d % rs2_d);
+						next_pc = pc + 'h4;
+					end
+					default: next_pc = raise_illegal_instruction(pc, inst);
+					endcase
+				end
+				*/
+				default:	id_we	= 1'b0;
+				endcase
+			end
 			endcase
 		end
 		default:			id_we	= 1'b0;
