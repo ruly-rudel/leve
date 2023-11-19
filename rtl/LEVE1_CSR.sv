@@ -1,18 +1,23 @@
 
 `include "defs.vh"
 
-module LEVE_CSR
+module LEVE1_CSR
 (
 	input logic			CLK,
 	input logic			RSTn,
 
-	input [1:0]			CMD,
-	input [11:0]			CSR_A,
-	input [`XLEN-1:0]		CSR_WD,
+	input [11:0]			CSR_RA,
 	output [`XLEN-1:0]		CSR_RD,
+
+	input [1:0]			CSR_WCMD,
+	input [11:0]			CSR_WA,
+	input [`XLEN-1:0]		CSR_WD,
+
 
 	input				RETIRE
 );
+	logic [`XLEN-1:0]	csr_reg[0:`NUM_CSR-1];
+
 	logic [1:0]		mode;
 
 	logic [4:0]		fflags;
@@ -62,56 +67,61 @@ module LEVE_CSR
 
 	logic [`MXLEN-1:0]	csr_rd;
 	logic [`MXLEN-1:0]	csr_wd;
+	logic [`MXLEN-1:0]	csr_wd_r;
 
-	always_comb begin
-		case (CSR_A)
-			12'h001: csr_rd = {{`XLEN-5{1'b0}}, fflags};
-			12'h002: csr_rd = {{`XLEN-3{1'b0}}, frm};
-			12'h003: csr_rd = {{`XLEN-5-3{1'b0}}, frm, fflags};
-			12'hc00: csr_rd = cycle;
-			12'hc01: csr_rd = csr_time;
-			12'hc02: csr_rd = instret;
-			12'hf11: csr_rd = {`XLEN{1'b0}};	// mvenderid
-			12'hf12: csr_rd = {`XLEN{1'b0}};	// marchid
-			12'hf13: csr_rd = {`XLEN{1'b0}};	// mimpid
-			12'hf14: csr_rd = {`XLEN{1'b0}};	// mhartid
-			12'hf15: csr_rd = {`XLEN{1'b0}};	// mconfigptr
+	function [`XLEN-1:0] read_csr(input [11:0] n);
+		case (n)
+			12'h001: return {{`XLEN-5{1'b0}}, fflags};
+			12'h002: return {{`XLEN-3{1'b0}}, frm};
+			12'h003: return {{`XLEN-5-3{1'b0}}, frm, fflags};
+			12'hc00: return cycle;
+			12'hc01: return csr_time;
+			12'hc02: return instret;
+			12'hf11: return {`XLEN{1'b0}};	// mvenderid
+			12'hf12: return {`XLEN{1'b0}};	// marchid
+			12'hf13: return {`XLEN{1'b0}};	// mimpid
+			12'hf14: return {`XLEN{1'b0}};	// mhartid
+			12'hf15: return {`XLEN{1'b0}};	// mconfigptr
 			12'h180: begin			// satp
-				csr_rd = {satp_mode, satp_asid, satp_ppn};
+				return {satp_mode, satp_asid, satp_ppn};
 			end
 			12'h300: begin			// mstatus
-				csr_rd = {sd, 25'h00_0000, mbe, sbe, sxl, uxl,
+				return {sd, 25'h00_0000, mbe, sbe, sxl, uxl,
 					9'h000, tsr, tw, tvm, mxr, sum,
 					mprv, xs, fs, mpp, vs, spp, mpie,
 					ube, spie, 1'b0, mie, 1'b0, sie, 1'b0};
 			end
-			12'h302: csr_rd = medeleg;
-			12'h305: csr_rd = mtvec;
-			12'h341: csr_rd = {mepc[`XLEN-1:1], 1'b0};
-			12'h342: csr_rd = mcause;
-			12'h343: csr_rd = mtval;
+			12'h302: return medeleg;
+			12'h305: return mtvec;
+			12'h341: return {mepc[`XLEN-1:1], 1'b0};
+			12'h342: return mcause;
+			12'h343: return mtval;
 			12'h100: begin
-				csr_rd = {sd, 29'h0000_0000, uxl, 12'h000, mxr, sum, 1'b0,
+				return {sd, 29'h0000_0000, uxl, 12'h000, mxr, sum, 1'b0,
 					xs, fs, 2'h0, vs, spp, 1'b0, ube, spie, 3'h0, sie, 1'b0};
 			end
-			12'h105: csr_rd = stvec;
-			12'h141: csr_rd = {sepc[`XLEN-1:1], 1'b0};
-			12'h142: csr_rd = scause;
-			12'h143: csr_rd = stval;
-			default: csr_rd = {`MXLEN{1'b0}};
+			12'h105: return stvec;
+			12'h141: return {sepc[`XLEN-1:1], 1'b0};
+			12'h142: return scause;
+			12'h143: return stval;
+			default: return csr_reg[n];
 		endcase
+	endfunction
+
+
+	always_comb begin
+		CSR_RD = read_csr(CSR_RA);
 	end
 
 	always_comb begin
-		case(CMD)
+		csr_wd_r = read_csr(CSR_WA);
+		case(CSR_WCMD)
 		`CSR_NONE:	csr_wd = {`MXLEN{1'b0}};
-		`CSR_SET:	csr_wd = csr_rd |  CSR_WD;
-		`CSR_CLEAR:	csr_wd = csr_rd & ~CSR_WD;
+		`CSR_SET:	csr_wd = csr_wd_r |  CSR_WD;
+		`CSR_CLEAR:	csr_wd = csr_wd_r & ~CSR_WD;
 		`CSR_WRITE:	csr_wd = CSR_WD;
 		endcase
 	end
-
-	assign	CSR_RD = csr_rd;
 
 	always_ff @(posedge CLK or negedge RSTn) begin
 		if(!RSTn) begin
@@ -159,8 +169,8 @@ module LEVE_CSR
 			satp_ppn	= {44{1'b0}};
 			satp_asid	= {16{1'b0}};
 			satp_mode	= {4{1'b0}};
-		end else if(CMD != `CSR_NONE) begin
-			case (CSR_A)
+		end else if(CSR_WCMD != `CSR_NONE) begin
+			case (CSR_WA)
 			12'h001: fflags = csr_wd[4:0];
 			12'h002: frm = csr_wd[2:0];
 			12'h003: begin	// fcsr
@@ -228,7 +238,7 @@ module LEVE_CSR
 			12'h141: sepc	= {csr_wd[`XLEN-1:1], 1'b0};
 			12'h142: scause	= csr_wd;
 			12'h143: stval	= csr_wd;
-			default: ;
+			default: csr_reg[CSR_WA] = csr_wd;
 			endcase
 		end
 	end
@@ -247,4 +257,4 @@ module LEVE_CSR
 		end
 	end
 
-endmodule : LEVE_CSR
+endmodule : LEVE1_CSR
