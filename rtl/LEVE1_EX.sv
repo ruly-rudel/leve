@@ -21,8 +21,8 @@ module LEVE1_EX
 	input [`XLEN-1:0]		IRS2,
 	input [`XLEN-1:0]		ICSR,
 
-	output logic [`XLEN-1:0]	ID_RD,
-	output logic [`XLEN-1:0]	ID_CSRD,
+	output logic [`XLEN-1:0]	FWD_RD,
+	output logic [`XLEN-1:0]	FWD_CSRD,
 
 	output logic			OVALID,
 	output logic [`XLEN-1:0]	OPC,
@@ -83,6 +83,8 @@ module LEVE1_EX
 		opcode	= IINSTR[6:0];
 		funct3	= IINSTR[14:12];
 		funct7	= IINSTR[31:25];
+		rs1	= IINSTR[19:15];
+		rs2	= IINSTR[24:20];
 		imm_i	= {{20+32{IINSTR[31]}}, IINSTR[31:20]};
 		imm_s	= {{20+32{IINSTR[31]}}, IINSTR[31:25], IINSTR[11:7]};
 		imm_b	= {{19+32{IINSTR[31]}}, IINSTR[31], IINSTR[7], IINSTR[30:25], IINSTR[11:8], 1'b0};
@@ -126,24 +128,24 @@ module LEVE1_EX
 			case (opcode)
 			7'b00_100_11: begin	// OP-IMM
 				case (funct3)
-				3'b000: 	ID_RD	= IRS1 + imm_i;
+				3'b000: 	FWD_RD	= IRS1 + imm_i;
 				3'b001: case (funct7[6:1])
 					6'b000000:
-						ID_RD	= IRS1 << shamt;
+						FWD_RD	= IRS1 << shamt;
 					default:id_we	= 1'b0;
 					endcase
-				3'b010:		ID_RD	= $signed(IRS1) < $signed(imm_i) ? '1 : '0;
-				3'b011:		ID_RD	= IRS1 < imm_i ? '1 : '0;
-				3'b100:		ID_RD	= IRS1 ^ imm_i;
+				3'b010:		FWD_RD	= $signed(IRS1) < $signed(imm_i) ? '1 : '0;
+				3'b011:		FWD_RD	= IRS1 < imm_i ? '1 : '0;
+				3'b100:		FWD_RD	= IRS1 ^ imm_i;
 				3'b101: case (funct7[6:1])
 					6'b000000:
-						ID_RD	= IRS1 >> shamt;
+						FWD_RD	= IRS1 >> shamt;
 					6'b010000:
-					       	ID_RD	= $signed(IRS1) >>> shamt;
+					       	FWD_RD	= $signed(IRS1) >>> shamt;
 					default:id_we	= 0;
 					endcase
-				3'b110:		ID_RD	= IRS1 | imm_i;
-				3'b111:		ID_RD	= IRS1 & imm_i;
+				3'b110:		FWD_RD	= IRS1 | imm_i;
+				3'b111:		FWD_RD	= IRS1 & imm_i;
 				default:	id_we	= 0;
 				endcase
 			end
@@ -170,7 +172,7 @@ module LEVE1_EX
 						case(rs2)
 						5'b00010: begin		// MRET
 							id_we	= 1'b0;
-							ID_CSRD	= 
+							FWD_CSRD	= 
 								{sd, 25'h00_0000, mbe, sbe, sxl, uxl,
 								 9'h000, tsr, tw, tvm, mxr, sum,
 								 mprv, xs, fs, `MODE_U, vs, spp, 1'b1,
@@ -264,28 +266,28 @@ module LEVE1_EX
 				end
 				*/
 				3'b001: begin		// CSRRW
-						ID_RD	= ICSR;
-						ID_CSRD	= IRS1;
+						FWD_RD		= ICSR;
+						FWD_CSRD	= IRS1;
 				end
 				3'b010: begin		// CSRRS
-						ID_RD	= ICSR;
-						ID_CSRD	= IRS1;
+						FWD_RD		= ICSR;
+						FWD_CSRD	= IRS1;
 				end
 				3'b011: begin		// CSRRC
-						ID_RD	= ICSR;
-						ID_CSRD	= IRS1;
+						FWD_RD		= ICSR;
+						FWD_CSRD	= IRS1;
 				end
 				3'b101: begin		// CSRRWI
-						ID_RD	= ICSR;
-						ID_CSRD	= uimm_w;
+						FWD_RD		= ICSR;
+						FWD_CSRD	= uimm_w;
 				end
 				3'b110: begin		// CSRRSI
-						ID_RD	= ICSR;
-						ID_CSRD	= uimm_w;
+						FWD_RD		= ICSR;
+						FWD_CSRD	= uimm_w;
 				end
 				3'b111: begin		// CSRRCI
-						ID_RD	= ICSR;
-						ID_CSRD	= uimm_w;
+						FWD_RD		= ICSR;
+						FWD_CSRD	= uimm_w;
 				end
 				default:	id_we	= 1'b0;
 				endcase
@@ -293,26 +295,26 @@ module LEVE1_EX
 
 			7'b00_101_11: begin	// AUIPC
 						id_we	= IVALID;
-						ID_RD	= IPC + imm_u;
+						FWD_RD	= IPC + imm_u;
 			end
 
 			7'b00_110_11: begin	// OP-IMM-32
 						id_we	= IVALID;
 				case (funct3)
-				3'b000: ID_RD	= s32to64(IRS1[31:0] + imm_i[31:0]);	// ADDIW
+				3'b000: FWD_RD	= s32to64(IRS1[31:0] + imm_i[31:0]);	// ADDIW
 				3'b001: begin
 					case (funct7)
 					7'b0000000:
-						ID_RD	= s32to64(IRS1[31:0] << shamt[4:0]); // SLLIW
+						FWD_RD	= s32to64(IRS1[31:0] << shamt[4:0]); // SLLIW
 					default:id_we	= 1'b0;
 					endcase
 				end
 				3'b101: begin
 					case (funct7)
 					7'b0000000:
-						ID_RD	= s32to64(IRS1[31:0] >> shamt[4:0]); // SRLIW
+						FWD_RD	= s32to64(IRS1[31:0] >> shamt[4:0]); // SRLIW
 					7'b0100000:
-						ID_RD	= s32to64($signed(IRS1[31:0]) >>> shamt[4:0]); // SRAIW
+						FWD_RD	= s32to64($signed(IRS1[31:0]) >>> shamt[4:0]); // SRAIW
 					default:id_we	= 1'b0;
 					endcase
 				end
@@ -336,8 +338,8 @@ module LEVE1_EX
 			OINSTR	<= IINSTR;
 
 			WB_WE	<= id_we;
-			WB_RD	<= ID_RD;
-			WB_CSRD	<= ID_CSRD;
+			WB_RD	<= FWD_RD;
+			WB_CSRD	<= FWD_CSRD;
 		end
 	end
 	always_comb begin

@@ -47,8 +47,8 @@ module LEVE1
 	logic [`XLEN-1:0]	ex_pc;
 	logic [31:0]		ex_instr;
 	logic [`XLEN-1:0]	ex_next_pc;
-	logic [`XLEN-1:0]	id_rd;
-	logic [`XLEN-1:0]	id_csrd;
+	logic [`XLEN-1:0]	fwd_rd;
+	logic [`XLEN-1:0]	fwd_csrd;
 	logic 			wb_we;
 	logic [`XLEN-1:0]	wb_rd;
 	logic 			wb_valid;
@@ -73,8 +73,8 @@ module LEVE1
 		.RS2		(id_rs2),
 		.RCSR		(id_csr),
 
-		.ID_RD		(id_rd),
-		.ID_CSRD	(id_csrd),
+		.FWD_RD		(fwd_rd),
+		.FWD_CSRD	(fwd_csrd),
 
 		.WB_IVALID	(ex_valid),
 		.WB_IPC		(ex_pc),
@@ -103,8 +103,8 @@ module LEVE1
 		.IRS2		(id_rs2),
 		.ICSR		(id_csr),
 
-		.ID_RD		(id_rd),
-		.ID_CSRD	(id_csrd),
+		.FWD_RD		(fwd_rd),
+		.FWD_CSRD	(fwd_csrd),
 
 		.OVALID		(ex_valid),
 		.OPC		(ex_pc),

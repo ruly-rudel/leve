@@ -21,8 +21,8 @@ module LEVE1_ID
 	output logic [`XLEN-1:0]	RCSR,
 
 	//
-	input [`XLEN-1:0]		ID_RD,
-	input [`XLEN-1:0]		ID_CSRD,
+	input [`XLEN-1:0]		FWD_RD,
+	input [`XLEN-1:0]		FWD_CSRD,
 
 	input				WB_IVALID,
 	input [`XLEN-1:0]		WB_IPC,
@@ -58,7 +58,10 @@ module LEVE1_ID
 	logic [12-1:0]		csr_wa;
 	logic [6:0]		w_opcode;
 	logic [2:0]		w_funct3;
+	logic [6:0]		w_funct7;
+	logic [4:0]		w_rs2;
 	logic [4:0]		w_rd0;
+	logic			w_mret;
 
 	always_comb begin
 
@@ -81,9 +84,13 @@ module LEVE1_ID
 
 		w_opcode	= WB_IINSTR[6:0];
 		w_funct3	= WB_IINSTR[14:12];
+		w_funct7	= WB_IINSTR[31:25];
 		w_rd0		= WB_IINSTR[11:7];
-		csr_wcmd	= WB_IVALID && w_opcode == 7'b11_100_11 ? w_funct3[1:0] : `CSR_NONE;
-		csr_wa		= WB_IINSTR[31:20];
+		w_rs2		= WB_IINSTR[24:20];
+		w_mret		= w_opcode == 7'b11_100_11 && w_funct3 == 3'b000 && w_funct7 == 7'b0011000 && w_rs2 == 5'b00010;
+		csr_wcmd	= w_mret ? `CSR_WRITE :
+				  WB_IVALID && w_opcode == 7'b11_100_11 ? w_funct3[1:0] : `CSR_NONE;
+		csr_wa		= w_mret ? 12'h300 : WB_IINSTR[31:20];
 
 	end
 
@@ -113,10 +120,10 @@ module LEVE1_ID
 			OPC	<= IPC;
 			OINSTR	<= IINSTR;
 			RS1	<= rs1 == 5'h00 ? '0 :
-				   ex_valid && rs1 == ex_rd0 ? ID_RD :
+				   ex_valid && rs1 == ex_rd0 ? FWD_RD :
 				   reg_file[rs1];
 			RS2	<= rs2 == 5'h00 ? '0 :
-				   ex_valid && rs2 == ex_rd0 ? ID_RD :
+				   ex_valid && rs2 == ex_rd0 ? FWD_RD :
 				   reg_file[rs2];
 		end
 	end
