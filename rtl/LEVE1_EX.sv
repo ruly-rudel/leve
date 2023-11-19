@@ -299,6 +299,11 @@ module LEVE1_EX
 						FWD_RD	= IPC + imm_u;
 			end
 
+			7'b01_101_11: begin	// LUI
+						id_we	= IVALID;
+						FWD_RD  = imm_u;
+			end
+
 			7'b00_110_11: begin	// OP-IMM-32
 						id_we	= IVALID;
 				case (funct3)
