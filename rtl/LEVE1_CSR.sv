@@ -77,11 +77,11 @@ module LEVE1_CSR
 			12'hc00: return cycle;
 			12'hc01: return csr_time;
 			12'hc02: return instret;
-			12'hf11: return {`XLEN{1'b0}};	// mvenderid
-			12'hf12: return {`XLEN{1'b0}};	// marchid
-			12'hf13: return {`XLEN{1'b0}};	// mimpid
-			12'hf14: return {`XLEN{1'b0}};	// mhartid
-			12'hf15: return {`XLEN{1'b0}};	// mconfigptr
+			12'hf11: return '0;	// mvenderid
+			12'hf12: return '0;	// marchid
+			12'hf13: return '0;	// mimpid
+			12'hf14: return '0;	// mhartid
+			12'hf15: return '0;	// mconfigptr
 			12'h180: begin			// satp
 				return {satp_mode, satp_asid, satp_ppn};
 			end
@@ -109,14 +109,16 @@ module LEVE1_CSR
 	endfunction
 
 
-	always_comb begin
-		CSR_RD = read_csr(CSR_RA);
+	always_ff @(posedge CLK or negedge RSTn)  begin
+		if(RSTn) begin
+			CSR_RD <= read_csr(CSR_RA);
+		end
 	end
 
 	always_comb begin
 		csr_wd_r = read_csr(CSR_WA);
 		case(CSR_WCMD)
-		`CSR_NONE:	csr_wd = {`MXLEN{1'b0}};
+		`CSR_NONE:	csr_wd = '0;
 		`CSR_SET:	csr_wd = csr_wd_r |  CSR_WD;
 		`CSR_CLEAR:	csr_wd = csr_wd_r & ~CSR_WD;
 		`CSR_WRITE:	csr_wd = CSR_WD;
@@ -152,23 +154,23 @@ module LEVE1_CSR
 			mbe		= 1'b0;
 			sd		= 1'b0;		// must be fixed
 	
-			medeleg		= {`MXLEN{1'b0}};
+			medeleg		= '0;
 	
-			mtvec		= {`MXLEN{1'b0}};
+			mtvec		= '0;
 	
-			mepc		= {`MXLEN{1'b0}};
-			mcause		= {`MXLEN{1'b0}};
-			mtval		= {`MXLEN{1'b0}};
+			mepc		= '0;
+			mcause		= '0;
+			mtval		= '0;
 	
-			stvec		= {`MXLEN{1'b0}};
+			stvec		= '0;
 	
-			sepc		= {`MXLEN{1'b0}};
-			scause		= {`MXLEN{1'b0}};
-			stval		= {`MXLEN{1'b0}};
+			sepc		= '0;
+			scause		= '0;
+			stval		= '0;
 	
-			satp_ppn	= {44{1'b0}};
-			satp_asid	= {16{1'b0}};
-			satp_mode	= {4{1'b0}};
+			satp_ppn	= '0;
+			satp_asid	= '0;
+			satp_mode	= '0;
 		end else if(CSR_WCMD != `CSR_NONE) begin
 			case (CSR_WA)
 			12'h001: fflags = csr_wd[4:0];
@@ -245,14 +247,14 @@ module LEVE1_CSR
 
 	always_ff @(posedge CLK or negedge RSTn) begin
 		if(!RSTn) begin
-			cycle		<= {`MXLEN{1'b0}};
-			csr_time	<= {`MXLEN{1'b0}};
-			instret		<= {`MXLEN{1'b0}};
+			cycle		<= '0;
+			csr_time	<= '0;
+			instret		<= '0;
 		end else begin
-			cycle		<= `TPD cycle + 'b1;
-			csr_time	<= `TPD csr_time + 'b1;
+			cycle		<= `TPD $bits(cycle)'(cycle + 'b1);
+			csr_time	<= `TPD $bits(csr_time)'(csr_time + 'b1);
 			if(RETIRE) begin
-				instret	<= `TPD instret + 'b1;
+				instret	<= `TPD $bits(instret)'(instret + 'b1);
 			end
 		end
 	end

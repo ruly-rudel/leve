@@ -2,18 +2,28 @@
 `include "defs.vh"
 `include "AXI.sv"
 
+parameter IB_WAY = 2;
+
 typedef struct packed {
-	logic			valid;
-	logic [`XLEN-1:0]	tag;
-	logic [128*4-1:0]	data;
+	logic				valid;
+	logic [`XLEN-1:0]		tag;
+	union packed {
+		logic [4:0][128-1:0]	w128;
+		logic [16:0][32-1:0]	w32;
+	} data;
 } ibuf_t;
 
-`define IB_WAY	2
+function logic is_hit(input ibuf_t ibuf, input [`XLEN-1:0] pc);
+	return ibuf.valid && ibuf.tag[63:6] == pc[63:6];
+endfunction
 
 module LEVE1_IF
 (
 	input				CLK,
 	input		 		RSTn,
+
+	input				IPC_WE,
+	input [`XLEN-1:0]		INEXT_PC,
 
 	output logic			OVALID,
 	input				OREADY,
@@ -27,83 +37,64 @@ module LEVE1_IF
 	logic [`XLEN-1:0]	imm_j_s1;
 	logic			jal_s1;
 	logic [`XLEN-1:0]	pc;
-	logic 			ibuf_hit;
+	logic 			hit;
 	always_ff @(posedge CLK or negedge RSTn) begin
 		if(!RSTn) begin
 			pc		<= 64'h0000_0000_8000_0000;
-		end else if(ibuf_hit && OREADY) begin
+		end else if(IPC_WE) begin
+				pc <= INEXT_PC;
+		end else if(hit && OREADY) begin
 			if(jal_s1) begin
-				pc <= pc + imm_j_s1;
+				pc <= $bits(pc)'(pc + imm_j_s1);
 			end else begin
-				pc <= pc + 'h4;
+				pc <= $bits(pc)'(pc + 'h4);
 			end
 		end
 	end
 
 	logic [2:0]		rii_st;
-	logic [$clog2(`IB_WAY)-1:0]	ibuf_hit_sel;
-	logic 			ibuf_miss;
-	logic [$clog2(`IB_WAY)-1:0]	ibuf_miss_sel;
-	ibuf_t	ibuf[0:`IB_WAY-1];
+	logic [$clog2(IB_WAY)-1:0]	hit_sel;
+	logic 			miss;
+	logic [$clog2(IB_WAY)-1:0]	miss_sel;
+	ibuf_t	[IB_WAY-1:0] ibuf;
 	always_ff @(posedge CLK or negedge RSTn) begin
 		if(!RSTn) begin
-			for(integer i = 0; i < `IB_WAY; i++) begin
-				ibuf[i].valid = 1'b0;
+			for(integer i = 0; i < IB_WAY; i++) begin
+				ibuf[i].valid <= 1'b0;
 			end
 		end else if(rii_st[2] == 1'b1) begin
 			if(RII.r_est()) begin
-				case(rii_st[1:0])
-					2'h0: ibuf[ibuf_miss_sel].data[127:0]   <= RII.RDATA;
-					2'h1: ibuf[ibuf_miss_sel].data[255:128] <= RII.RDATA;
-					2'h2: ibuf[ibuf_miss_sel].data[383:256] <= RII.RDATA;
-					2'h3: ibuf[ibuf_miss_sel].data[511:384] <= RII.RDATA;
-				endcase
-				if(RII.RLAST) begin
-					ibuf[ibuf_miss_sel].valid = 1'b1;
-					ibuf[ibuf_miss_sel].tag = pc;
-				end
+				ibuf[miss_sel].data.w128[rii_st[1:0]] <= RII.RDATA;
+			end
+			if(RII.r_last()) begin
+				ibuf[miss_sel].valid <= 1'b1;
+				ibuf[miss_sel].tag   <= pc;
 			end
 		end
 	end
 
-	//logic [$clog2(`IB_WAY):0]	ibuf_hit;
-	logic [127:0]		instr1;
 	logic [31:0]		instr;
 
 	always_comb begin
-		logic	hit;
-		ibuf_hit = 1'b0;
-		ibuf_hit_sel = {$clog2(`IB_WAY){1'b0}};
-		for(integer i = 0; i < `IB_WAY; i++) begin
-			hit		= ibuf[i].valid && ibuf[i].tag[63:6] == pc[63:6];
-			ibuf_hit	= ibuf_hit || hit;
-			ibuf_hit_sel	= hit ? i[$clog2(`IB_WAY)-1:0] : ibuf_hit_sel;
+		hit = 1'b0;
+		hit_sel = '0;
+		for(integer i = 0; i < IB_WAY; i++) begin
+			hit	= hit || is_hit(ibuf[i], pc);
+			hit_sel	= is_hit(ibuf[i], pc) ? i[$clog2(IB_WAY)-1:0] : hit_sel;
 		end
 
-		ibuf_miss = ~ibuf_hit;
-		ibuf_miss_sel = ibuf_hit_sel + 1'b1;
+		miss = ~hit;
+		miss_sel = $bits(miss_sel)'(hit_sel + '1);
 
-		case (pc[5:4])
-			2'h0: instr1 = ibuf[ibuf_hit_sel].data[127:0];
-			2'h1: instr1 = ibuf[ibuf_hit_sel].data[255:128];
-			2'h2: instr1 = ibuf[ibuf_hit_sel].data[383:256];
-			2'h3: instr1 = ibuf[ibuf_hit_sel].data[511:384];
-		endcase
-
-		case (pc[3:2])
-			2'h0: instr = instr1[31:0];
-			2'h1: instr = instr1[63:32];
-			2'h2: instr = instr1[95:64];
-			2'h3: instr = instr1[127:96];
-		endcase
+		instr = ibuf[hit_sel].data.w32[pc[5:2]];
 	end
 
-	wire [1:0] tmp = rii_st[1:0] + 1'b1;
+	wire [1:0] tmp = rii_st[1:0] + 'b1;
 	always_ff @(posedge CLK or negedge RSTn) begin
 		if(!RSTn) begin
-			rii_st	<= 3'h0;
+			rii_st	<= '0;
 		end else begin
-			if(rii_st == 3'h0) begin
+			if(rii_st == '0) begin
 				if(RII.ar_est()) begin
 					rii_st <= {1'b1, pc[5:4]};
 				end
@@ -120,7 +111,7 @@ module LEVE1_IF
 	end
 	
 	always_comb begin
-		RII.ARVALID	= rii_st == 3'h0 && ibuf_miss;
+		RII.ARVALID	= rii_st == '0 && miss;
 		RII.ARADDR	= pc[31:0];
 		RII.ARBURST	= `AXI_BURST_WRAP;
 		RII.ARLEN	= 8'd3;
@@ -135,11 +126,12 @@ module LEVE1_IF
 		jal_s1		= opcode_s1 == 7'b11_011_11 ? 1'b1 : 1'b0;	// JAL
 	end
 
+	logic ovalid;
 	always_ff @(posedge CLK or negedge RSTn) begin
 		if(!RSTn) begin
 			OVALID	<= 1'b0;
 		end else begin
-			OVALID	<= ibuf_hit;
+			OVALID	<= hit & !IPC_WE;
 			OPC	<= pc;
 			OINSTR	<= instr;
 		end

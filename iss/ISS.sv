@@ -119,6 +119,10 @@ class ISS;
 		return elf.get_entry_point();
 	endfunction
 
+	function [`XLEN-1:0] read_reg_file(integer n);
+		return rf.read(n[4:0]);
+	endfunction
+
 	function void init(string init_file);
 			elf = new(init_file, mem);
 			csr_c.init();

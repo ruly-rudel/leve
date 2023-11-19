@@ -19,10 +19,9 @@ module tb_rtl
 	// ISS
 	ISS			iss = new;
 
-	AXIR	axiri;		// AXI read: instruction
-	AXIR	axird;		// AXI read: data
-	AXIW	axiwd;		// AXI write: data
-
+	AXIR	axiri();		// AXI read: instruction
+	AXIR	axird();		// AXI read: data
+	AXIW	axiwd();		// AXI write: data
 
 	LEVE1	LEVE1
 	(
@@ -30,7 +29,7 @@ module tb_rtl
 		.RSTn		(RSTn),
 
 		.PC_EN		(pc_en),
-		.PC_CNT		(pc),
+		.PC		(pc),
 		.RII		(axiri)
 	);
 
@@ -65,6 +64,39 @@ module tb_rtl
 				$finish;
 			end
 			pc_iss = next_pc;
+
+			for(integer i = 0; i < `NUM_REG; i++) begin
+				if(LEVE1.LEVE1_ID.reg_file[i] != iss.read_reg_file(i)) begin
+					$display ("[TESTBENCH] [FAIL] REG %d missmatch: %h, expect %h",
+						i,
+						LEVE1.LEVE1_ID.reg_file[i],
+						iss.read_reg_file(i)
+					);
+					$finish;
+				end
+			end
+
+			for(integer i = 0; i < 12'hc00; i++) begin
+				if(LEVE1.LEVE1_ID.LEVE1_CSR.read_csr(i[11:0]) != iss.csr_c.read(i[11:0])) begin
+					$display ("[TESTBENCH] [FAIL] CSR %h missmatch: %h, expect %h",
+						i[11:0],
+						LEVE1.LEVE1_ID.LEVE1_CSR.read_csr(i[11:0]),
+						iss.csr_c.read(i[11:0])
+					);
+					$finish;
+				end
+			end
+			// exclude counter
+			for(integer i = 'hf00; i < 12'hfff; i++) begin
+				if(LEVE1.LEVE1_ID.LEVE1_CSR.read_csr(i[11:0]) != iss.csr_c.read(i[11:0])) begin
+					$display ("[TESTBENCH] [FAIL] CSR %h missmatch: %h, expect %h",
+						i[11:0],
+						LEVE1.LEVE1_ID.LEVE1_CSR.read_csr(i[11:0]),
+						iss.csr_c.read(i[11:0])
+					);
+					$finish;
+				end
+			end
 
 			if(tohost_we) begin
 				if(tohost == 32'h0000_0001) begin

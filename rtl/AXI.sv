@@ -47,7 +47,8 @@ interface AXIR
 		input		RRESP,
 		input		RLAST,
 		import		ar_est,
-		import		r_est
+		import		r_est,
+		import		r_last
 	);
 
 	modport target
@@ -64,7 +65,8 @@ interface AXIR
 		output		RRESP,
 		output		RLAST,
 		import		ar_est,
-		import		r_est
+		import		r_est,
+		import		r_last
 	);
 
 	function logic ar_est();
@@ -73,6 +75,10 @@ interface AXIR
 
 	function logic r_est();
 		return RVALID && RREADY ? 1'b1 : 1'b0;
+	endfunction
+
+	function logic r_last();
+		return RVALID && RREADY && RLAST ? 1'b1 : 1'b0;
 	endfunction
 endinterface
 

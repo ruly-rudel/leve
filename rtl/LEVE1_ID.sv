@@ -11,6 +11,8 @@ module LEVE1_ID
 	input [`XLEN-1:0]		IPC,
 	input [31:0]			IINSTR,
 
+	input				IFLASH,
+
 	output logic			OVALID,
 	output logic [`XLEN-1:0]	OPC,
 	output logic [31:0]		OINSTR,
@@ -18,8 +20,9 @@ module LEVE1_ID
 	output logic [`XLEN-1:0]	RS2,
 	output logic [`XLEN-1:0]	RCSR,
 
-	output logic [`XLEN-1:0]	ID_RD,
-	output logic [`XLEN-1:0]	ID_CSRD,
+	//
+	input [`XLEN-1:0]		ID_RD,
+	input [`XLEN-1:0]		ID_CSRD,
 
 	input				WB_IVALID,
 	input [`XLEN-1:0]		WB_IPC,
@@ -41,8 +44,10 @@ module LEVE1_ID
 	logic [`XLEN-1:0]	imm_b;
 	logic [`XLEN-1:0]	imm_u;
 	logic [`XLEN-1:0]	uimm_w;
+	logic			mret;
 	logic [6:0]		opcode;
 	logic [2:0]		funct3;
+	logic [6:0]		funct7;
 
 	logic			ex_valid;
 	logic [4:0]		ex_rd0;
@@ -59,6 +64,7 @@ module LEVE1_ID
 
 		opcode	= IINSTR[6:0];
 		funct3	= IINSTR[14:12];
+		funct7	= IINSTR[31:25];
 		rs1     = IINSTR[19:15];
 		rs2     = IINSTR[24:20];
 		imm_i	= {{20+32{IINSTR[31]}}, IINSTR[31:20]};
@@ -67,7 +73,8 @@ module LEVE1_ID
 		imm_u	= {{   32{IINSTR[31]}}, IINSTR[31:12], 12'h000};
 		uimm_w	= {{`XLEN-5{1'b0}}, rs1};
 
-		csr_ra	= IINSTR[31:20];
+		mret	= opcode == 7'b11_100_11 && funct3 == 3'b000 && funct7 == 7'b0011000 && rs2 == 5'b00010;
+		csr_ra	= mret ? 12'h300 : IINSTR[31:20];
 
 		ex_valid	= OVALID;
 		ex_rd0		= OINSTR[11:7];
@@ -77,6 +84,7 @@ module LEVE1_ID
 		w_rd0		= WB_IINSTR[11:7];
 		csr_wcmd	= WB_IVALID && w_opcode == 7'b11_100_11 ? w_funct3[1:0] : `CSR_NONE;
 		csr_wa		= WB_IINSTR[31:20];
+
 	end
 
 	assign IREADY = 1'b1;
@@ -101,13 +109,13 @@ module LEVE1_ID
 		if(!RSTn) begin
 			OVALID	<= 1'b0;
 		end else begin
-			OVALID	<= IVALID && IREADY;
+			OVALID	<= IVALID && IREADY && !IFLASH;
 			OPC	<= IPC;
 			OINSTR	<= IINSTR;
-			RS1	<= rs1 == 5'h00 ? {`XLEN{1'b0}} :
+			RS1	<= rs1 == 5'h00 ? '0 :
 				   ex_valid && rs1 == ex_rd0 ? ID_RD :
 				   reg_file[rs1];
-			RS2	<= rs2 == 5'h00 ? {`XLEN{1'b0}} :
+			RS2	<= rs2 == 5'h00 ? '0 :
 				   ex_valid && rs2 == ex_rd0 ? ID_RD :
 				   reg_file[rs2];
 		end
