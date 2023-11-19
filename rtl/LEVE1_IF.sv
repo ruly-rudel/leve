@@ -112,7 +112,7 @@ module LEVE1_IF
 	
 	always_comb begin
 		RII.ARVALID	= rii_st == '0 && miss;
-		RII.ARADDR	= pc[31:0];
+		RII.ARADDR	= {pc[31:4], 4'h0};
 		RII.ARBURST	= `AXI_BURST_WRAP;
 		RII.ARLEN	= 8'd3;
 
