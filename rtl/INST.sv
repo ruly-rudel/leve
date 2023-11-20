@@ -19,6 +19,10 @@ interface INST(input [31:0] INSTR);
 		return INSTR[31:25];
 	endfunction
 
+	function logic [5:0] funct7_6_1();
+		return INSTR[31:26];
+	endfunction
+
 	function logic [4:0] rs1();
 		return INSTR[19:15];
 	endfunction

@@ -65,7 +65,6 @@ module LEVE1_CSR
 	logic [3:0]		satp_mode;
 
 
-	logic [`MXLEN-1:0]	csr_rd;
 	logic [`MXLEN-1:0]	csr_wd;
 	logic [`MXLEN-1:0]	csr_wd_r;
 
@@ -127,77 +126,77 @@ module LEVE1_CSR
 
 	always_ff @(posedge CLK or negedge RSTn) begin
 		if(!RSTn) begin
-			mode		= `MODE_M;
+			mode		<= `MODE_M;
 	
-			fflags		= 5'h00;
-			frm		= 3'h0;
+			fflags		<= 5'h00;
+			frm		<= 3'h0;
 			// mstatus
-			sie		= 1'b0;
-			mie		= 1'b0;
-			spie		= 1'b0;
-			ube		= 1'b0;
-			mpie		= 1'b0;
-			spp		= 1'b0;
-			vs		= 2'h0;
-			mpp		= `MODE_M;
-			fs		= 2'h0;		// must be fiexd
-			xs		= 2'h0;
-			mprv		= 1'b0;
-			sum		= 1'b0;
-			mxr		= 1'b0;
-			tvm		= 1'b0;
-			tw		= 1'b0;
-			tsr		= 1'b0;
-			uxl		= `MXL_64;
-			sxl		= `MXL_64;
-			sbe		= 1'b0;
-			mbe		= 1'b0;
-			sd		= 1'b0;		// must be fixed
+			sie		<= 1'b0;
+			mie		<= 1'b0;
+			spie		<= 1'b0;
+			ube		<= 1'b0;
+			mpie		<= 1'b0;
+			spp		<= 1'b0;
+			vs		<= 2'h0;
+			mpp		<= `MODE_M;
+			fs		<= 2'h0;		// must be fiexd
+			xs		<= 2'h0;
+			mprv		<= 1'b0;
+			sum		<= 1'b0;
+			mxr		<= 1'b0;
+			tvm		<= 1'b0;
+			tw		<= 1'b0;
+			tsr		<= 1'b0;
+			uxl		<= `MXL_64;
+			sxl		<= `MXL_64;
+			sbe		<= 1'b0;
+			mbe		<= 1'b0;
+			sd		<= 1'b0;		// must be fixed
 	
-			medeleg		= '0;
+			medeleg		<= '0;
 	
-			mtvec		= '0;
+			mtvec		<= '0;
 	
-			mepc		= '0;
-			mcause		= '0;
-			mtval		= '0;
+			mepc		<= '0;
+			mcause		<= '0;
+			mtval		<= '0;
 	
-			stvec		= '0;
+			stvec		<= '0;
 	
-			sepc		= '0;
-			scause		= '0;
-			stval		= '0;
+			sepc		<= '0;
+			scause		<= '0;
+			stval		<= '0;
 	
-			satp_ppn	= '0;
-			satp_asid	= '0;
-			satp_mode	= '0;
+			satp_ppn	<= '0;
+			satp_asid	<= '0;
+			satp_mode	<= '0;
 		end else if(CSR_WCMD != `CSR_NONE) begin
 			case (CSR_WA)
-			12'h001: fflags = csr_wd[4:0];
-			12'h002: frm = csr_wd[2:0];
+			12'h001: fflags <= csr_wd[4:0];
+			12'h002: frm <= csr_wd[2:0];
 			12'h003: begin	// fcsr
-				fflags = csr_wd[4:0];
-				frm    = csr_wd[7:5];
+				fflags <= csr_wd[4:0];
+				frm    <= csr_wd[7:5];
 			end
 			12'h100: begin			// sstatus
-				sie		= csr_wd[1];
-				spie		= csr_wd[5];
-				ube		= csr_wd[6];
-				spp		= csr_wd[8];
-//				vs		= csr_wd[10:9];
-				fs		= csr_wd[14:13];
-//				xs		= csr_wd[16:15];
-				sum		= csr_wd[18];
-				mxr		= csr_wd[19];
-//				uxl		= csr_wd[33:32];
-//				s_sd		= csr_wd[63];
+				sie		<= csr_wd[1];
+				spie		<= csr_wd[5];
+				ube		<= csr_wd[6];
+				spp		<= csr_wd[8];
+//				vs		<= csr_wd[10:9];
+				fs		<= csr_wd[14:13];
+//				xs		<= csr_wd[16:15];
+				sum		<= csr_wd[18];
+				mxr		<= csr_wd[19];
+//				uxl		<= csr_wd[33:32];
+//				s_sd		<= csr_wd[63];
 				$display("[INFO] set sstatus, sie:%b, spie:%b, ube:%b, spp:%b, fs:%02b, sum:%b, mxr:%b",
 					sie, spie, ube, spp, fs, sum, mxr);
 			end
 			12'h180: begin			// satp
-				satp_ppn	= csr_wd[43:0];
-				satp_asid	= csr_wd[59:44];
-				satp_mode	= csr_wd[63:60];
+				satp_ppn	<= csr_wd[43:0];
+				satp_asid	<= csr_wd[59:44];
+				satp_mode	<= csr_wd[63:60];
 				if(satp_mode == 8) begin
 					$display("[INFO] set satp, MODE:Sv39(%d), ASID:%d, PPN:%08h",
 						satp_mode, satp_asid, satp_ppn);
@@ -207,40 +206,40 @@ module LEVE1_CSR
 				end
 			end
 			12'h300: begin			// mstatus
-				sie	= csr_wd[1];
-				mie	= csr_wd[3];
-				spie	= csr_wd[5];
-//				ube	= csr_wd[6];
-				mpie	= csr_wd[7];
-				spp	= csr_wd[8];
-//				vs	= csr_wd[10:9];
-				mpp	= csr_wd[12:11];
-				fs	= csr_wd[14:13];
-//				xs	= csr_wd[16:15];
-				mprv	= csr_wd[17];
-				sum	= csr_wd[18];
-				mxr	= csr_wd[19];
-				tvm	= csr_wd[20];
-				tw	= csr_wd[21];
-				tsr	= csr_wd[22];
-//				uxl	= csr_wd[33:32];
-//				sxl	= csr_wd[35:34];
-//				sbe	= csr_wd[36];
-//				mbe	= csr_wd[37];
-//				sd	= csr_wd[63];
+				sie	<= csr_wd[1];
+				mie	<= csr_wd[3];
+				spie	<= csr_wd[5];
+//				ube	<= csr_wd[6];
+				mpie	<= csr_wd[7];
+				spp	<= csr_wd[8];
+//				vs	<= csr_wd[10:9];
+				mpp	<= csr_wd[12:11];
+				fs	<= csr_wd[14:13];
+//				xs	<= csr_wd[16:15];
+				mprv	<= csr_wd[17];
+				sum	<= csr_wd[18];
+				mxr	<= csr_wd[19];
+				tvm	<= csr_wd[20];
+				tw	<= csr_wd[21];
+				tsr	<= csr_wd[22];
+//				uxl	<= csr_wd[33:32];
+//				sxl	<= csr_wd[35:34];
+//				sbe	<= csr_wd[36];
+//				mbe	<= csr_wd[37];
+//				sd	<= csr_wd[63];
 				$display("[INFO] set mstatus, sie:%b, mie:%b, spie:%b, mpie:%b, spp:%b, mpp:%02b, fs:%02b, mprv:%b, sum:%b, mxr:%b, tvm:%b, tw:%b, tsr:%b",
 					 sie, mie, spie, mpie, spp, mpp, fs, mprv, sum, mxr, tvm, tw, tsr);
 			end
-			12'h302: medeleg= csr_wd;
-			12'h305: mtvec	= csr_wd;
-			12'h341: mepc	= {csr_wd[`XLEN-1:1], 1'b0};
-			12'h342: mcause	= csr_wd;
-			12'h343: mtval	= csr_wd;
-			12'h105: stvec	= csr_wd;
-			12'h141: sepc	= {csr_wd[`XLEN-1:1], 1'b0};
-			12'h142: scause	= csr_wd;
-			12'h143: stval	= csr_wd;
-			default: csr_reg[CSR_WA] = csr_wd;
+			12'h302: medeleg<= csr_wd;
+			12'h305: mtvec	<= csr_wd;
+			12'h341: mepc	<= {csr_wd[`XLEN-1:1], 1'b0};
+			12'h342: mcause	<= csr_wd;
+			12'h343: mtval	<= csr_wd;
+			12'h105: stvec	<= csr_wd;
+			12'h141: sepc	<= {csr_wd[`XLEN-1:1], 1'b0};
+			12'h142: scause	<= csr_wd;
+			12'h143: stval	<= csr_wd;
+			default: csr_reg[CSR_WA] <= csr_wd;
 			endcase
 		end
 	end

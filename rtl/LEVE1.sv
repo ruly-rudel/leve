@@ -45,7 +45,6 @@ module LEVE1
 	logic			ex_valid;
 	logic [`XLEN-1:0]	ex_pc;
 	logic [31:0]		ex_instr;
-	logic [`XLEN-1:0]	ex_next_pc;
 	logic [`XLEN-1:0]	fwd_rd;
 	logic [`XLEN-1:0]	fwd_csrd;
 	logic 			wb_we;

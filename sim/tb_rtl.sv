@@ -50,7 +50,7 @@ module tb_rtl
 		end
 	end
 
-	always_ff @(negedge CLK or negedge RSTn)
+	always_ff @(posedge CLK or negedge RSTn)
 	begin
 		if(!RSTn) begin
 			iss.init(init_file);

@@ -125,7 +125,6 @@ module LEVE1_IF
 		jal_s1		= opcode_s1 == 7'b11_011_11 ? 1'b1 : 1'b0;	// JAL
 	end
 
-	logic ovalid;
 	always_ff @(posedge CLK or negedge RSTn) begin
 		if(!RSTn) begin
 			OVALID	<= 1'b0;

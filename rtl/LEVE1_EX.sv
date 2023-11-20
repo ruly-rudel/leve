@@ -89,7 +89,6 @@ module LEVE1_EX
 	logic [`XLEN-1:0]	next_pc;
 
 	// mstatus
-	mstatus_t		mstatus;
 	logic			sie;
 	logic			mie;
 	logic			spie;
@@ -112,22 +111,18 @@ module LEVE1_EX
 	logic			mbe;
 	logic			sd;
 
+	INST inst(.INSTR(IINSTR));
+
 	always_comb begin
 		op	= IINSTR[1:0];
-		opcode	= IINSTR[6:0];
-		funct3	= IINSTR[14:12];
-		funct7	= IINSTR[31:25];
-		rs1	= IINSTR[19:15];
-		rs2	= IINSTR[24:20];
 		imm_i	= {{20+32{IINSTR[31]}}, IINSTR[31:20]};
 		imm_b	= {{19+32{IINSTR[31]}}, IINSTR[31], IINSTR[7], IINSTR[30:25], IINSTR[11:8], 1'b0};
 		imm_u	= {{   32{IINSTR[31]}}, IINSTR[31:12], 12'h000};
 		uimm_w	= {{`XLEN-5{1'b0}}, IINSTR[19:15]};
 		shamt	= imm_i[5:0];
 
-		mret	= opcode == 7'b11_100_11 && funct3 == 3'b000 && funct7 == 7'b0011000 && rs2 == 5'b00010;
-		csr_cmd	= mret ? `CSR_WRITE : 
-			  opcode == 7'b11_100_11 ? funct3[1:0] : `CSR_NONE;
+		csr_cmd	= inst.mret() ? `CSR_WRITE : 
+			  inst.opcode() == 7'b11_100_11 ? inst.funct3_1_0() : `CSR_NONE;
 
 		sie	= ICSR[1];
 		mie	= ICSR[3];
@@ -159,11 +154,11 @@ module LEVE1_EX
 						id_we	= IVALID;
 		case(op)
 		2'b11: begin
-			case (opcode)
+			case (inst.opcode())
 			7'b00_100_11: begin	// OP-IMM
-				case (funct3)
+				case (inst.funct3())
 				3'b000: 	FWD_RD	= IRS1 + imm_i;
-				3'b001: case (funct7[6:1])
+				3'b001: case (inst.funct7_6_1())
 					6'b000000:
 						FWD_RD	= IRS1 << shamt;
 					default:id_we	= 1'b0;
@@ -171,7 +166,7 @@ module LEVE1_EX
 				3'b010:		FWD_RD	= $signed(IRS1) < $signed(imm_i) ? '1 : '0;
 				3'b011:		FWD_RD	= IRS1 < imm_i ? '1 : '0;
 				3'b100:		FWD_RD	= IRS1 ^ imm_i;
-				3'b101: case (funct7[6:1])
+				3'b101: case (inst.funct7_6_1())
 					6'b000000:
 						FWD_RD	= IRS1 >> shamt;
 					6'b010000:
@@ -186,7 +181,7 @@ module LEVE1_EX
 
 			7'b11_000_11: begin	// BRANCH
 						id_we	= '0;
-				case (funct3)
+				case (inst.funct3())
 				3'b000: next_pc = IRS1 == IRS2 ? IPC + imm_b : IPC + 'h4;	// BEQ
 				3'b001: next_pc = IRS1 != IRS2 ? IPC + imm_b : IPC + 'h4;
 				3'b100: next_pc = $signed(IRS1) < $signed(IRS2) ? IPC + imm_b : IPC + 'h4;	// BLT
@@ -199,11 +194,11 @@ module LEVE1_EX
 
 			7'b11_100_11: begin	// SYSTEM
 						id_we	= IVALID;
-				case (funct3)
+				case (inst.funct3())
 				3'b000: begin
-					case (funct7)
+					case (inst.funct7())
 					7'b0011000: begin
-						case(rs2)
+						case(inst.rs2())
 						5'b00010: begin		// MRET
 							id_we	= 1'b0;
 							FWD_CSRD	= 
@@ -223,9 +218,9 @@ module LEVE1_EX
 				end
 				/*
 				3'b000: begin
-					case (funct7)
+					case (inst.funct7())
 					7'b0000000: begin
-						case(rs2)
+						case(inst.rs2())
 						5'b00000: begin		// ECALL
 							tmp = csr_c.ecall(pc);
 							if(tmp == {`XLEN{1'b1}}) begin
@@ -241,7 +236,7 @@ module LEVE1_EX
 						endcase
 					end
 					7'b0001000: begin
-						case(rs2)
+						case(inst.rs2())
 						5'b00010: begin		// SRET
 								next_pc = csr_c.sret();	// sepc
 						end
@@ -256,7 +251,7 @@ module LEVE1_EX
 						endcase
 					end
 					7'b0011000: begin
-						case(rs2)
+						case(inst.rs2())
 						5'b00010: begin		// MRET
 								next_pc = csr_c.mret();	// mepc
 						end
@@ -282,7 +277,7 @@ module LEVE1_EX
 					7'b0001100: begin
 						case(rd0)
 						5'b00000: begin
-							case (rs2)
+							case (inst.rs2())
 							5'b00000: begin	// SFENCE.W.INVAL
 								next_pc = pc + 'h4;
 							end
@@ -339,17 +334,17 @@ module LEVE1_EX
 
 			7'b00_110_11: begin	// OP-IMM-32
 						id_we	= IVALID;
-				case (funct3)
+				case (inst.funct3())
 				3'b000: FWD_RD	= s32to64(IRS1[31:0] + imm_i[31:0]);	// ADDIW
 				3'b001: begin
-					case (funct7)
+					case (inst.funct7())
 					7'b0000000:
 						FWD_RD	= s32to64(IRS1[31:0] << shamt[4:0]); // SLLIW
 					default:id_we	= 1'b0;
 					endcase
 				end
 				3'b101: begin
-					case (funct7)
+					case (inst.funct7())
 					7'b0000000:
 						FWD_RD	= s32to64(IRS1[31:0] >> shamt[4:0]); // SRLIW
 					7'b0100000:
@@ -365,9 +360,9 @@ module LEVE1_EX
 
 			7'b01_100_11: begin	// OP
 						id_we	= IVALID;
-				case (funct3)
+				case (inst.funct3())
 				3'b000: begin
-					case (funct7)
+					case (inst.funct7())
 					7'b0000000: 
 						FWD_RD	= IRS1 + IRS2;	// ADD
 					7'b0000001:
@@ -378,7 +373,7 @@ module LEVE1_EX
 					endcase
 				end
 				3'b001: begin
-					case (funct7)
+					case (inst.funct7())
 					7'b0000000:
 						FWD_RD	= IRS1 << IRS2[5:0];	// SLL
 					7'b0000001: begin
@@ -390,13 +385,13 @@ module LEVE1_EX
 				end
 				/*
 				3'b010: begin
-					case (funct7)
+					case (inst.funct7())
 					7'b0000000: begin	// SLT
-						rf.write(rd0, $signed(rs1_d) < $signed(rs2_d) ? {{63{1'b0}}, 1'b1} : {64{1'b0}});
+						rf.write(rd0, $signed(rs1_d) < $signed(inst.rs2()_d) ? {{63{1'b0}}, 1'b1} : {64{1'b0}});
 						next_pc = pc + 'h4;
 					end
 					7'b0000001: begin	// MULHSU
-						tmp128 = absXLEN(rs1_d) * rs2_d;
+						tmp128 = absXLEN(rs1_d) * inst.rs2()_d;
 						tmp128 = twoscompXLENx2(rs1_d[`XLEN-1], tmp128);
 						rf.write(rd0, tmp128[`XLEN*2-1:`XLEN]);
 						next_pc = pc + 'h4;
@@ -405,13 +400,13 @@ module LEVE1_EX
 					endcase
 				end
 				3'b011: begin
-					case (funct7)
+					case (inst.funct7())
 					7'b0000000: begin	// SLTU
-						rf.write(rd0, rs1_d < rs2_d ? {{63{1'b0}}, 1'b1} : {64{1'b0}});
+						rf.write(rd0, rs1_d < inst.rs2()_d ? {{63{1'b0}}, 1'b1} : {64{1'b0}});
 						next_pc = pc + 'h4;
 					end
 					7'b0000001: begin	// MULHU
-						tmp128 = rs1_d * rs2_d;
+						tmp128 = rs1_d * inst.rs2()_d;
 						rf.write(rd0, tmp128[`XLEN*2-1:`XLEN]);
 						next_pc = pc + 'h4;
 					end
@@ -419,60 +414,60 @@ module LEVE1_EX
 					endcase
 				end
 				3'b100: begin
-					case (funct7)
+					case (inst.funct7())
 					7'b0000000: begin	// XOR
-					 	rf.write(rd0, rs1_d ^ rs2_d);
+					 	rf.write(rd0, rs1_d ^ inst.rs2()_d);
 						next_pc = pc + 'h4;
 					end
 					7'b0000001: begin	// DIV
-						tmp = absXLEN(rs1_d) / absXLEN(rs2_d);
-						tmp = twoscompXLEN(rs1_d[`XLEN-1] ^ rs2_d[`XLEN-1], tmp);
-						rf.write(rd0, rs2_d == {`XLEN{1'b0}} ? {`XLEN{1'b1}} : tmp);
+						tmp = absXLEN(rs1_d) / absXLEN(inst.rs2()_d);
+						tmp = twoscompXLEN(rs1_d[`XLEN-1] ^ inst.rs2()_d[`XLEN-1], tmp);
+						rf.write(rd0, inst.rs2()_d == {`XLEN{1'b0}} ? {`XLEN{1'b1}} : tmp);
 						next_pc = pc + 'h4;
 					end
 					default: next_pc = raise_illegal_instruction(pc, inst);
 					endcase
 				end
 				3'b101: begin
-					case (funct7)
+					case (inst.funct7())
 					7'b0000000: begin	// SRL
-						rf.write(rd0, rs1_d >> rs2_d[5:0]);
+						rf.write(rd0, rs1_d >> inst.rs2()_d[5:0]);
 						next_pc = pc + 'h4;
 					end
 					7'b0000001: begin	// DIVU
-						rf.write(rd0, rs2_d == {`XLEN{1'b0}} ? {`XLEN{1'b1}} : rs1_d / rs2_d);
+						rf.write(rd0, inst.rs2()_d == {`XLEN{1'b0}} ? {`XLEN{1'b1}} : rs1_d / rs2_d);
 						next_pc = pc + 'h4;
 					end
 					7'b0100000: begin	// SRA
-						rf.write(rd0, $signed(rs1_d) >>> rs2_d[5:0]);
+						rf.write(rd0, $signed(rs1_d) >>> inst.rs2()_d[5:0]);
 						next_pc = pc + 'h4;
 					end
 					default: next_pc = raise_illegal_instruction(pc, inst);
 					endcase
 				end
 				3'b110: begin
-					case (funct7)
+					case (inst.funct7())
 					7'b0000000: begin	// OR
-						rf.write(rd0, rs1_d | rs2_d);
+						rf.write(rd0, rs1_d | inst.rs2()_d);
 						next_pc = pc + 'h4;
 					end
 					7'b0000001: begin	// REM
-						tmp = absXLEN(rs1_d) % absXLEN(rs2_d);
+						tmp = absXLEN(rs1_d) % absXLEN(inst.rs2()_d);
 						tmp = twoscompXLEN(rs1_d[`XLEN/2-1], tmp);
-						rf.write(rd0, rs2_d == {`XLEN{1'b0}} ? rs1_d : tmp);
+						rf.write(rd0, inst.rs2()_d == {`XLEN{1'b0}} ? rs1_d : tmp);
 						next_pc = pc + 'h4;
 					end
 					default: next_pc = raise_illegal_instruction(pc, inst);
 					endcase
 				end
 				3'b111: begin
-					case (funct7)
+					case (inst.funct7())
 					7'b0000000: begin	// AND
-						rf.write(rd0, rs1_d & rs2_d);
+						rf.write(rd0, rs1_d & inst.rs2()_d);
 						next_pc = pc + 'h4;
 					end
 					7'b0000001: begin	// REMU
-						rf.write(rd0, rs2_d == {`XLEN{1'b0}} ? rs1_d : rs1_d % rs2_d);
+						rf.write(rd0, inst.rs2()_d == {`XLEN{1'b0}} ? rs1_d : rs1_d % rs2_d);
 						next_pc = pc + 'h4;
 					end
 					default: next_pc = raise_illegal_instruction(pc, inst);
