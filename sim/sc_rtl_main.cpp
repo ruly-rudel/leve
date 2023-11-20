@@ -10,7 +10,7 @@ int sc_main(int argc, char** argv)
 {
 	Verilated::commandArgs(argc, argv);
 
-	sc_clock clk{"clk", 10, SC_NS, 0.5, 3, SC_NS, true};
+	sc_clock clk{"clk", 10, SC_NS, 0.5, 4, SC_NS, true};
 	sc_signal < bool > rstn;
 	Vtb_rtl* tb_rtl = new Vtb_rtl{"tb_rtl"};
 	tb_rtl->CLK(clk);
@@ -29,7 +29,11 @@ int sc_main(int argc, char** argv)
 	
 	while (!Verilated::gotFinish())
 	{
-		if (sc_time_stamp() < sc_time(10, SC_NS))
+		if (sc_time_stamp() < sc_time(1, SC_NS))
+		{
+			rstn = !0;
+		}
+		else if (sc_time_stamp() < sc_time(10, SC_NS))
 		{
 			rstn = !1;
 		}
