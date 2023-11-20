@@ -5,6 +5,41 @@ function [`XLEN-1:0] s32to64(input logic [31:0] in);
 	return {{32{in[31]}}, in};
 endfunction
 
+typedef union packed
+{
+	logic [`XLEN-1:0]	word;
+	struct packed
+	{
+		logic			sd;
+		logic [24:0]		reserved1;
+		logic			mbe;
+		logic			sbe;
+		logic [1:0]		sxl;
+		logic [1:0]		uxl;
+		logic [8:0]		reserved2;
+		logic			tsr;
+		logic			tw;
+		logic			tvm;
+		logic			mxr;
+		logic			sum;
+		logic			mprv;
+		logic [1:0]		xs;
+		logic [1:0]		fs;
+		logic [1:0]		mpp;
+		logic [1:0]		vs;
+		logic			spp;
+		logic			mpie;
+		logic			ube;
+		logic			spie;
+		logic			reserved3;
+		logic			mie;
+		logic			reserved4;
+		logic			sie;
+		logic			reserved5;
+	} member;
+} mstatus_t;
+
+
 module LEVE1_EX
 (
 	input				CLK,
@@ -39,9 +74,7 @@ module LEVE1_EX
 	// stage 2
 	logic [4:0]		rs1;
 	logic [4:0]		rs2;
-	logic [4:0]		rs3;
 	logic [`XLEN-1:0]	imm_i;
-	logic [`XLEN-1:0]	imm_s;
 	logic [`XLEN-1:0]	imm_b;
 	logic [`XLEN-1:0]	imm_u;
 	logic [`XLEN-1:0]	uimm_w;
@@ -56,6 +89,7 @@ module LEVE1_EX
 	logic [`XLEN-1:0]	next_pc;
 
 	// mstatus
+	mstatus_t		mstatus;
 	logic			sie;
 	logic			mie;
 	logic			spie;
@@ -86,7 +120,6 @@ module LEVE1_EX
 		rs1	= IINSTR[19:15];
 		rs2	= IINSTR[24:20];
 		imm_i	= {{20+32{IINSTR[31]}}, IINSTR[31:20]};
-		imm_s	= {{20+32{IINSTR[31]}}, IINSTR[31:25], IINSTR[11:7]};
 		imm_b	= {{19+32{IINSTR[31]}}, IINSTR[31], IINSTR[7], IINSTR[30:25], IINSTR[11:8], 1'b0};
 		imm_u	= {{   32{IINSTR[31]}}, IINSTR[31:12], 12'h000};
 		uimm_w	= {{`XLEN-5{1'b0}}, IINSTR[19:15]};
