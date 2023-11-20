@@ -2,7 +2,6 @@
 `include "defs.vh"
 `include "ELF.sv"
 `include "FRAG_MEMORY.sv"
-`include "AXI.sv"
 
 module TB_RAM
 (

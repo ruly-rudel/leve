@@ -35,5 +35,6 @@
 *.swp
 *.log
 *.vcd
+*.gtkw
 *~
 obj_dir

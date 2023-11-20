@@ -1,6 +1,5 @@
 
 `include "defs.vh"
-`include "AXI.sv"
 
 parameter IB_WAY = 2;
 
