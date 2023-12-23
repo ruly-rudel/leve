@@ -54,7 +54,7 @@ module LEVE1_EX
 	input [31:0]			IINSTR,
 	input [`XLEN-1:0]		IRS1,
 	input [`XLEN-1:0]		IRS2,
-	CSRIF.target			CSRIF,
+	CSRIF.target			ICSR,
 
 	output logic [`XLEN-1:0]	FWD_RD,
 	output logic [`XLEN-1:0]	FWD_CSRD,
@@ -124,27 +124,27 @@ module LEVE1_EX
 		csr_cmd	= inst.mret() ? `CSR_WRITE : 
 			  inst.opcode() == 7'b11_100_11 ? inst.funct3_1_0() : `CSR_NONE;
 
-		sie	= CSRIF.sie();
-		mie	= CSRIF.mie();
-		spie	= CSRIF.spie();
-		ube	= CSRIF.ube();
-		mpie	= CSRIF.mpie();
-		spp	= CSRIF.spp();
-		vs	= CSRIF.vs();
-		mpp	= CSRIF.mpp();
-		fs	= CSRIF.fs();
-		xs	= CSRIF.xs();
-		mprv	= CSRIF.mprv();
-		sum	= CSRIF.sum();
-		mxr	= CSRIF.mxr();
-		tvm	= CSRIF.tvm();
-		tw	= CSRIF.tw();
-		tsr	= CSRIF.tsr();
-		uxl	= CSRIF.uxl();
-		sxl	= CSRIF.sxl();
-		sbe	= CSRIF.sbe();
-		mbe	= CSRIF.mbe();
-		sd	= CSRIF.sd();
+		sie	= ICSR.sie();
+		mie	= ICSR.mie();
+		spie	= ICSR.spie();
+		ube	= ICSR.ube();
+		mpie	= ICSR.mpie();
+		spp	= ICSR.spp();
+		vs	= ICSR.vs();
+		mpp	= ICSR.mpp();
+		fs	= ICSR.fs();
+		xs	= ICSR.xs();
+		mprv	= ICSR.mprv();
+		sum	= ICSR.sum();
+		mxr	= ICSR.mxr();
+		tvm	= ICSR.tvm();
+		tw	= ICSR.tw();
+		tsr	= ICSR.tsr();
+		uxl	= ICSR.uxl();
+		sxl	= ICSR.sxl();
+		sbe	= ICSR.sbe();
+		mbe	= ICSR.mbe();
+		sd	= ICSR.sd();
 	end
 
 	logic id_we;
@@ -315,28 +315,28 @@ module LEVE1_EX
 				end
 				*/
 				3'b001: begin		// CSRRW
-						FWD_RD		= CSRIF.RCSR;
+						FWD_RD		= ICSR.RCSR;
 						FWD_CSRD	= IRS1;
 				end
 				3'b010: begin		// CSRRS
-						FWD_RD		= CSRIF.RCSR;
-						FWD_CSRD	= CSRIF.RCSR | IRS1;
+						FWD_RD		= ICSR.RCSR;
+						FWD_CSRD	= ICSR.RCSR | IRS1;
 				end
 				3'b011: begin		// CSRRC
-						FWD_RD		= CSRIF.RCSR;
-						FWD_CSRD	= CSRIF.RCSR & ~IRS1;
+						FWD_RD		= ICSR.RCSR;
+						FWD_CSRD	= ICSR.RCSR & ~IRS1;
 				end
 				3'b101: begin		// CSRRWI
-						FWD_RD		= CSRIF.RCSR;
+						FWD_RD		= ICSR.RCSR;
 						FWD_CSRD	= uimm_w;
 				end
 				3'b110: begin		// CSRRSI
-						FWD_RD		= CSRIF.RCSR;
-						FWD_CSRD	= CSRIF.RCSR | uimm_w;
+						FWD_RD		= ICSR.RCSR;
+						FWD_CSRD	= ICSR.RCSR | uimm_w;
 				end
 				3'b111: begin		// CSRRCI
-						FWD_RD		= CSRIF.RCSR;
-						FWD_CSRD	= CSRIF.RCSR & ~uimm_w;
+						FWD_RD		= ICSR.RCSR;
+						FWD_CSRD	= ICSR.RCSR & ~uimm_w;
 				end
 				default:	id_we	= 1'b0;
 				endcase

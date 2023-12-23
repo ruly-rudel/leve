@@ -7,8 +7,7 @@ module LEVE1_CSR
 	input logic			RSTn,
 
 	input [11:0]			CSR_RA,
-	output [`XLEN-1:0]		CSR_RD,
-	CSRIF.init			CSRIF,
+	CSRIF.init			OCSR,
 
 	input [1:0]			CSR_WCMD,
 	input [11:0]			CSR_WA,
@@ -109,16 +108,13 @@ module LEVE1_CSR
 
 	always_ff @(posedge CLK or negedge RSTn)  begin
 		if(RSTn) begin
-			CSR_RD <= read_csr(CSR_RA);
+			OCSR.RCSR    <= read_csr(CSR_RA);
+			OCSR.MSTATUS <= read_csr(12'h300);
 		end
 	end
 
 	always_comb begin
 		csr_wd = CSR_WD;
-	end
-
-	always_comb begin
-		CSRIF.MSTATUS = read_csr(12'h300);
 	end
 
 	always_ff @(posedge CLK or negedge RSTn) begin
