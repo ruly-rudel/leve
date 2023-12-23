@@ -25,20 +25,20 @@ module LEVE1_ID
 	input [`XLEN-1:0]		FWD_CSRD,
 	// todo: add CSRIF for forwarding MSTATUS etc...
 
-	input				WB_IVALID,
-	input [`XLEN-1:0]		WB_IPC,
-	input 				WB_IWE,
-	input [31:0]			WB_IINSTR,
-	input [`XLEN-1:0]		WB_IRD,
-	input [`XLEN-1:0]		WB_ICSRD,
+	input				EX_VALID,
+	input [`XLEN-1:0]		EX_PC,
+	input 				EX_WE,
+	input [31:0]			EX_INSTR,
+	input [`XLEN-1:0]		EX_RD,
+	input [`XLEN-1:0]		EX_CSRD,
 
-	output logic			WB_OVALID,
-	output logic [`XLEN-1:0]	WB_OPC
+	output logic			WB_VALID,
+	output logic [`XLEN-1:0]	WB_PC
 
 );
 	INST	inst_id(.INSTR(IF_INSTR));
 	INST	inst_ex(.INSTR(ID_INSTR));
-	INST	inst_wb(.INSTR(WB_IINSTR));
+	INST	inst_wb(.INSTR(EX_INSTR));
 
 	// stage 2
 	logic			ex_valid;
@@ -52,7 +52,7 @@ module LEVE1_ID
 		csr_ra		= inst_id.mret() ? 12'h300 : inst_id.csr();
 		csr_wa		= inst_wb.mret() ? 12'h300 : inst_wb.csr();
 		csr_wcmd	= inst_wb.mret() ? `CSR_WRITE :
-				  WB_IVALID && inst_wb.opcode() == 7'b11_100_11 ? inst_wb.funct3_1_0() : `CSR_NONE;
+				  EX_VALID && inst_wb.opcode() == 7'b11_100_11 ? inst_wb.funct3_1_0() : `CSR_NONE;
 	end
 
 	assign IF_READY = 1'b1;
@@ -67,7 +67,7 @@ module LEVE1_ID
 
 		.CSR_WCMD	(csr_wcmd),
 		.CSR_WA		(csr_wa),
-		.CSR_WD		(WB_ICSRD),
+		.CSR_WD		(EX_CSRD),
 
 		.RETIRE		(1'b1)
 	);
@@ -82,29 +82,29 @@ module LEVE1_ID
 			ID_INSTR	<= IF_INSTR;
 			ID_RS1	<= inst_id.rs1() == 5'h00 ? '0 :
 				   ex_valid && inst_id.rs1() == inst_ex.rd0() ? FWD_RD :
-				   WB_IWE   && inst_id.rs1() == inst_wb.rd0() ? WB_IRD :
+				   EX_WE   && inst_id.rs1() == inst_wb.rd0() ? EX_RD :
 				   reg_file[inst_id.rs1()];
 			ID_RS2	<= inst_id.rs2() == 5'h00 ? '0 :
 				   ex_valid && inst_id.rs2() == inst_ex.rd0() ? FWD_RD :
-				   WB_IWE   && inst_id.rs2() == inst_wb.rd0() ? WB_IRD :
+				   EX_WE   && inst_id.rs2() == inst_wb.rd0() ? EX_RD :
 				   reg_file[inst_id.rs2()];
 		end
 	end
 
 	always_ff @(posedge CLK or negedge RSTn) begin
-		if(RSTn && WB_IWE) begin
+		if(RSTn && EX_WE) begin
 			if(inst_wb.rd0() != 5'h00) begin
-				reg_file[inst_wb.rd0()] <= WB_IRD;
+				reg_file[inst_wb.rd0()] <= EX_RD;
 			end
 		end
 	end
 
 	always_ff @(posedge CLK or negedge RSTn) begin
 		if(!RSTn) begin
-			WB_OVALID	<= 1'b0;
+			WB_VALID	<= 1'b0;
 		end else begin
-			WB_OVALID	<= WB_IVALID;
-			WB_OPC		<= WB_IPC;
+			WB_VALID	<= EX_VALID;
+			WB_PC		<= EX_PC;
 		end
 	end
 

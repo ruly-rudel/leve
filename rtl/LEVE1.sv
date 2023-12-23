@@ -74,15 +74,15 @@ module LEVE1
 		.FWD_RD		(fwd_rd),
 		.FWD_CSRD	(fwd_csrd),
 
-		.WB_IVALID	(ex_valid),
-		.WB_IPC		(ex_pc),
-		.WB_IINSTR	(ex_instr),
-		.WB_IWE		(ex_we),
-		.WB_IRD		(ex_rd),
-		.WB_ICSRD	(ex_csrd),
+		.EX_VALID	(ex_valid),
+		.EX_PC		(ex_pc),
+		.EX_INSTR	(ex_instr),
+		.EX_WE		(ex_we),
+		.EX_RD		(ex_rd),
+		.EX_CSRD	(ex_csrd),
 
-		.WB_OVALID	(wb_valid),
-		.WB_OPC		(wb_pc)
+		.WB_VALID	(wb_valid),
+		.WB_PC		(wb_pc)
 	);
 
 	LEVE1_EX	LEVE1_EX
