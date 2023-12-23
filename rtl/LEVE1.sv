@@ -47,11 +47,11 @@ module LEVE1
 	logic [31:0]		ex_instr;
 	logic [`XLEN-1:0]	fwd_rd;
 	logic [`XLEN-1:0]	fwd_csrd;
-	logic 			wb_we;
-	logic [`XLEN-1:0]	wb_rd;
+	logic 			ex_we;
+	logic [`XLEN-1:0]	ex_rd;
 	logic 			wb_valid;
 	logic [`XLEN-1:0]	wb_pc;
-	logic [`XLEN-1:0]	wb_csrd;
+	logic [`XLEN-1:0]	ex_csrd;
 	LEVE1_ID	LEVE1_ID
 	(
 		.CLK		(CLK),
@@ -77,9 +77,9 @@ module LEVE1
 		.WB_IVALID	(ex_valid),
 		.WB_IPC		(ex_pc),
 		.WB_IINSTR	(ex_instr),
-		.WB_IWE		(wb_we),
-		.WB_IRD		(wb_rd),
-		.WB_ICSRD	(wb_csrd),
+		.WB_IWE		(ex_we),
+		.WB_IRD		(ex_rd),
+		.WB_ICSRD	(ex_csrd),
 
 		.WB_OVALID	(wb_valid),
 		.WB_OPC		(wb_pc)
@@ -112,9 +112,9 @@ module LEVE1
 		.EX_NEXT_PC	(next_pc),
 		.OFLASH		(flash),
 
-		.WB_WE		(wb_we),
-		.WB_RD		(wb_rd),
-		.WB_CSRD	(wb_csrd)
+		.EX_WE		(ex_we),
+		.EX_RD		(ex_rd),
+		.EX_CSRD	(ex_csrd)
 	);
 
 	assign PC_EN	= wb_valid;

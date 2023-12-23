@@ -67,9 +67,9 @@ module LEVE1_EX
 	output logic [`XLEN-1:0]	EX_NEXT_PC,
 	output logic			OFLASH,
 
-	output logic			WB_WE,
-	output logic [`XLEN-1:0]	WB_RD,
-	output logic [`XLEN-1:0]	WB_CSRD
+	output logic			EX_WE,
+	output logic [`XLEN-1:0]	EX_RD,
+	output logic [`XLEN-1:0]	EX_CSRD
 );
 	// stage 2
 	logic [4:0]		rs1;
@@ -511,9 +511,9 @@ module LEVE1_EX
 			EX_PC		<= ID_PC;
 			EX_INSTR	<= ID_INSTR;
 
-			WB_WE	<= id_we;
-			WB_RD	<= FWD_RD;
-			WB_CSRD	<= FWD_CSRD;
+			EX_WE		<= id_we;
+			EX_RD		<= FWD_RD;
+			EX_CSRD		<= FWD_CSRD;
 		end
 	end
 	always_comb begin
