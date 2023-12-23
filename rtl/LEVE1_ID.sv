@@ -6,10 +6,10 @@ module LEVE1_ID
 	input				CLK,
 	input		 		RSTn,
 
-	input				IVALID,
-	output				IREADY,
-	input [`XLEN-1:0]		IPC,
-	input [31:0]			IINSTR,
+	input				IF_VALID,
+	output				IF_READY,
+	input [`XLEN-1:0]		IF_PC,
+	input [31:0]			IF_INSTR,
 
 	input				IFLASH,
 
@@ -36,7 +36,7 @@ module LEVE1_ID
 	output logic [`XLEN-1:0]	WB_OPC
 
 );
-	INST	inst_id(.INSTR(IINSTR));
+	INST	inst_id(.INSTR(IF_INSTR));
 	INST	inst_ex(.INSTR(OINSTR));
 	INST	inst_wb(.INSTR(WB_IINSTR));
 
@@ -55,7 +55,7 @@ module LEVE1_ID
 				  WB_IVALID && inst_wb.opcode() == 7'b11_100_11 ? inst_wb.funct3_1_0() : `CSR_NONE;
 	end
 
-	assign IREADY = 1'b1;
+	assign IF_READY = 1'b1;
 
 	LEVE1_CSR	LEVE1_CSR
 	(
@@ -78,9 +78,9 @@ module LEVE1_ID
 		if(!RSTn) begin
 			OVALID	<= 1'b0;
 		end else begin
-			OVALID	<= IVALID && IREADY && !IFLASH;
-			OPC	<= IPC;
-			OINSTR	<= IINSTR;
+			OVALID	<= IF_VALID && IF_READY && !IFLASH;
+			OPC	<= IF_PC;
+			OINSTR	<= IF_INSTR;
 			RS1	<= inst_id.rs1() == 5'h00 ? '0 :
 				   ex_valid && inst_id.rs1() == inst_ex.rd0() ? FWD_RD :
 				   WB_IWE   && inst_id.rs1() == inst_wb.rd0() ? WB_IRD :

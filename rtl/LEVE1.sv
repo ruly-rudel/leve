@@ -57,10 +57,10 @@ module LEVE1
 		.CLK		(CLK),
 		.RSTn		(RSTn),
 
-		.IVALID		(if_valid),
-		.IREADY		(if_ready),
-		.IPC		(if_pc),
-		.IINSTR		(if_instr),
+		.IF_VALID	(if_valid),
+		.IF_READY	(if_ready),
+		.IF_PC		(if_pc),
+		.IF_INSTR	(if_instr),
 
 		.IFLASH		(flash),
 
