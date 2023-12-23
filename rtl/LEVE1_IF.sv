@@ -83,7 +83,7 @@ module LEVE1_IF
 		end
 
 		miss = ~hit;
-		miss_sel = $bits(miss_sel)'(hit_sel + '1);
+		miss_sel = $bits(miss_sel)'(hit_sel + 1'b1);
 
 		instr = ibuf[hit_sel].data.w32[pc[5:2]];
 	end
@@ -129,7 +129,7 @@ module LEVE1_IF
 		if(!RSTn) begin
 			OVALID	<= 1'b0;
 		end else begin
-			OVALID	<= hit & !IPC_WE;
+			OVALID	<= hit && !IPC_WE;
 			OPC	<= pc;
 			OINSTR	<= instr;
 		end

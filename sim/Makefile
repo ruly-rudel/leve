@@ -6,7 +6,7 @@ lint:	$(wildcard ../rtl/*.sv)
 	verilator --lint-only --Wall --timing -I../conf -I../rtl ../rtl/LEVE1.sv
 
 obj_dir/Vtb_rtl:	$(RTL_SRC)
-	verilator --sc --trace --timing --exe --build -I../conf -I../iss -I../rtl sc_rtl_main.cpp tb_rtl.sv ../rtl/LEVE1.sv
+	verilator --sc --trace --timing --exe --build -DDEBUG -I../conf -I../iss -I../rtl sc_rtl_main.cpp tb_rtl.sv ../rtl/LEVE1.sv
 
 obj_dir/Vtb_iss:	$(ISS_SRC)
 	verilator --sc --exe --build -I../conf -I../iss sc_main.cpp tb_iss.sv ../iss/RV64GC_ISS.sv

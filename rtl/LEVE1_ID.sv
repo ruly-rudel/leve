@@ -107,4 +107,11 @@ module LEVE1_ID
 		end
 	end
 
+`ifdef DEBUG
+	wire [4:0]	inst_wb_rs1, inst_wb_rs2, inst_wb_rd0;
+	assign inst_wb_rs1 = inst_wb.rs1();
+	assign inst_wb_rs2 = inst_wb.rs2();
+	assign inst_wb_rd0 = inst_wb.rd0();
+`endif
+
 endmodule

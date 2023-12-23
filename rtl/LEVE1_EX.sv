@@ -148,10 +148,12 @@ module LEVE1_EX
 	end
 
 	logic id_we;
+	logic taken;
 	logic [127:0] tmp128;
 	always_comb begin
 						next_pc = IPC + 'h4;
 						id_we	= IVALID;
+						taken	= 1'b0;
 		case(op)
 		2'b11: begin
 			case (inst.opcode())
@@ -163,8 +165,8 @@ module LEVE1_EX
 						FWD_RD	= IRS1 << shamt;
 					default:id_we	= 1'b0;
 					endcase
-				3'b010:		FWD_RD	= $signed(IRS1) < $signed(imm_i) ? '1 : '0;
-				3'b011:		FWD_RD	= IRS1 < imm_i ? '1 : '0;
+				3'b010:		FWD_RD	= $signed(IRS1) < $signed(imm_i) ? 'b1 : '0;
+				3'b011:		FWD_RD	= IRS1 < imm_i ? 'b1 : '0;
 				3'b100:		FWD_RD	= IRS1 ^ imm_i;
 				3'b101: case (inst.funct7_6_1())
 					6'b000000:
@@ -182,12 +184,30 @@ module LEVE1_EX
 			7'b11_000_11: begin	// BRANCH
 						id_we	= '0;
 				case (inst.funct3())
-				3'b000: next_pc = IRS1 == IRS2 ? IPC + imm_b : IPC + 'h4;	// BEQ
-				3'b001: next_pc = IRS1 != IRS2 ? IPC + imm_b : IPC + 'h4;
-				3'b100: next_pc = $signed(IRS1) < $signed(IRS2) ? IPC + imm_b : IPC + 'h4;	// BLT
-				3'b101: next_pc = $signed(IRS1) >= $signed(IRS2) ? IPC + imm_b : IPC + 'h4;	// BGE
-				3'b110: next_pc = IRS1 < IRS2 ? IPC + imm_b : IPC + 'h4;	// BLTU
-				3'b111: next_pc = IRS1 >= IRS2 ? IPC + imm_b : IPC + 'h4;	// BGEU
+				3'b000: begin
+					taken   = IRS1 == IRS2;
+					next_pc = taken ? IPC + imm_b : IPC + 'h4;	// BEQ
+				end
+				3'b001: begin
+					taken   = IRS1 != IRS2;
+					next_pc = taken ? IPC + imm_b : IPC + 'h4;
+				end
+				3'b100: begin
+					taken   = $signed(IRS1) < $signed(IRS2);
+					next_pc = taken ? IPC + imm_b : IPC + 'h4;	// BLT
+				end
+				3'b101: begin
+					taken   = $signed(IRS1) >= $signed(IRS2);
+					next_pc = taken ? IPC + imm_b : IPC + 'h4;	// BGE
+				end
+				3'b110:begin
+					taken   = IRS1 < IRS2;
+					next_pc = taken ? IPC + imm_b : IPC + 'h4;	// BLTU
+				end
+				3'b111: begin
+					taken   = IRS1 >= IRS2;
+					next_pc = taken ? IPC + imm_b : IPC + 'h4;	// BGEU
+				end
 				default: next_pc = IPC + 'h4;
 				endcase
 			end
@@ -498,7 +518,7 @@ module LEVE1_EX
 	end
 	always_comb begin
 			ONEXT_PC= next_pc;
-		if(IF_VALID && IF_READY && IVALID && IF_PC != next_pc) begin
+		if(IVALID && taken) begin
 			OPC_WE  = 1'b1;
 			OFLASH  = 1'b1;
 		end else begin
