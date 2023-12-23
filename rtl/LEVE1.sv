@@ -94,12 +94,12 @@ module LEVE1
 		.IF_READY	(if_ready),
 		.IF_PC		(if_pc),
 
-		.IVALID		(id_valid),
-		.IPC		(id_pc),
-		.IINSTR		(id_instr),
-		.IRS1		(id_rs1),
-		.IRS2		(id_rs2),
-		.ICSR		(id_csr),
+		.ID_VALID	(id_valid),
+		.ID_PC		(id_pc),
+		.ID_INSTR	(id_instr),
+		.ID_RS1		(id_rs1),
+		.ID_RS2		(id_rs2),
+		.ID_CSR		(id_csr),
 
 		.FWD_RD		(fwd_rd),
 		.FWD_CSRD	(fwd_csrd),

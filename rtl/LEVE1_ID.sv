@@ -63,7 +63,6 @@ module LEVE1_ID
 		.RSTn		(RSTn),
 
 		.CSR_RA		(csr_ra),
-//		.CSR_RD		(CSR.RCSR),
 		.OCSR		(ID_CSR),
 
 		.CSR_WCMD	(csr_wcmd),

@@ -49,12 +49,12 @@ module LEVE1_EX
 	input				IF_READY,
 	input [`XLEN-1:0]		IF_PC,
 
-	input				IVALID,
-	input [`XLEN-1:0]		IPC,
-	input [31:0]			IINSTR,
-	input [`XLEN-1:0]		IRS1,
-	input [`XLEN-1:0]		IRS2,
-	CSRIF.target			ICSR,
+	input				ID_VALID,
+	input [`XLEN-1:0]		ID_PC,
+	input [31:0]			ID_INSTR,
+	input [`XLEN-1:0]		ID_RS1,
+	input [`XLEN-1:0]		ID_RS2,
+	CSRIF.target			ID_CSR,
 
 	output logic [`XLEN-1:0]	FWD_RD,
 	output logic [`XLEN-1:0]	FWD_CSRD,
@@ -111,72 +111,72 @@ module LEVE1_EX
 	logic			mbe;
 	logic			sd;
 
-	INST inst(.INSTR(IINSTR));
+	INST inst(.INSTR(ID_INSTR));
 
 	always_comb begin
-		op	= IINSTR[1:0];
-		imm_i	= {{20+32{IINSTR[31]}}, IINSTR[31:20]};
-		imm_b	= {{19+32{IINSTR[31]}}, IINSTR[31], IINSTR[7], IINSTR[30:25], IINSTR[11:8], 1'b0};
-		imm_u	= {{   32{IINSTR[31]}}, IINSTR[31:12], 12'h000};
-		uimm_w	= {{`XLEN-5{1'b0}}, IINSTR[19:15]};
+		op	= ID_INSTR[1:0];
+		imm_i	= {{20+32{ID_INSTR[31]}}, ID_INSTR[31:20]};
+		imm_b	= {{19+32{ID_INSTR[31]}}, ID_INSTR[31], ID_INSTR[7], ID_INSTR[30:25], ID_INSTR[11:8], 1'b0};
+		imm_u	= {{   32{ID_INSTR[31]}}, ID_INSTR[31:12], 12'h000};
+		uimm_w	= {{`XLEN-5{1'b0}}, ID_INSTR[19:15]};
 		shamt	= imm_i[5:0];
 
 		csr_cmd	= inst.mret() ? `CSR_WRITE : 
 			  inst.opcode() == 7'b11_100_11 ? inst.funct3_1_0() : `CSR_NONE;
 
-		sie	= ICSR.sie();
-		mie	= ICSR.mie();
-		spie	= ICSR.spie();
-		ube	= ICSR.ube();
-		mpie	= ICSR.mpie();
-		spp	= ICSR.spp();
-		vs	= ICSR.vs();
-		mpp	= ICSR.mpp();
-		fs	= ICSR.fs();
-		xs	= ICSR.xs();
-		mprv	= ICSR.mprv();
-		sum	= ICSR.sum();
-		mxr	= ICSR.mxr();
-		tvm	= ICSR.tvm();
-		tw	= ICSR.tw();
-		tsr	= ICSR.tsr();
-		uxl	= ICSR.uxl();
-		sxl	= ICSR.sxl();
-		sbe	= ICSR.sbe();
-		mbe	= ICSR.mbe();
-		sd	= ICSR.sd();
+		sie	= ID_CSR.sie();
+		mie	= ID_CSR.mie();
+		spie	= ID_CSR.spie();
+		ube	= ID_CSR.ube();
+		mpie	= ID_CSR.mpie();
+		spp	= ID_CSR.spp();
+		vs	= ID_CSR.vs();
+		mpp	= ID_CSR.mpp();
+		fs	= ID_CSR.fs();
+		xs	= ID_CSR.xs();
+		mprv	= ID_CSR.mprv();
+		sum	= ID_CSR.sum();
+		mxr	= ID_CSR.mxr();
+		tvm	= ID_CSR.tvm();
+		tw	= ID_CSR.tw();
+		tsr	= ID_CSR.tsr();
+		uxl	= ID_CSR.uxl();
+		sxl	= ID_CSR.sxl();
+		sbe	= ID_CSR.sbe();
+		mbe	= ID_CSR.mbe();
+		sd	= ID_CSR.sd();
 	end
 
 	logic id_we;
 	logic taken;
 	logic [127:0] tmp128;
 	always_comb begin
-						next_pc = IPC + 'h4;
-						id_we	= IVALID;
+						next_pc = ID_PC + 'h4;
+						id_we	= ID_VALID;
 						taken	= 1'b0;
 		case(op)
 		2'b11: begin
 			case (inst.opcode())
 			7'b00_100_11: begin	// OP-IMM
 				case (inst.funct3())
-				3'b000: 	FWD_RD	= IRS1 + imm_i;
+				3'b000: 	FWD_RD	= ID_RS1 + imm_i;
 				3'b001: case (inst.funct7_6_1())
 					6'b000000:
-						FWD_RD	= IRS1 << shamt;
+						FWD_RD	= ID_RS1 << shamt;
 					default:id_we	= 1'b0;
 					endcase
-				3'b010:		FWD_RD	= $signed(IRS1) < $signed(imm_i) ? 'b1 : '0;
-				3'b011:		FWD_RD	= IRS1 < imm_i ? 'b1 : '0;
-				3'b100:		FWD_RD	= IRS1 ^ imm_i;
+				3'b010:		FWD_RD	= $signed(ID_RS1) < $signed(imm_i) ? 'b1 : '0;
+				3'b011:		FWD_RD	= ID_RS1 < imm_i ? 'b1 : '0;
+				3'b100:		FWD_RD	= ID_RS1 ^ imm_i;
 				3'b101: case (inst.funct7_6_1())
 					6'b000000:
-						FWD_RD	= IRS1 >> shamt;
+						FWD_RD	= ID_RS1 >> shamt;
 					6'b010000:
-					       	FWD_RD	= $signed(IRS1) >>> shamt;
+					       	FWD_RD	= $signed(ID_RS1) >>> shamt;
 					default:id_we	= 0;
 					endcase
-				3'b110:		FWD_RD	= IRS1 | imm_i;
-				3'b111:		FWD_RD	= IRS1 & imm_i;
+				3'b110:		FWD_RD	= ID_RS1 | imm_i;
+				3'b111:		FWD_RD	= ID_RS1 & imm_i;
 				default:	id_we	= 0;
 				endcase
 			end
@@ -185,35 +185,35 @@ module LEVE1_EX
 						id_we	= '0;
 				case (inst.funct3())
 				3'b000: begin
-					taken   = IRS1 == IRS2;
-					next_pc = taken ? IPC + imm_b : IPC + 'h4;	// BEQ
+					taken   = ID_RS1 == ID_RS2;
+					next_pc = taken ? ID_PC + imm_b : ID_PC + 'h4;	// BEQ
 				end
 				3'b001: begin
-					taken   = IRS1 != IRS2;
-					next_pc = taken ? IPC + imm_b : IPC + 'h4;
+					taken   = ID_RS1 != ID_RS2;
+					next_pc = taken ? ID_PC + imm_b : ID_PC + 'h4;
 				end
 				3'b100: begin
-					taken   = $signed(IRS1) < $signed(IRS2);
-					next_pc = taken ? IPC + imm_b : IPC + 'h4;	// BLT
+					taken   = $signed(ID_RS1) < $signed(ID_RS2);
+					next_pc = taken ? ID_PC + imm_b : ID_PC + 'h4;	// BLT
 				end
 				3'b101: begin
-					taken   = $signed(IRS1) >= $signed(IRS2);
-					next_pc = taken ? IPC + imm_b : IPC + 'h4;	// BGE
+					taken   = $signed(ID_RS1) >= $signed(ID_RS2);
+					next_pc = taken ? ID_PC + imm_b : ID_PC + 'h4;	// BGE
 				end
 				3'b110:begin
-					taken   = IRS1 < IRS2;
-					next_pc = taken ? IPC + imm_b : IPC + 'h4;	// BLTU
+					taken   = ID_RS1 < ID_RS2;
+					next_pc = taken ? ID_PC + imm_b : ID_PC + 'h4;	// BLTU
 				end
 				3'b111: begin
-					taken   = IRS1 >= IRS2;
-					next_pc = taken ? IPC + imm_b : IPC + 'h4;	// BGEU
+					taken   = ID_RS1 >= ID_RS2;
+					next_pc = taken ? ID_PC + imm_b : ID_PC + 'h4;	// BGEU
 				end
-				default: next_pc = IPC + 'h4;
+				default: next_pc = ID_PC + 'h4;
 				endcase
 			end
 
 			7'b11_100_11: begin	// SYSTEM
-						id_we	= IVALID;
+						id_we	= ID_VALID;
 				case (inst.funct3())
 				3'b000: begin
 					case (inst.funct7())
@@ -230,10 +230,10 @@ module LEVE1_EX
 						//	next_pc = csr_c.mret();	// mepc
 						end
 						default:
-							next_pc = IPC + 'h4;
+							next_pc = ID_PC + 'h4;
 						endcase
 					end
-					default:	next_pc = IPC + 'h4;
+					default:	next_pc = ID_PC + 'h4;
 					endcase
 				end
 				/*
@@ -315,60 +315,60 @@ module LEVE1_EX
 				end
 				*/
 				3'b001: begin		// CSRRW
-						FWD_RD		= ICSR.RCSR;
-						FWD_CSRD	= IRS1;
+						FWD_RD		= ID_CSR.RCSR;
+						FWD_CSRD	= ID_RS1;
 				end
 				3'b010: begin		// CSRRS
-						FWD_RD		= ICSR.RCSR;
-						FWD_CSRD	= ICSR.RCSR | IRS1;
+						FWD_RD		= ID_CSR.RCSR;
+						FWD_CSRD	= ID_CSR.RCSR | ID_RS1;
 				end
 				3'b011: begin		// CSRRC
-						FWD_RD		= ICSR.RCSR;
-						FWD_CSRD	= ICSR.RCSR & ~IRS1;
+						FWD_RD		= ID_CSR.RCSR;
+						FWD_CSRD	= ID_CSR.RCSR & ~ID_RS1;
 				end
 				3'b101: begin		// CSRRWI
-						FWD_RD		= ICSR.RCSR;
+						FWD_RD		= ID_CSR.RCSR;
 						FWD_CSRD	= uimm_w;
 				end
 				3'b110: begin		// CSRRSI
-						FWD_RD		= ICSR.RCSR;
-						FWD_CSRD	= ICSR.RCSR | uimm_w;
+						FWD_RD		= ID_CSR.RCSR;
+						FWD_CSRD	= ID_CSR.RCSR | uimm_w;
 				end
 				3'b111: begin		// CSRRCI
-						FWD_RD		= ICSR.RCSR;
-						FWD_CSRD	= ICSR.RCSR & ~uimm_w;
+						FWD_RD		= ID_CSR.RCSR;
+						FWD_CSRD	= ID_CSR.RCSR & ~uimm_w;
 				end
 				default:	id_we	= 1'b0;
 				endcase
 			end
 
-			7'b00_101_11: begin	// AUIPC
-						id_we	= IVALID;
-						FWD_RD	= IPC + imm_u;
+			7'b00_101_11: begin	// AUID_PC
+						id_we	= ID_VALID;
+						FWD_RD	= ID_PC + imm_u;
 			end
 
 			7'b01_101_11: begin	// LUI
-						id_we	= IVALID;
+						id_we	= ID_VALID;
 						FWD_RD  = imm_u;
 			end
 
 			7'b00_110_11: begin	// OP-IMM-32
-						id_we	= IVALID;
+						id_we	= ID_VALID;
 				case (inst.funct3())
-				3'b000: FWD_RD	= s32to64(IRS1[31:0] + imm_i[31:0]);	// ADDIW
+				3'b000: FWD_RD	= s32to64(ID_RS1[31:0] + imm_i[31:0]);	// ADDIW
 				3'b001: begin
 					case (inst.funct7())
 					7'b0000000:
-						FWD_RD	= s32to64(IRS1[31:0] << shamt[4:0]); // SLLIW
+						FWD_RD	= s32to64(ID_RS1[31:0] << shamt[4:0]); // SLLIW
 					default:id_we	= 1'b0;
 					endcase
 				end
 				3'b101: begin
 					case (inst.funct7())
 					7'b0000000:
-						FWD_RD	= s32to64(IRS1[31:0] >> shamt[4:0]); // SRLIW
+						FWD_RD	= s32to64(ID_RS1[31:0] >> shamt[4:0]); // SRLIW
 					7'b0100000:
-						FWD_RD	= s32to64($signed(IRS1[31:0]) >>> shamt[4:0]); // SRAIW
+						FWD_RD	= s32to64($signed(ID_RS1[31:0]) >>> shamt[4:0]); // SRAIW
 					default:id_we	= 1'b0;
 					endcase
 				end
@@ -379,25 +379,25 @@ module LEVE1_EX
 			default:		id_we	= 1'b0;
 
 			7'b01_100_11: begin	// OP
-						id_we	= IVALID;
+						id_we	= ID_VALID;
 				case (inst.funct3())
 				3'b000: begin
 					case (inst.funct7())
 					7'b0000000: 
-						FWD_RD	= IRS1 + IRS2;	// ADD
+						FWD_RD	= ID_RS1 + ID_RS2;	// ADD
 					7'b0000001:
-						FWD_RD	= $bits(FWD_RD)'(IRS1 * IRS2);	// MUL
+						FWD_RD	= $bits(FWD_RD)'(ID_RS1 * ID_RS2);	// MUL
 					7'b0100000:
-						FWD_RD	= IRS1 - IRS2;	// SUB
+						FWD_RD	= ID_RS1 - ID_RS2;	// SUB
 					default: id_we	= 1'b0;
 					endcase
 				end
 				3'b001: begin
 					case (inst.funct7())
 					7'b0000000:
-						FWD_RD	= IRS1 << IRS2[5:0];	// SLL
+						FWD_RD	= ID_RS1 << ID_RS2[5:0];	// SLL
 					7'b0000001: begin
-						tmp128	= $signed(IRS1) * $signed(IRS2);	// MULH
+						tmp128	= $signed(ID_RS1) * $signed(ID_RS2);	// MULH
 						FWD_RD	= tmp128[`XLEN*2-1:`XLEN];
 					end
 					default: id_we	= 1'b0;
@@ -507,9 +507,9 @@ module LEVE1_EX
 		if(!RSTn) begin
 			OVALID	<= 1'b0;
 		end else begin
-			OVALID	<= IVALID;
-			OPC	<= IPC;
-			OINSTR	<= IINSTR;
+			OVALID	<= ID_VALID;
+			OPC	<= ID_PC;
+			OINSTR	<= ID_INSTR;
 
 			WB_WE	<= id_we;
 			WB_RD	<= FWD_RD;
@@ -518,7 +518,7 @@ module LEVE1_EX
 	end
 	always_comb begin
 			ONEXT_PC= next_pc;
-		if(IVALID && taken) begin
+		if(ID_VALID && taken) begin
 			OPC_WE  = 1'b1;
 			OFLASH  = 1'b1;
 		end else begin
