@@ -27,10 +27,10 @@ module LEVE1
 		.IPC_WE		(pc_we),
 		.INEXT_PC	(next_pc),
 
-		.OVALID		(if_valid),
-		.OREADY		(if_ready),
-		.OPC		(if_pc),
-		.OINSTR		(if_instr),
+		.IF_VALID	(if_valid),
+		.IF_READY	(if_ready),
+		.IF_PC		(if_pc),
+		.IF_INSTR	(if_instr),
 
 		.RII		(RII)
 	);

@@ -24,10 +24,10 @@ module LEVE1_IF
 	input				IPC_WE,
 	input [`XLEN-1:0]		INEXT_PC,
 
-	output logic			OVALID,
-	input				OREADY,
-	output logic [`XLEN-1:0]	OPC,
-	output logic [31:0]		OINSTR,
+	output logic			IF_VALID,
+	input				IF_READY,
+	output logic [`XLEN-1:0]	IF_PC,
+	output logic [31:0]		IF_INSTR,
 
 	AXIR.init			RII	// read initiator: instruction
 );
@@ -42,7 +42,7 @@ module LEVE1_IF
 			pc		<= 64'h0000_0000_8000_0000;
 		end else if(IPC_WE) begin
 				pc <= INEXT_PC;
-		end else if(hit && OREADY) begin
+		end else if(hit && IF_READY) begin
 			if(jal_s1) begin
 				pc <= $bits(pc)'(pc + imm_j_s1);
 			end else begin
@@ -127,11 +127,11 @@ module LEVE1_IF
 
 	always_ff @(posedge CLK or negedge RSTn) begin
 		if(!RSTn) begin
-			OVALID	<= 1'b0;
+			IF_VALID	<= 1'b0;
 		end else begin
-			OVALID	<= hit && !IPC_WE;
-			OPC	<= pc;
-			OINSTR	<= instr;
+			IF_VALID	<= hit && !IPC_WE;
+			IF_PC		<= pc;
+			IF_INSTR	<= instr;
 		end
 	end
 
