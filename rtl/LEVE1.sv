@@ -41,6 +41,7 @@ module LEVE1
 	logic [`XLEN-1:0]	id_rs1;
 	logic [`XLEN-1:0]	id_rs2;
 	logic [`XLEN-1:0]	id_csr;
+	CSRIF			id_csrif();
 
 	logic			ex_valid;
 	logic [`XLEN-1:0]	ex_pc;
@@ -67,9 +68,9 @@ module LEVE1
 		.OVALID		(id_valid),
 		.OPC		(id_pc),
 		.OINSTR		(id_instr),
+		.CSRIF		(id_csrif),
 		.RS1		(id_rs1),
 		.RS2		(id_rs2),
-		.RCSR		(id_csr),
 
 		.FWD_RD		(fwd_rd),
 		.FWD_CSRD	(fwd_csrd),
@@ -99,7 +100,7 @@ module LEVE1
 		.IINSTR		(id_instr),
 		.IRS1		(id_rs1),
 		.IRS2		(id_rs2),
-		.ICSR		(id_csr),
+		.CSRIF		(id_csrif),
 
 		.FWD_RD		(fwd_rd),
 		.FWD_CSRD	(fwd_csrd),

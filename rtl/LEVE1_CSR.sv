@@ -8,11 +8,11 @@ module LEVE1_CSR
 
 	input [11:0]			CSR_RA,
 	output [`XLEN-1:0]		CSR_RD,
+	CSRIF.init			CSRIF,
 
 	input [1:0]			CSR_WCMD,
 	input [11:0]			CSR_WA,
 	input [`XLEN-1:0]		CSR_WD,
-
 
 	input				RETIRE
 );
@@ -107,7 +107,6 @@ module LEVE1_CSR
 		endcase
 	endfunction
 
-
 	always_ff @(posedge CLK or negedge RSTn)  begin
 		if(RSTn) begin
 			CSR_RD <= read_csr(CSR_RA);
@@ -115,13 +114,11 @@ module LEVE1_CSR
 	end
 
 	always_comb begin
-		csr_wd_r = read_csr(CSR_WA);
-		case(CSR_WCMD)
-		`CSR_NONE:	csr_wd = '0;
-		`CSR_SET:	csr_wd = csr_wd_r |  CSR_WD;
-		`CSR_CLEAR:	csr_wd = csr_wd_r & ~CSR_WD;
-		`CSR_WRITE:	csr_wd = CSR_WD;
-		endcase
+		csr_wd = CSR_WD;
+	end
+
+	always_comb begin
+		CSRIF.MSTATUS = read_csr(12'h300);
 	end
 
 	always_ff @(posedge CLK or negedge RSTn) begin

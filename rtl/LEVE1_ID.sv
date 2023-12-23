@@ -18,11 +18,12 @@ module LEVE1_ID
 	output logic [31:0]		OINSTR,
 	output logic [`XLEN-1:0]	RS1,
 	output logic [`XLEN-1:0]	RS2,
-	output logic [`XLEN-1:0]	RCSR,
+	CSRIF.init			CSRIF,
 
 	//
 	input [`XLEN-1:0]		FWD_RD,
 	input [`XLEN-1:0]		FWD_CSRD,
+	// todo: add CSRIF for forwarding MSTATUS etc...
 
 	input				WB_IVALID,
 	input [`XLEN-1:0]		WB_IPC,
@@ -62,7 +63,8 @@ module LEVE1_ID
 		.RSTn		(RSTn),
 
 		.CSR_RA		(csr_ra),
-		.CSR_RD		(RCSR),
+		.CSR_RD		(CSRIF.RCSR),
+		.CSRIF		(CSRIF),
 
 		.CSR_WCMD	(csr_wcmd),
 		.CSR_WA		(csr_wa),
