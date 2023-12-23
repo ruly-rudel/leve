@@ -13,12 +13,12 @@ module LEVE1_ID
 
 	input				IFLASH,
 
-	output logic			OVALID,
-	output logic [`XLEN-1:0]	OPC,
-	output logic [31:0]		OINSTR,
-	output logic [`XLEN-1:0]	RS1,
-	output logic [`XLEN-1:0]	RS2,
-	CSRIF.init			OCSR,
+	output logic			ID_VALID,
+	output logic [`XLEN-1:0]	ID_PC,
+	output logic [31:0]		ID_INSTR,
+	output logic [`XLEN-1:0]	ID_RS1,
+	output logic [`XLEN-1:0]	ID_RS2,
+	CSRIF.init			ID_CSR,
 
 	//
 	input [`XLEN-1:0]		FWD_RD,
@@ -37,7 +37,7 @@ module LEVE1_ID
 
 );
 	INST	inst_id(.INSTR(IF_INSTR));
-	INST	inst_ex(.INSTR(OINSTR));
+	INST	inst_ex(.INSTR(ID_INSTR));
 	INST	inst_wb(.INSTR(WB_IINSTR));
 
 	// stage 2
@@ -48,7 +48,7 @@ module LEVE1_ID
 	logic [12-1:0]		csr_wa;
 
 	always_comb begin
-		ex_valid	= OVALID;
+		ex_valid	= ID_VALID;
 		csr_ra		= inst_id.mret() ? 12'h300 : inst_id.csr();
 		csr_wa		= inst_wb.mret() ? 12'h300 : inst_wb.csr();
 		csr_wcmd	= inst_wb.mret() ? `CSR_WRITE :
@@ -64,7 +64,7 @@ module LEVE1_ID
 
 		.CSR_RA		(csr_ra),
 //		.CSR_RD		(CSR.RCSR),
-		.OCSR		(OCSR),
+		.OCSR		(ID_CSR),
 
 		.CSR_WCMD	(csr_wcmd),
 		.CSR_WA		(csr_wa),
@@ -76,16 +76,16 @@ module LEVE1_ID
 	logic [`XLEN-1:0]	reg_file[1:`NUM_REG-1];
 	always_ff @(posedge CLK or negedge RSTn) begin
 		if(!RSTn) begin
-			OVALID	<= 1'b0;
+			ID_VALID	<= 1'b0;
 		end else begin
-			OVALID	<= IF_VALID && IF_READY && !IFLASH;
-			OPC	<= IF_PC;
-			OINSTR	<= IF_INSTR;
-			RS1	<= inst_id.rs1() == 5'h00 ? '0 :
+			ID_VALID	<= IF_VALID && IF_READY && !IFLASH;
+			ID_PC		<= IF_PC;
+			ID_INSTR	<= IF_INSTR;
+			ID_RS1	<= inst_id.rs1() == 5'h00 ? '0 :
 				   ex_valid && inst_id.rs1() == inst_ex.rd0() ? FWD_RD :
 				   WB_IWE   && inst_id.rs1() == inst_wb.rd0() ? WB_IRD :
 				   reg_file[inst_id.rs1()];
-			RS2	<= inst_id.rs2() == 5'h00 ? '0 :
+			ID_RS2	<= inst_id.rs2() == 5'h00 ? '0 :
 				   ex_valid && inst_id.rs2() == inst_ex.rd0() ? FWD_RD :
 				   WB_IWE   && inst_id.rs2() == inst_wb.rd0() ? WB_IRD :
 				   reg_file[inst_id.rs2()];

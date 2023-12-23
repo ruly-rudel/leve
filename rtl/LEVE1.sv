@@ -64,12 +64,12 @@ module LEVE1
 
 		.IFLASH		(flash),
 
-		.OVALID		(id_valid),
-		.OPC		(id_pc),
-		.OINSTR		(id_instr),
-		.OCSR		(id_csr),
-		.RS1		(id_rs1),
-		.RS2		(id_rs2),
+		.ID_VALID	(id_valid),
+		.ID_PC		(id_pc),
+		.ID_INSTR	(id_instr),
+		.ID_CSR		(id_csr),
+		.ID_RS1		(id_rs1),
+		.ID_RS2		(id_rs2),
 
 		.FWD_RD		(fwd_rd),
 		.FWD_CSRD	(fwd_csrd),
