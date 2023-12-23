@@ -104,12 +104,12 @@ module LEVE1
 		.FWD_RD		(fwd_rd),
 		.FWD_CSRD	(fwd_csrd),
 
-		.OVALID		(ex_valid),
-		.OPC		(ex_pc),
-		.OINSTR		(ex_instr),
+		.EX_VALID	(ex_valid),
+		.EX_PC		(ex_pc),
+		.EX_INSTR	(ex_instr),
 
-		.OPC_WE		(pc_we),
-		.ONEXT_PC	(next_pc),
+		.EX_PC_WE	(pc_we),
+		.EX_NEXT_PC	(next_pc),
 		.OFLASH		(flash),
 
 		.WB_WE		(wb_we),

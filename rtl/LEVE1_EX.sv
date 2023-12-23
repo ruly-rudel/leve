@@ -59,12 +59,12 @@ module LEVE1_EX
 	output logic [`XLEN-1:0]	FWD_RD,
 	output logic [`XLEN-1:0]	FWD_CSRD,
 
-	output logic			OVALID,
-	output logic [`XLEN-1:0]	OPC,
-	output logic [31:0]		OINSTR,
+	output logic			EX_VALID,
+	output logic [`XLEN-1:0]	EX_PC,
+	output logic [31:0]		EX_INSTR,
 
-	output logic			OPC_WE,
-	output logic [`XLEN-1:0]	ONEXT_PC,
+	output logic			EX_PC_WE,
+	output logic [`XLEN-1:0]	EX_NEXT_PC,
 	output logic			OFLASH,
 
 	output logic			WB_WE,
@@ -505,11 +505,11 @@ module LEVE1_EX
 
 	always_ff @(posedge CLK or negedge RSTn) begin
 		if(!RSTn) begin
-			OVALID	<= 1'b0;
+			EX_VALID	<= 1'b0;
 		end else begin
-			OVALID	<= ID_VALID;
-			OPC	<= ID_PC;
-			OINSTR	<= ID_INSTR;
+			EX_VALID	<= ID_VALID;
+			EX_PC		<= ID_PC;
+			EX_INSTR	<= ID_INSTR;
 
 			WB_WE	<= id_we;
 			WB_RD	<= FWD_RD;
@@ -517,12 +517,12 @@ module LEVE1_EX
 		end
 	end
 	always_comb begin
-			ONEXT_PC= next_pc;
+			EX_NEXT_PC= next_pc;
 		if(ID_VALID && taken) begin
-			OPC_WE  = 1'b1;
+			EX_PC_WE  = 1'b1;
 			OFLASH  = 1'b1;
 		end else begin
-			OPC_WE  = 1'b0;
+			EX_PC_WE  = 1'b0;
 			OFLASH  = 1'b0;
 		end
 	end
